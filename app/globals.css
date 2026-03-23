@@ -1,8 +1,98 @@
 @import "tailwindcss";
 
+/* —— Magicalive design system (from homepage) —— */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Core palette */
+  --ml-bg: #000000;
+  --ml-gold: #f5cc71;
+  --ml-gold-hover: #f2c24f;
+  --ml-gold-soft: rgba(245, 204, 113, 0.1);
+  --ml-gold-border: rgba(245, 204, 113, 0.25);
+  --ml-gold-border-subtle: rgba(245, 204, 113, 0.2);
+  --ml-gold-dot: rgba(245, 204, 113, 0.8);
+  --ml-gold-glow-strong: rgba(245, 204, 113, 0.18);
+  --ml-gold-glow-mid: rgba(245, 204, 113, 0.14);
+  --ml-gold-glow-soft: rgba(245, 204, 113, 0.1);
+  --ml-gold-glow-card: rgba(245, 204, 113, 0.16);
+  --ml-gold-cta-glow: rgba(245, 204, 113, 0.26);
+
+  /* Zinc text (Tailwind-aligned) */
+  --ml-text: #f4f4f5;
+  --ml-text-bright: #fafafa;
+  --ml-text-secondary: #d4d4d8;
+  --ml-text-muted: #a1a1aa;
+  --ml-text-faint: #71717a;
+  --ml-text-dim: #52525b;
+  --ml-placeholder: #71717a;
+
+  /* Surfaces & borders */
+  --ml-border: rgba(255, 255, 255, 0.1);
+  --ml-border-strong: rgba(255, 255, 255, 0.15);
+  --ml-border-hover: rgba(255, 255, 255, 0.25);
+  --ml-border-20: rgba(255, 255, 255, 0.2);
+  --ml-surface-3: rgba(255, 255, 255, 0.03);
+  --ml-surface-5: rgba(255, 255, 255, 0.05);
+  --ml-surface-7: rgba(255, 255, 255, 0.075);
+  --ml-surface-10: rgba(255, 255, 255, 0.1);
+  --ml-surface-card: rgba(0, 0, 0, 0.2);
+  --ml-surface-cta: rgba(0, 0, 0, 0.2);
+  --ml-backdrop-nav: rgba(0, 0, 0, 0.7);
+
+  /* Gradients / overlays */
+  --ml-gradient-vignette: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0),
+    rgba(0, 0, 0, 0.55),
+    rgba(0, 0, 0, 0.85)
+  );
+  --ml-gradient-card: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.02)
+  );
+
+  /* Emerald (badges) */
+  --ml-emerald-text: #a7f3d0;
+  --ml-emerald-dot: #6ee7b7;
+  --ml-emerald-border: rgba(52, 211, 153, 0.2);
+  --ml-emerald-bg: rgba(52, 211, 153, 0.1);
+
+  /* Typography scale (homepage) */
+  --ml-text-xs: 0.75rem;
+  --ml-text-sm: 0.875rem;
+  --ml-text-base: 1rem;
+  --ml-text-lg: 1.125rem;
+  --ml-text-xl: 1.25rem;
+  --ml-text-2xl: 1.5rem;
+  --ml-text-3xl: 1.875rem;
+  --ml-text-4xl: 2.25rem;
+  --ml-text-6xl: 3.75rem;
+
+  --ml-leading-tight: 1.25;
+  --ml-leading-snug: 1.375;
+  --ml-leading-normal: 1.5;
+  --ml-leading-relaxed: 1.625;
+  --ml-leading-loose: 1.75;
+
+  --ml-tracking-tight: -0.025em;
+  --ml-tracking-wide: 0.025em;
+  --ml-tracking-wider: 0.05em;
+  --ml-tracking-caps: 0.2em;
+
+  /* Layout */
+  --ml-max-width: 72rem;
+  --ml-radius-sm: 0.75rem;
+  --ml-radius-md: 1rem;
+  --ml-radius-lg: 1.5rem;
+  --ml-radius-full: 9999px;
+
+  /* Legacy / app shell */
+  --background: var(--ml-bg);
+  --foreground: var(--ml-text);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 @theme inline {
@@ -10,17 +100,42 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-ml-bg: var(--ml-bg);
+  --color-ml-gold: var(--ml-gold);
+  --color-ml-gold-hover: var(--ml-gold-hover);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Cormorant Garamond loaded via next/font on <html> as --font-cormorant */
+.ml-font-heading {
+  font-family: var(--font-cormorant), ui-serif, Georgia, "Times New Roman", serif;
+}
+
+@keyframes ml-step-fade {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ml-animate-step {
+  animation: ml-step-fade 0.22s ease;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--ml-text-base);
+  line-height: var(--ml-leading-relaxed);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--ml-bg);
+    --foreground: var(--ml-text);
+  }
 }

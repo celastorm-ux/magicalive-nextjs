@@ -1,0 +1,537 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CLASSES } from "@/lib/constants";
+import { supabase } from "@/lib/supabase";
+
+type VenueRow = {
+  id: string;
+  name: string;
+  city: string | null;
+  state: string | null;
+  venue_type: string | null;
+  capacity: number | null;
+  established_year: number | null;
+  description: string | null;
+  tags: string[] | null;
+};
+
+type Venue = VenueRow & {
+  cityKey: string;
+  upcomingShows: number;
+  gradient: string;
+  emoji: string;
+  mapX: number;
+  mapY: number;
+};
+
+const CAPS = ["Any capacity", "Under 300", "300-1000", "1000+"] as const;
+
+/** Approximate map pin anchor per city (same spirit as before). */
+const CITY_MAP: Record<string, { x: number; y: number }> = {
+  seattle: { x: 12, y: 22 },
+  "los angeles": { x: 24, y: 64 },
+  hollywood: { x: 16, y: 58 },
+  "new york": { x: 76, y: 38 },
+  nyc: { x: 80, y: 48 },
+  chicago: { x: 58, y: 46 },
+  london: { x: 44, y: 28 },
+  austin: { x: 42, y: 72 },
+  miami: { x: 82, y: 82 },
+  nashville: { x: 62, y: 58 },
+  denver: { x: 38, y: 44 },
+  default: { x: 50, y: 50 },
+};
+
+const CARD_GRADIENTS = [
+  "from-amber-950 via-yellow-900/50 to-stone-950",
+  "from-rose-950 via-red-950/70 to-zinc-950",
+  "from-indigo-950 via-violet-950 to-black",
+  "from-sky-950 via-blue-950 to-slate-950",
+  "from-teal-950 via-emerald-950 to-black",
+  "from-purple-950 via-fuchsia-950/60 to-black",
+] as const;
+
+const EMOJIS = ["🏰", "🎭", "🗽", "🪄", "🌊", "✨", "🎪", "🃏"];
+
+function hashId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function mapPositionForCity(city: string, id: string): { x: number; y: number } {
+  const key = city.toLowerCase().trim();
+  const base = CITY_MAP[key] ?? CITY_MAP.default;
+  const h = hashId(id);
+  const jx = (h % 9) - 4;
+  const jy = ((h >> 4) % 9) - 4;
+  return {
+    x: Math.min(92, Math.max(8, base.x + jx)),
+    y: Math.min(88, Math.max(12, base.y + jy)),
+  };
+}
+
+function capacityMatches(capacity: number | null, cap: (typeof CAPS)[number]) {
+  const c = capacity ?? 0;
+  if (cap === "Any capacity") return true;
+  if (cap === "Under 300") return c < 300;
+  if (cap === "300-1000") return c >= 300 && c <= 1000;
+  return c > 1000;
+}
+
+const selectClass =
+  "min-w-0 flex-1 cursor-pointer rounded-2xl border border-white/10 bg-white/5 py-2.5 pl-3 pr-8 text-sm text-zinc-100 outline-none transition focus:border-[var(--ml-gold)]/50 sm:min-w-[140px]";
+
+export default function VenuesPage() {
+  const [search, setSearch] = useState("");
+  const [city, setCity] = useState("All cities");
+  const [vtype, setVtype] = useState("Any type");
+  const [cap, setCap] = useState<(typeof CAPS)[number]>("Any capacity");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    void (async () => {
+      setLoading(true);
+      const { data: venueRows, error: vErr } = await supabase
+        .from("venues")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (vErr) {
+        console.error("[venues] fetch venues:", vErr);
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+      const { data: showRows } = await supabase
+        .from("shows")
+        .select("venue_id")
+        .gte("date", today)
+        .eq("is_public", true);
+
+      const countByVenueId: Record<string, number> = {};
+      for (const s of showRows ?? []) {
+        const vid = (s as { venue_id: string | null }).venue_id;
+        if (!vid) continue;
+        countByVenueId[vid] = (countByVenueId[vid] ?? 0) + 1;
+      }
+
+      const rows = (venueRows ?? []) as VenueRow[];
+      if (rows.length === 0) {
+        setVenues([]);
+        setLoading(false);
+        return;
+      }
+
+      const mapped: Venue[] = rows.map((row) => {
+        const cityStr = row.city?.trim() || "—";
+        const pos = mapPositionForCity(cityStr, row.id);
+        const h = hashId(row.id);
+        return {
+          ...row,
+          cityKey: cityStr,
+          upcomingShows: countByVenueId[row.id] ?? 0,
+          gradient: CARD_GRADIENTS[h % CARD_GRADIENTS.length]!,
+          emoji: EMOJIS[h % EMOJIS.length]!,
+          mapX: pos.x,
+          mapY: pos.y,
+        };
+      });
+
+      setVenues(mapped);
+      setLoading(false);
+    })();
+  }, []);
+
+  const cityOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of venues) {
+      const c = v.city?.trim();
+      if (c) set.add(c);
+    }
+    return ["All cities", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [venues]);
+
+  const typeOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of venues) {
+      const t = v.venue_type?.trim();
+      if (t) set.add(t);
+    }
+    return ["Any type", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [venues]);
+
+  useEffect(() => {
+    if (city !== "All cities" && !cityOptions.includes(city)) setCity("All cities");
+  }, [city, cityOptions]);
+
+  useEffect(() => {
+    if (vtype !== "Any type" && !typeOptions.includes(vtype)) setVtype("Any type");
+  }, [vtype, typeOptions]);
+
+  const cityCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const v of venues) {
+      const k = v.city?.trim();
+      if (!k) continue;
+      c[k] = (c[k] ?? 0) + 1;
+    }
+    return c;
+  }, [venues]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return venues.filter((v) => {
+      const cityStr = v.city?.trim() || "";
+      if (city !== "All cities" && cityStr.toLowerCase() !== city.toLowerCase()) return false;
+      if (vtype !== "Any type" && (v.venue_type || "").trim() !== vtype) return false;
+      if (!capacityMatches(v.capacity, cap)) return false;
+      if (q) {
+        const hay = `${v.name} ${cityStr} ${v.venue_type || ""} ${(v.tags ?? []).join(" ")}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [search, city, vtype, cap, venues]);
+
+  const filteredIds = useMemo(() => new Set(filtered.map((v) => v.id)), [filtered]);
+
+  const scrollToCard = useCallback((id: string) => {
+    cardRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, []);
+
+  useEffect(() => {
+    if (selectedId && !filteredIds.has(selectedId)) setSelectedId(null);
+  }, [filteredIds, selectedId]);
+
+  const handlePinClick = (id: string) => {
+    if (!filteredIds.has(id)) return;
+    setSelectedId(id);
+    scrollToCard(id);
+  };
+
+  const headerSubtitle = loading
+    ? "Loading venues…"
+    : venues.length === 0
+      ? "No venues on Magicalive yet"
+      : filtered.length === venues.length
+        ? `${venues.length} venue${venues.length === 1 ? "" : "s"} hosting shows on Magicalive`
+        : `${filtered.length} of ${venues.length} venues match your filters`;
+
+  return (
+    <div className="min-h-0 flex-1 bg-black pb-20 pt-8 text-zinc-100 sm:pt-12">
+      <div className={`${CLASSES.section} max-w-7xl`}>
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">
+          Where magic happens
+        </p>
+        <h1 className="ml-font-heading text-4xl font-semibold tracking-tight text-zinc-50 sm:text-5xl">
+          Active <span className="text-[var(--ml-gold)] italic">venues</span>
+        </h1>
+        <p className="mt-3 text-sm text-zinc-400 sm:text-base">{headerSubtitle}</p>
+
+        <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
+              ⌕
+            </span>
+            <input
+              type="search"
+              placeholder="Search venues, cities, types…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={`${CLASSES.inputSearch} pl-9`}
+            />
+          </div>
+          <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
+            <select
+              className={selectClass}
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+            >
+              {cityOptions.map((c) => (
+                <option key={c} value={c} className="bg-zinc-900">
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              className={selectClass}
+              value={vtype}
+              onChange={(e) => setVtype(e.target.value)}
+            >
+              {typeOptions.map((t) => (
+                <option key={t} value={t} className="bg-zinc-900">
+                  {t}
+                </option>
+              ))}
+            </select>
+            <select
+              className={selectClass}
+              value={cap}
+              onChange={(e) => setCap(e.target.value as (typeof CAPS)[number])}
+            >
+              {CAPS.map((c) => (
+                <option key={c} value={c} className="bg-zinc-900">
+                  {c}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-zinc-500 lg:ml-auto">
+              <span className="font-semibold text-zinc-300">{filtered.length}</span>{" "}
+              results
+            </span>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/50"
+              >
+                <div className="h-32 animate-pulse bg-white/10 sm:h-36" />
+                <div className="space-y-3 p-5">
+                  <div className="h-6 w-2/3 animate-pulse rounded bg-white/10" />
+                  <div className="h-4 w-1/2 animate-pulse rounded bg-white/10" />
+                  <div className="flex gap-2">
+                    <div className="h-5 w-16 animate-pulse rounded-full bg-white/10" />
+                    <div className="h-5 w-20 animate-pulse rounded-full bg-white/10" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : venues.length === 0 ? (
+          <div className="mt-10 flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-8 py-16 text-center">
+            <p className="ml-font-heading text-xl text-zinc-300">No venues listed yet</p>
+            <p className="mt-2 text-sm text-zinc-500">
+              Be the first venue on Magicalive.
+            </p>
+            <Link href="/contact" className={`${CLASSES.btnPrimary} mt-6`}>
+              Get your venue listed
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-10 flex flex-col gap-8 xl:flex-row xl:items-stretch">
+            {/* Map */}
+            <div className="relative h-[320px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#0a090c] xl:h-auto xl:min-h-[560px] xl:w-[48%]">
+              <div
+                className="pointer-events-none absolute inset-0 opacity-[0.07]"
+                style={{
+                  backgroundImage: `
+                  linear-gradient(rgba(245,204,113,0.4) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(245,204,113,0.4) 1px, transparent 1px)
+                `,
+                  backgroundSize: "40px 40px",
+                }}
+              />
+              <svg
+                className="pointer-events-none absolute inset-0 h-full w-full text-white/[0.06]"
+                preserveAspectRatio="none"
+              >
+                <path
+                  d="M 0 35% Q 25% 30%, 45% 50% T 100% 45%"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                />
+                <path
+                  d="M 15% 0 Q 20% 40%, 10% 100%"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path
+                  d="M 100% 20% Q 70% 35%, 55% 55% T 40% 100%"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path
+                  d="M 50% 0 L 52% 100%"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeDasharray="6 8"
+                />
+              </svg>
+
+              <span className="pointer-events-none absolute left-[8%] top-[18%] text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                Seattle
+              </span>
+              <span className="pointer-events-none absolute left-[14%] top-[52%] text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                LA
+              </span>
+              <span className="pointer-events-none absolute left-[52%] top-[42%] text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                Chicago
+              </span>
+              <span className="pointer-events-none absolute right-[12%] top-[32%] text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                NYC
+              </span>
+
+              {venues.map((v) => {
+                const visible = filteredIds.has(v.id);
+                const active = selectedId === v.id;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    disabled={!visible}
+                    onClick={() => handlePinClick(v.id)}
+                    className="absolute flex flex-col items-center gap-1 transition duration-300"
+                    style={{
+                      left: `${v.mapX}%`,
+                      top: `${v.mapY}%`,
+                      opacity: visible ? 1 : 0.18,
+                      pointerEvents: visible ? "auto" : "none",
+                      zIndex: active ? 20 : 10,
+                      transform: `translate(-50%, -50%) scale(${active ? 1.12 : 1})`,
+                    }}
+                    aria-label={`${v.name} on map`}
+                  >
+                    <div
+                      className={`flex h-11 w-11 rotate-45 items-center justify-center border-2 shadow-lg transition ${
+                        active
+                          ? "border-[var(--ml-gold)] bg-[var(--ml-gold)]/25 shadow-[var(--ml-gold)]/20"
+                          : "border-[var(--ml-gold)]/70 bg-black/80"
+                      }`}
+                    >
+                      <span className="-rotate-45 text-lg">{v.emoji}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-8 lg:flex-row">
+              {/* List */}
+              <div className="min-h-0 min-w-0 flex-1 lg:max-h-[640px] lg:overflow-y-auto lg:pr-2">
+                {filtered.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-8 py-16 text-center">
+                    <p className="ml-font-heading text-xl text-zinc-300">
+                      No venues match
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-500">
+                      Try widening your search or clearing filters.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch("");
+                        setCity("All cities");
+                        setVtype("Any type");
+                        setCap("Any capacity");
+                      }}
+                      className={`${CLASSES.btnPrimary} mt-6`}
+                    >
+                      Reset filters
+                    </button>
+                  </div>
+                ) : (
+                  <ul className="flex flex-col gap-5">
+                    {filtered.map((v) => (
+                      <li key={v.id}>
+                        <div
+                          ref={(el) => {
+                            cardRefs.current[v.id] = el;
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedId(v.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") setSelectedId(v.id);
+                          }}
+                          className={`cursor-pointer overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
+                            selectedId === v.id
+                              ? "border-[var(--ml-gold)]/60 shadow-[0_0_32px_-8px_rgba(245,204,113,0.2)]"
+                              : "border-white/10 hover:border-white/20"
+                          }`}
+                        >
+                          <div className={`h-32 bg-gradient-to-br sm:h-36 ${v.gradient}`} />
+                          <div className="p-5">
+                            <h2 className="ml-font-heading text-xl font-semibold text-zinc-50">
+                              {v.name}
+                            </h2>
+                            <p className="mt-1 text-sm text-zinc-500">
+                              {v.city || "—"} · {v.venue_type || "Venue"}
+                            </p>
+                            <p className="mt-2 text-xs text-zinc-600">
+                              Capacity {(v.capacity ?? 0).toLocaleString()} · Est.{" "}
+                              {v.established_year ?? "—"}
+                            </p>
+                            {v.description?.trim() ? (
+                              <p className="mt-2 line-clamp-2 text-sm text-zinc-500">
+                                {v.description.trim()}
+                              </p>
+                            ) : null}
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {(v.tags ?? []).length ? (
+                                v.tags!.map((t) => (
+                                  <span key={t} className={CLASSES.tag}>
+                                    {t}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-xs text-zinc-600">No tags</span>
+                              )}
+                            </div>
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                              <span className="text-sm font-semibold text-emerald-400">
+                                {v.upcomingShows} upcoming{" "}
+                                {v.upcomingShows === 1 ? "show" : "shows"}
+                              </span>
+                              <Link
+                                href={`/venues/${encodeURIComponent(v.id)}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className={CLASSES.btnPrimarySm}
+                              >
+                                View venue
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Sidebar: cities */}
+              <aside className="w-full shrink-0 lg:w-72">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                  By city
+                </h3>
+                <ul className="rounded-2xl border border-white/10 bg-white/[0.03] p-2">
+                  {cityOptions
+                    .filter((c) => c !== "All cities")
+                    .map((c) => (
+                      <li key={c}>
+                        <button
+                          type="button"
+                          onClick={() => setCity((prev) => (prev === c ? "All cities" : c))}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                            city === c
+                              ? "bg-[var(--ml-gold)]/10 text-[var(--ml-gold)]"
+                              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                          }`}
+                        >
+                          <span>{c}</span>
+                          <span className="text-xs text-zinc-500">{cityCounts[c] ?? 0}</span>
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              </aside>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
