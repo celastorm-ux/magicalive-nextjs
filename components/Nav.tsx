@@ -202,12 +202,16 @@ export function Nav() {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-[18px] sm:px-6 lg:px-12">
         {/* Left */}
         <div className="shrink-0">
-          <Link href="/" className="group inline-flex shrink-0 items-baseline">
-            <span className={`${CLASSES.headingLogo} text-zinc-100`}>Magic</span>
-            <span className={`${CLASSES.headingLogo} text-[var(--ml-gold)] italic`}>
+          <Link
+            href="/"
+            className="inline-flex shrink-0 items-center gap-0 leading-none"
+          >
+            <span className="ml-font-heading text-[26px] font-semibold tracking-wide text-[#e7dfcf]">
+              Magic
+            </span>
+            <span className="ml-font-heading text-[26px] font-semibold tracking-wide italic text-[var(--ml-gold)]">
               alive
             </span>
-            <span className={CLASSES.badgeDirectory}>Directory</span>
           </Link>
         </div>
 
