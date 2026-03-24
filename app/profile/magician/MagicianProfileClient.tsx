@@ -262,6 +262,28 @@ export default function MagicianProfileClient() {
   }, [load]);
 
   useEffect(() => {
+    if (!isLoaded || !user?.id || user.id !== profileId) return;
+
+    const refreshOwnProfile = () => {
+      void load();
+    };
+
+    // If presence marks this user online shortly after mount,
+    // refresh so their own profile badge updates immediately.
+    const onPresenceOnline = (event: Event) => {
+      const detail = (event as CustomEvent<{ id?: string }>).detail;
+      if (detail?.id === user.id) refreshOwnProfile();
+    };
+
+    const timer = setTimeout(refreshOwnProfile, 1200);
+    window.addEventListener("ml:presence-online", onPresenceOnline as EventListener);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("ml:presence-online", onPresenceOnline as EventListener);
+    };
+  }, [isLoaded, user?.id, profileId, load]);
+
+  useEffect(() => {
     if (!isLoaded || !profileId) return;
     if (user?.id && user.id === profileId) return;
     void (async () => {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useAuth, useUser } from "@clerk/nextjs";
-import { useEffect, useRef } from "react";
-import { createClerkSupabaseClient } from "@/lib/supabase";
+import { useUser } from "@clerk/nextjs";
+import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 /**
  * Marks the signed-in user online and keeps `last_seen` fresh while the app is open.
@@ -10,59 +10,51 @@ import { createClerkSupabaseClient } from "@/lib/supabase";
  */
 export function UserPresence() {
   const { user, isLoaded } = useUser();
-  const { getToken } = useAuth();
-  const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    userIdRef.current = user?.id ?? null;
-  }, [user?.id]);
+    if (!isLoaded) return;
+    const staleCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    void supabase
+      .from("profiles")
+      .update({ is_online: false })
+      .lt("last_seen", staleCutoff)
+      .eq("is_online", true);
+  }, [isLoaded]);
 
   useEffect(() => {
     if (!isLoaded || !user?.id) return;
 
     const uid = user.id;
     let intervalId: ReturnType<typeof setInterval> | null = null;
-    let cancelled = false;
 
     const markOnline = async () => {
       if (!isLoaded || !user || !user.id) return;
       console.log("Setting user online:", uid);
-      const db = await createClerkSupabaseClient(getToken);
       const now = new Date().toISOString();
-      await db
+      await supabase
         .from("profiles")
         .update({ is_online: true, last_seen: now })
         .eq("id", uid);
+      window.dispatchEvent(
+        new CustomEvent("ml:presence-online", { detail: { id: uid } }),
+      );
     };
 
     const pulseLastSeen = async () => {
       if (!isLoaded || !user || !user.id) return;
-      const db = await createClerkSupabaseClient(getToken);
       const now = new Date().toISOString();
-      await db
+      await supabase
         .from("profiles")
-        .update({ last_seen: now, is_online: true })
+        .update({ last_seen: now })
         .eq("id", uid);
     };
 
-    const markOfflineClient = async () => {
+    const sendOfflineBeacon = () => {
       if (!isLoaded || !user || !user.id) return;
       try {
-        const db = await createClerkSupabaseClient(getToken);
-        await db.from("profiles").update({ is_online: false }).eq("id", uid);
-      } catch {
-        /* ignore */
-      }
-    };
-
-    const markOfflineBeacon = () => {
-      if (!isLoaded || !user || !user.id) return;
-      try {
-        void fetch("/api/presence/offline", {
-          method: "POST",
-          keepalive: true,
-          credentials: "same-origin",
-        });
+        const payload = JSON.stringify({ id: uid });
+        const blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon("/api/set-offline", blob);
       } catch {
         /* ignore */
       }
@@ -70,35 +62,23 @@ export function UserPresence() {
 
     void markOnline();
 
-    if (!isLoaded || !user || !user.id) return;
     intervalId = setInterval(() => {
-      if (!cancelled && userIdRef.current) void pulseLastSeen();
-    }, 60_000);
+      void pulseLastSeen();
+    }, 30_000);
 
-    if (!isLoaded || !user || !user.id) return;
-    const onBeforeUnload = () => {
-      markOfflineBeacon();
-      void markOfflineClient();
-    };
-
-    if (!isLoaded || !user || !user.id) return;
-    const onPageHide = () => {
-      markOfflineBeacon();
-      void markOfflineClient();
-    };
+    const onBeforeUnload = () => sendOfflineBeacon();
+    const onPageHide = () => sendOfflineBeacon();
 
     window.addEventListener("beforeunload", onBeforeUnload);
     window.addEventListener("pagehide", onPageHide);
 
     return () => {
-      cancelled = true;
       if (intervalId) clearInterval(intervalId);
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("pagehide", onPageHide);
-      markOfflineBeacon();
-      void markOfflineClient();
+      sendOfflineBeacon();
     };
-  }, [isLoaded, user?.id, getToken]);
+  }, [isLoaded, user?.id]);
 
   return null;
 }
