@@ -1459,6 +1459,12 @@ export default function DashboardPage() {
                       </p>
                     ) : null}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/articles/${encodeURIComponent(a.id)}/edit`}
+                        className={`${CLASSES.btnSecondarySm} border-[var(--ml-gold)]/30 text-[var(--ml-gold)] hover:border-[var(--ml-gold)]/45 hover:bg-[var(--ml-gold)]/10`}
+                      >
+                        Edit
+                      </Link>
                       {st === "published" ? (
                         <Link
                           href={`/articles/${encodeURIComponent(a.id)}`}

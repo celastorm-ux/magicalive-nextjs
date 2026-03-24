@@ -1,5 +1,27 @@
 "use client";
 
+/**
+ * Magician profile route (answers for debugging "double load"):
+ *
+ * 1) Yes — entire file is a Client Component (`"use client"`).
+ * 2) One `useEffect` in `MagicianProfilePageContent` (data fetch only).
+ * 3) `Suspense` wraps `useSearchParams()`; fallback matches the in-page loader so the
+ *    first paint during suspend is still the same gold spinner (no `loading.tsx` here).
+ * 4) No RSC data fetch on this route — HTML is shell + hydration; all data is client-side
+ *    (Supabase + `/api/profile/magician-bundle`). Not "server empty then client filled".
+ *
+ * Causes checklist:
+ * - StrictMode (dev): React intentionally double-invokes effects; we guard duplicate work
+ *   with `fetchGenRef` here and with `initialMatches` in `MagicianProfileClient` so a
+ *   second run does not call `load()` when `initial` already matches `profileId`.
+ *   Production builds do not double-invoke like this.
+ * - Two navigations: visiting `/profile` then redirect to `/profile/magician?id=…` is two
+ *   route transitions by design (separate issue from one page mounting twice).
+ *
+ * Live production check: compare localhost (StrictMode) to https://magicalive.com — if
+ * doubling only appears in dev, it is expected StrictMode behavior.
+ */
+
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";

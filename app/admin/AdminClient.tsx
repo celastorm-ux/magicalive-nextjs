@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { CLASSES } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
@@ -23,6 +23,7 @@ type ArticleAdminRow = {
   view_count: number | null;
   like_count: number | null;
   rejection_reason: string | null;
+  cover_image_url: string | null;
 };
 
 type MagicianAdminRow = {
@@ -98,6 +99,14 @@ export default function AdminClient() {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectArticleId, setRejectArticleId] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
+  const [pasteUrl, setPasteUrl] = useState("");
+  const [coverSaving, setCoverSaving] = useState(false);
+  const [coverSuccessId, setCoverSuccessId] = useState<string | null>(null);
+  const coverFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const setTab = useCallback(
     (next: AdminTab) => {
@@ -182,6 +191,37 @@ export default function AdminClient() {
     void fetchTab();
   };
 
+  const unpublishArticle = async (id: string) => {
+    setActionErr("");
+    const res = await fetch("/api/admin/articles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "unpublish", articleId: id }),
+    });
+    const json = (await res.json()) as { ok?: boolean; error?: string };
+    if (!res.ok || !json.ok) {
+      setActionErr(json.error || "Unpublish failed");
+      return;
+    }
+    void fetchTab();
+  };
+
+  const deleteArticle = async (id: string) => {
+    if (!window.confirm("Permanently delete this article? This cannot be undone.")) return;
+    setActionErr("");
+    const res = await fetch("/api/admin/articles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete", articleId: id }),
+    });
+    const json = (await res.json()) as { ok?: boolean; error?: string };
+    if (!res.ok || !json.ok) {
+      setActionErr(json.error || "Delete failed");
+      return;
+    }
+    void fetchTab();
+  };
+
   const submitReject = async () => {
     const reason = rejectReason.trim();
     if (!reason || !rejectArticleId) return;
@@ -259,6 +299,107 @@ export default function AdminClient() {
     void fetchTab();
   };
 
+  const closeImageUpload = useCallback(() => {
+    setFilePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setSelectedFile(null);
+    setPasteUrl("");
+    setUploadingFor(null);
+    if (coverFileInputRef.current) coverFileInputRef.current.value = "";
+  }, []);
+
+  const openImageUpload = (articleId: string) => {
+    setFilePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setSelectedFile(null);
+    setPasteUrl("");
+    setUploadingFor(articleId);
+    if (coverFileInputRef.current) coverFileInputRef.current.value = "";
+    setActionErr("");
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!["image/jpeg", "image/png"].includes(f.type)) {
+      setActionErr("Please choose a JPG or PNG file.");
+      return;
+    }
+    setActionErr("");
+    setSelectedFile(f);
+    setFilePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(f);
+    });
+  };
+
+  const uploadCoverImage = async (articleId: string) => {
+    if (!selectedFile) return;
+    setCoverSaving(true);
+    setActionErr("");
+    try {
+      const path = `${articleId}/cover.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from("article-covers")
+        .upload(path, selectedFile, { upsert: true, contentType: selectedFile.type });
+      if (upErr) throw new Error(upErr.message);
+      const { data: pub } = supabase.storage.from("article-covers").getPublicUrl(path);
+      const publicUrl = pub.publicUrl;
+      const { error: dbErr } = await supabase.from("articles").update({ cover_image_url: publicUrl }).eq("id", articleId);
+      if (dbErr) throw new Error(dbErr.message);
+      closeImageUpload();
+      setCoverSuccessId(articleId);
+      window.setTimeout(() => {
+        setCoverSuccessId((id) => (id === articleId ? null : id));
+      }, 3800);
+      void fetchTab();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setCoverSaving(false);
+    }
+  };
+
+  const saveImageUrl = async (articleId: string) => {
+    const raw = pasteUrl.trim();
+    if (!raw) return;
+    let parsed: URL;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      setActionErr("Enter a valid http(s) image URL.");
+      return;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      setActionErr("URL must start with http:// or https://");
+      return;
+    }
+    setCoverSaving(true);
+    setActionErr("");
+    try {
+      const { error: dbErr } = await supabase.from("articles").update({ cover_image_url: raw }).eq("id", articleId);
+      if (dbErr) throw new Error(dbErr.message);
+      closeImageUpload();
+      setCoverSuccessId(articleId);
+      window.setTimeout(() => {
+        setCoverSuccessId((id) => (id === articleId ? null : id));
+      }, 3800);
+      void fetchTab();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setCoverSaving(false);
+    }
+  };
+
+  const previewArticle = (id: string) => {
+    window.open(`/articles/${encodeURIComponent(id)}/preview`, "_blank", "noopener,noreferrer");
+  };
+
   if (gateLoading || !allowed) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-zinc-500">
@@ -318,65 +459,168 @@ export default function AdminClient() {
               <p className="text-sm text-zinc-500">Loading articles…</p>
             ) : (
               <ul className="space-y-4">
-                {filteredArticles.map((a) => (
-                  <li
-                    key={a.id}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h2 className="ml-font-heading text-lg font-semibold text-zinc-100">
-                          {a.title?.trim() || "Untitled"}
-                        </h2>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {a.author_name || "Unknown"} · {a.category || "—"} · Submitted {fmtShort(a.created_at || a.published_at)} ·{" "}
-                          {wordCount(a.body)} words
-                        </p>
-                        <p className="mt-2 line-clamp-2 text-sm text-zinc-400">{a.excerpt || "—"}</p>
+                {filteredArticles.map((a) => {
+                  const st = (a.status || "").toLowerCase();
+                  const coverUrl = a.cover_image_url?.trim() || null;
+                  return (
+                    <li
+                      key={a.id}
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h2 className="ml-font-heading text-lg font-semibold text-zinc-100">
+                            {a.title?.trim() || "Untitled"}
+                          </h2>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {a.author_name || "Unknown"} · {a.category || "—"} · Submitted {fmtShort(a.created_at || a.published_at)} ·{" "}
+                            {wordCount(a.body)} words
+                          </p>
+                          <p className="mt-2 line-clamp-2 text-sm text-zinc-400">{a.excerpt || "—"}</p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wider ${
+                            st === "published"
+                              ? "border-emerald-500/40 text-emerald-300"
+                              : st === "pending"
+                                ? "border-[var(--ml-gold)]/40 text-[var(--ml-gold)]"
+                                : "border-red-500/35 text-red-300"
+                          }`}
+                        >
+                          {a.status || "—"}
+                        </span>
                       </div>
-                      <span
-                        className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wider ${
-                          (a.status || "").toLowerCase() === "published"
-                            ? "border-emerald-500/40 text-emerald-300"
-                            : (a.status || "").toLowerCase() === "pending"
-                              ? "border-[var(--ml-gold)]/40 text-[var(--ml-gold)]"
-                              : "border-red-500/35 text-red-300"
-                        }`}
-                      >
-                        {a.status || "—"}
-                      </span>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void publishArticle(a.id)}
-                        className={CLASSES.btnPrimarySm}
-                      >
-                        Publish
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRejectArticleId(a.id);
-                          setRejectReason("");
-                          setRejectOpen(true);
-                        }}
-                        className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10"
-                      >
-                        Reject
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          window.open(`/articles/${encodeURIComponent(a.id)}/preview`, "_blank", "noopener,noreferrer")
-                        }
-                        className={CLASSES.btnSecondarySm}
-                      >
-                        Preview
-                      </button>
-                    </div>
-                  </li>
-                ))}
+
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/articles/${encodeURIComponent(a.id)}/edit`}
+                          className={`${CLASSES.btnSecondarySm} inline-flex border-[var(--ml-gold)]/30 text-[var(--ml-gold)] hover:border-[var(--ml-gold)]/45 hover:bg-[var(--ml-gold)]/10`}
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => openImageUpload(a.id)}
+                          className={
+                            coverUrl
+                              ? "rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-[var(--ml-gold)]/35 hover:bg-white/[0.07]"
+                              : "rounded-lg border border-[var(--ml-gold)]/45 bg-[var(--ml-gold)]/[0.06] px-3 py-1.5 text-xs font-semibold text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/70 hover:bg-[var(--ml-gold)]/12"
+                          }
+                        >
+                          {coverUrl ? "Change image" : "Add cover image"}
+                        </button>
+
+                        {st === "published" ? (
+                          <button
+                            type="button"
+                            onClick={() => void unpublishArticle(a.id)}
+                            className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-amber-500/35 hover:bg-amber-500/10"
+                          >
+                            Unpublish
+                          </button>
+                        ) : null}
+
+                        {st === "pending" ? (
+                          <>
+                            <button type="button" onClick={() => void publishArticle(a.id)} className={CLASSES.btnPrimarySm}>
+                              Publish
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRejectArticleId(a.id);
+                                setRejectReason("");
+                                setRejectOpen(true);
+                              }}
+                              className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10"
+                            >
+                              Reject
+                            </button>
+                            <button type="button" onClick={() => previewArticle(a.id)} className={CLASSES.btnSecondarySm}>
+                              Preview
+                            </button>
+                          </>
+                        ) : null}
+
+                        {st === "rejected" ? (
+                          <button type="button" onClick={() => void publishArticle(a.id)} className={CLASSES.btnPrimarySm}>
+                            Approve
+                          </button>
+                        ) : null}
+
+                        {st === "published" || st === "rejected" ? (
+                          <button
+                            type="button"
+                            onClick={() => void deleteArticle(a.id)}
+                            className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10"
+                          >
+                            Delete
+                          </button>
+                        ) : null}
+
+                        {coverSuccessId === a.id ? (
+                          <span className="text-xs font-medium text-emerald-400">Cover image added</span>
+                        ) : null}
+                      </div>
+
+                      {uploadingFor === a.id ? (
+                        <div className="mt-4 rounded-xl border border-[var(--ml-gold)]/25 bg-black/50 p-4">
+                          <input
+                            ref={coverFileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png"
+                            className="block w-full max-w-sm cursor-pointer text-xs text-zinc-400 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-zinc-200 hover:file:bg-white/15"
+                            onChange={handleFileSelect}
+                          />
+                          {selectedFile && filePreviewUrl ? (
+                            <div className="mt-3">
+                              <img
+                                src={filePreviewUrl}
+                                alt="Preview"
+                                className="h-[80px] w-[120px] rounded-[2px] border border-white/10 object-cover"
+                              />
+                            </div>
+                          ) : null}
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={!selectedFile || coverSaving}
+                              onClick={() => void uploadCoverImage(a.id)}
+                              className="rounded-lg bg-[var(--ml-gold)] px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-[var(--ml-gold-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              {coverSaving ? "Uploading…" : "Upload image"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={closeImageUpload}
+                              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition hover:text-zinc-200"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          <p className="mt-4 text-center text-[11px] text-zinc-500">— or —</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <input
+                              type="text"
+                              value={pasteUrl}
+                              onChange={(e) => setPasteUrl(e.target.value)}
+                              placeholder="Paste image URL"
+                              className="min-w-[200px] flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-[var(--ml-gold)]/40"
+                            />
+                            <button
+                              type="button"
+                              disabled={coverSaving || !pasteUrl.trim()}
+                              onClick={() => void saveImageUrl(a.id)}
+                              className="rounded-lg border border-[var(--ml-gold)]/40 bg-[var(--ml-gold)]/10 px-3 py-2 text-xs font-semibold text-[var(--ml-gold)] transition hover:bg-[var(--ml-gold)]/20 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Save URL
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                })}
                 {!filteredArticles.length ? <p className="text-sm text-zinc-500">No articles in this filter.</p> : null}
               </ul>
             )}

@@ -19,7 +19,7 @@ export async function GET() {
   const { data, error } = await ctx.db
     .from("articles")
     .select(
-      "id, title, excerpt, body, category, status, author_id, author_name, published_at, created_at, view_count, like_count, rejection_reason",
+      "id, title, excerpt, body, category, status, author_id, author_name, published_at, created_at, view_count, like_count, rejection_reason, cover_image_url",
     )
     .order("id", { ascending: false });
   if (error) {
@@ -54,10 +54,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
   }
   const rec = body as Record<string, unknown>;
-  const action = rec.action === "publish" || rec.action === "reject" ? rec.action : null;
+  const actionRaw = rec.action;
+  const action =
+    actionRaw === "publish" || actionRaw === "reject" || actionRaw === "unpublish" || actionRaw === "delete"
+      ? actionRaw
+      : null;
   const articleId = typeof rec.articleId === "string" ? rec.articleId.trim() : "";
   if (!action || !articleId) {
     return NextResponse.json({ ok: false, error: "action and articleId required" }, { status: 400 });
+  }
+
+  if (action === "delete") {
+    const { error: delErr } = await ctx.db.from("articles").delete().eq("id", articleId);
+    if (delErr) {
+      return NextResponse.json({ ok: false, error: delErr.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "unpublish") {
+    const { data: exists, error: fetchErr } = await ctx.db.from("articles").select("id").eq("id", articleId).maybeSingle();
+    if (fetchErr || !exists) {
+      return NextResponse.json({ ok: false, error: "Article not found" }, { status: 404 });
+    }
+    const { error: upErr } = await ctx.db
+      .from("articles")
+      .update({ status: "pending", published_at: null })
+      .eq("id", articleId);
+    if (upErr) {
+      return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
   }
 
   const { data: row, error: fetchErr } = await ctx.db

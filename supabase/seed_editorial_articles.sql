@@ -1,0 +1,36 @@
+-- Magicalive Editorial: three full SEO articles (published).
+--
+-- CANONICAL METHOD (already run successfully in dev):
+--   node scripts/seed-editorial-articles.mjs
+-- Uses NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY from .env.local.
+-- Do not re-run unless you want duplicate rows (no unique constraint on title).
+--
+-- MANUAL SQL EDITOR: match columns your table exposes. Example row shape:
+--
+-- INSERT INTO public.articles (
+--   author_id,
+--   author_name,
+--   title,
+--   excerpt,
+--   body,
+--   category,
+--   read_time,
+--   tags,
+--   status,
+--   published_at
+-- ) VALUES (
+--   NULL,
+--   'Magicalive Editorial',
+--   'The 10 Best Magic Venues in the United States in 2026',
+--   'From the legendary Magic Castle...',
+--   $body$
+--   ## Why this list matters
+--
+--   Your paragraphs here (double newlines between blocks). Copy full text from scripts/seed-editorial-articles.mjs
+--   $body$,
+--   'News',
+--   7,
+--   ARRAY['venues', 'live magic', 'magic shows', 'united states']::text[],
+--   'published',
+--   now()
+-- );

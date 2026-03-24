@@ -207,7 +207,6 @@ export default function MagicianProfileClient({
   const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().split("T")[0]!);
   const [showsListKind, setShowsListKind] = useState<"shows" | "lectures">("shows");
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
-  const consumedServerInitial = useRef(false);
 
   const profileId = (paramId || resolvedProfileId || user?.id || "").trim();
 
@@ -272,8 +271,13 @@ export default function MagicianProfileClient({
       setLoading(false);
       return;
     }
-    if (!consumedServerInitial.current && initial?.profile && (initial.profile as MagicianRow).id === profileId) {
-      consumedServerInitial.current = true;
+    // When the parent already supplied a full bundle for this profileId, skip client
+    // refetch. Important for React Strict Mode (dev): it runs this effect twice; a ref
+    // gate would let the second run fall through and call load() again — causing a
+    // second spinner and duplicate Supabase work. This condition is stable across replays.
+    const initialMatches =
+      initial?.profile != null && (initial.profile as MagicianRow).id === profileId;
+    if (initialMatches) {
       setLoading(false);
       return;
     }
