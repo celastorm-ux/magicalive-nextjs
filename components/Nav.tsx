@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SignOutButton, useAuth, useUser } from "@clerk/nextjs";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { CLASSES } from "@/lib/constants";
-import { createClerkSupabaseClient, supabase } from "@/lib/supabase";
+import { createClerkSupabaseClient } from "@/lib/supabase";
 
 const NAV_ITEMS = [
   { label: "Home", href: "/" },
@@ -19,13 +19,6 @@ const NAV_ITEMS = [
 function isActivePath(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase();
 }
 
 export function Nav() {
@@ -43,9 +36,15 @@ export function Nav() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
-  const [profileDisplayName, setProfileDisplayName] = useState<string | null>(null);
-  const [profileHandle, setProfileHandle] = useState<string | null>(null);
+  type NavProfile = {
+    avatar_url: string | null;
+    display_name: string | null;
+    handle: string | null;
+    account_type: string | null;
+    booking_requests_count: number | null;
+    is_admin: boolean | null;
+  };
+  const [navProfile, setNavProfile] = useState<NavProfile | null>(null);
   const notifChannelRef = useRef<RealtimeChannel | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -116,37 +115,50 @@ export function Nav() {
     return () => window.removeEventListener("keydown", onKey);
   }, [userMenuOpen, closeUserMenu]);
 
-  useEffect(() => {
-    if (!isSignedIn || !user?.id) {
+  const fetchNavProfile = useCallback(async () => {
+    if (!user?.id) return;
+    const client = await createClerkSupabaseClient(getToken);
+    const { data: profile, error } = await client
+      .from("profiles")
+      .select(
+        "avatar_url, display_name, handle, account_type, booking_requests_count, is_admin",
+      )
+      .eq("id", user.id)
+      .single();
+
+    console.log("Nav profile fetch:", profile, error);
+
+    if (error || !profile) {
+      setNavProfile(null);
       setIsMagician(false);
       setIsAdmin(false);
       setPendingBookingCount(0);
-      setProfileAvatarUrl(null);
-      setProfileDisplayName(null);
-      setProfileHandle(null);
       return;
     }
-    void (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select(
-          "account_type, booking_requests_count, is_admin, avatar_url, display_name, handle",
-        )
-        .eq("id", user.id)
-        .maybeSingle();
-      setIsMagician(data?.account_type === "magician");
-      setIsAdmin(Boolean((data as { is_admin?: boolean | null } | null)?.is_admin));
-      setPendingBookingCount(Number((data as { booking_requests_count?: number } | null)?.booking_requests_count ?? 0));
-      const row = data as {
-        avatar_url?: string | null;
-        display_name?: string | null;
-        handle?: string | null;
-      } | null;
-      setProfileAvatarUrl(row?.avatar_url?.trim() || null);
-      setProfileDisplayName(row?.display_name?.trim() || null);
-      setProfileHandle(row?.handle?.trim() || null);
-    })();
-  }, [isSignedIn, user?.id]);
+
+    setNavProfile({
+      avatar_url: profile.avatar_url?.trim() || null,
+      display_name: profile.display_name?.trim() || null,
+      handle: profile.handle?.trim() || null,
+      account_type: profile.account_type ?? null,
+      booking_requests_count: profile.booking_requests_count ?? null,
+      is_admin: profile.is_admin ?? null,
+    });
+    setIsMagician(profile.account_type === "magician");
+    setIsAdmin(Boolean(profile.is_admin));
+    setPendingBookingCount(Number(profile.booking_requests_count ?? 0));
+  }, [user?.id, getToken]);
+
+  useEffect(() => {
+    if (!isSignedIn || !user?.id) {
+      setNavProfile(null);
+      setIsMagician(false);
+      setIsAdmin(false);
+      setPendingBookingCount(0);
+      return;
+    }
+    void fetchNavProfile();
+  }, [isSignedIn, user?.id, fetchNavProfile]);
 
   useEffect(() => {
     if (!isSignedIn || !user?.id) {
@@ -196,10 +208,10 @@ export function Nav() {
 
   const clerkFallbackName =
     user?.fullName || user?.firstName || user?.username || "User";
-  const headerDisplayName = profileDisplayName || clerkFallbackName;
+  const headerDisplayName = navProfile?.display_name || clerkFallbackName;
   const headerHandleLine =
-    profileHandle != null && profileHandle !== ""
-      ? `@${profileHandle}`
+    navProfile?.handle != null && navProfile.handle !== ""
+      ? `@${navProfile.handle}`
       : user?.username
         ? `@${user.username}`
         : null;
@@ -334,24 +346,47 @@ export function Nav() {
                 <button
                   type="button"
                   onClick={() => setUserMenuOpen((v) => !v)}
-                  className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[var(--ml-gold)] text-[11px] font-semibold transition hover:opacity-95"
-                  style={{
-                    backgroundColor: profileAvatarUrl ? "transparent" : "rgba(0,0,0,0.55)",
-                    color: "var(--ml-gold)",
-                  }}
+                  className="relative shrink-0 overflow-hidden transition hover:opacity-95"
                   aria-expanded={userMenuOpen}
                   aria-haspopup="menu"
                   aria-label="Account menu"
                 >
-                  {profileAvatarUrl ? (
+                  {navProfile?.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={profileAvatarUrl}
-                      alt={headerDisplayName}
-                      className="h-full w-full object-cover"
+                      src={navProfile.avatar_url}
+                      alt={navProfile.display_name || headerDisplayName}
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "50%",
+                        border: "2px solid var(--ml-gold)",
+                        objectFit: "cover",
+                        cursor: "pointer",
+                        display: "block",
+                      }}
                     />
                   ) : (
-                    getInitials(headerDisplayName)
+                    <div
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "50%",
+                        border: "2px solid var(--ml-gold)",
+                        background: "rgba(201,168,76,0.15)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--ml-gold)",
+                        fontSize: "13px",
+                        fontWeight: "500",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {navProfile?.display_name?.charAt(0).toUpperCase() ||
+                        user?.firstName?.charAt(0).toUpperCase() ||
+                        "?"}
+                    </div>
                   )}
                 </button>
                 {userMenuOpen ? (
