@@ -176,6 +176,12 @@ export default function AdminClient() {
     return articles.filter((a) => (a.status || "").toLowerCase() === articleFilter);
   }, [articles, articleFilter]);
 
+  useEffect(() => {
+    if (tab === "articles" && !dataLoading && articles.length === 0) {
+      console.log("Articles:", articles);
+    }
+  }, [tab, dataLoading, articles]);
+
   const publishArticle = async (id: string) => {
     setActionErr("");
     const res = await fetch("/api/admin/articles", {
@@ -459,24 +465,24 @@ export default function AdminClient() {
               <p className="text-sm text-zinc-500">Loading articles…</p>
             ) : (
               <ul className="space-y-4">
-                {filteredArticles.map((a) => {
-                  const st = (a.status || "").toLowerCase();
-                  const coverUrl = a.cover_image_url?.trim() || null;
+                {filteredArticles.map((article) => {
+                  const st = (article.status || "").toLowerCase();
+                  const coverUrl = article.cover_image_url?.trim() || null;
                   return (
                     <li
-                      key={a.id}
+                      key={article.id}
                       className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <h2 className="ml-font-heading text-lg font-semibold text-zinc-100">
-                            {a.title?.trim() || "Untitled"}
+                            {article.title?.trim() || "Untitled"}
                           </h2>
                           <p className="mt-1 text-xs text-zinc-500">
-                            {a.author_name || "Unknown"} · {a.category || "—"} · Submitted {fmtShort(a.created_at || a.published_at)} ·{" "}
-                            {wordCount(a.body)} words
+                            {article.author_name || "Unknown"} · {article.category || "—"} · Submitted{" "}
+                            {fmtShort(article.created_at || article.published_at)} · {wordCount(article.body)} words
                           </p>
-                          <p className="mt-2 line-clamp-2 text-sm text-zinc-400">{a.excerpt || "—"}</p>
+                          <p className="mt-2 line-clamp-2 text-sm text-zinc-400">{article.excerpt || "—"}</p>
                         </div>
                         <span
                           className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wider ${
@@ -487,48 +493,38 @@ export default function AdminClient() {
                                 : "border-red-500/35 text-red-300"
                           }`}
                         >
-                          {a.status || "—"}
+                          {article.status || "—"}
                         </span>
                       </div>
 
-                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <div className="button-row mt-4 flex flex-wrap items-center gap-2">
                         <Link
-                          href={`/articles/${encodeURIComponent(a.id)}/edit`}
-                          className={`${CLASSES.btnSecondarySm} inline-flex border-[var(--ml-gold)]/30 text-[var(--ml-gold)] hover:border-[var(--ml-gold)]/45 hover:bg-[var(--ml-gold)]/10`}
+                          href={`/articles/${encodeURIComponent(article.id)}/edit`}
+                          className="inline-flex shrink-0 items-center justify-center rounded-lg border border-[var(--ml-gold)]/50 bg-[var(--ml-gold)]/[0.08] px-3 py-2 text-xs font-semibold text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/75 hover:bg-[var(--ml-gold)]/14"
                         >
                           Edit
                         </Link>
                         <button
                           type="button"
-                          onClick={() => openImageUpload(a.id)}
-                          className={
-                            coverUrl
-                              ? "rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:border-[var(--ml-gold)]/35 hover:bg-white/[0.07]"
-                              : "rounded-lg border border-[var(--ml-gold)]/45 bg-[var(--ml-gold)]/[0.06] px-3 py-1.5 text-xs font-semibold text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/70 hover:bg-[var(--ml-gold)]/12"
-                          }
+                          onClick={() => openImageUpload(article.id)}
+                          className="inline-flex shrink-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-medium text-zinc-300 transition hover:border-white/20 hover:bg-white/[0.08]"
                         >
                           {coverUrl ? "Change image" : "Add cover image"}
                         </button>
 
-                        {st === "published" ? (
-                          <button
-                            type="button"
-                            onClick={() => void unpublishArticle(a.id)}
-                            className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-amber-500/35 hover:bg-amber-500/10"
-                          >
-                            Unpublish
-                          </button>
-                        ) : null}
-
                         {st === "pending" ? (
                           <>
-                            <button type="button" onClick={() => void publishArticle(a.id)} className={CLASSES.btnPrimarySm}>
+                            <button
+                              type="button"
+                              onClick={() => void publishArticle(article.id)}
+                              className={CLASSES.btnPrimarySm}
+                            >
                               Publish
                             </button>
                             <button
                               type="button"
                               onClick={() => {
-                                setRejectArticleId(a.id);
+                                setRejectArticleId(article.id);
                                 setRejectReason("");
                                 setRejectOpen(true);
                               }}
@@ -536,34 +532,68 @@ export default function AdminClient() {
                             >
                               Reject
                             </button>
-                            <button type="button" onClick={() => previewArticle(a.id)} className={CLASSES.btnSecondarySm}>
+                            <button
+                              type="button"
+                              onClick={() => previewArticle(article.id)}
+                              className={CLASSES.btnSecondarySm}
+                            >
+                              Preview
+                            </button>
+                          </>
+                        ) : null}
+
+                        {st === "published" ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void unpublishArticle(article.id)}
+                              className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-amber-500/35 hover:bg-amber-500/10"
+                            >
+                              Unpublish
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => previewArticle(article.id)}
+                              className={CLASSES.btnSecondarySm}
+                            >
                               Preview
                             </button>
                           </>
                         ) : null}
 
                         {st === "rejected" ? (
-                          <button type="button" onClick={() => void publishArticle(a.id)} className={CLASSES.btnPrimarySm}>
-                            Approve
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void publishArticle(article.id)}
+                              className={CLASSES.btnPrimarySm}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => previewArticle(article.id)}
+                              className={CLASSES.btnSecondarySm}
+                            >
+                              Preview
+                            </button>
+                          </>
                         ) : null}
 
-                        {st === "published" || st === "rejected" ? (
-                          <button
-                            type="button"
-                            onClick={() => void deleteArticle(a.id)}
-                            className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10"
-                          >
-                            Delete
-                          </button>
-                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => void deleteArticle(article.id)}
+                          className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/10"
+                        >
+                          Delete
+                        </button>
 
-                        {coverSuccessId === a.id ? (
+                        {coverSuccessId === article.id ? (
                           <span className="text-xs font-medium text-emerald-400">Cover image added</span>
                         ) : null}
                       </div>
 
-                      {uploadingFor === a.id ? (
+                      {uploadingFor === article.id ? (
                         <div className="mt-4 rounded-xl border border-[var(--ml-gold)]/25 bg-black/50 p-4">
                           <input
                             ref={coverFileInputRef}
@@ -585,7 +615,7 @@ export default function AdminClient() {
                             <button
                               type="button"
                               disabled={!selectedFile || coverSaving}
-                              onClick={() => void uploadCoverImage(a.id)}
+                              onClick={() => void uploadCoverImage(article.id)}
                               className="rounded-lg bg-[var(--ml-gold)] px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-[var(--ml-gold-hover)] disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               {coverSaving ? "Uploading…" : "Upload image"}
@@ -610,7 +640,7 @@ export default function AdminClient() {
                             <button
                               type="button"
                               disabled={coverSaving || !pasteUrl.trim()}
-                              onClick={() => void saveImageUrl(a.id)}
+                              onClick={() => void saveImageUrl(article.id)}
                               className="rounded-lg border border-[var(--ml-gold)]/40 bg-[var(--ml-gold)]/10 px-3 py-2 text-xs font-semibold text-[var(--ml-gold)] transition hover:bg-[var(--ml-gold)]/20 disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               Save URL

@@ -20,6 +20,12 @@ export default function ForMagiciansPage() {
           <p className="mt-4 max-w-3xl text-zinc-300">
             Magicalive is the platform built exclusively for professional magicians. Create your profile, list your shows, and get discovered.
           </p>
+          <p className="mt-3 text-sm">
+            <Link href="/about" className="text-[var(--ml-gold)] underline decoration-[var(--ml-gold)]/35 underline-offset-4 hover:decoration-[var(--ml-gold)]">
+              Our story
+            </Link>
+            <span className="text-zinc-500"> — why we built this</span>
+          </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/create-profile" className="rounded-xl bg-[var(--ml-gold)] px-5 py-3 font-semibold text-black">Create your free profile</Link>
             <SmoothScrollAnchor href="#how-it-works" className="rounded-xl border border-white/15 px-5 py-3">

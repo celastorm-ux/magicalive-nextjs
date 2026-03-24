@@ -23,6 +23,9 @@ export function Footer() {
             <Link href="/contact" className={CLASSES.footerLink}>
               Contact
             </Link>
+            <Link href="/about" className={CLASSES.footerLink}>
+              About
+            </Link>
             <Link href="/for-magicians" className={CLASSES.footerLink}>
               For Magicians
             </Link>
