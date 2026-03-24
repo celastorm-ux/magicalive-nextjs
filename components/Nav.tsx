@@ -206,10 +206,10 @@ export function Nav() {
             href="/"
             className="inline-flex shrink-0 items-center gap-0 leading-none"
           >
-            <span className="ml-font-heading text-[26px] font-semibold tracking-wide text-[#e7dfcf]">
+            <span className="ml-font-heading text-[32px] font-semibold tracking-wide text-[#ffffff]">
               Magic
             </span>
-            <span className="ml-font-heading text-[26px] font-semibold tracking-wide italic text-[var(--ml-gold)]">
+            <span className="ml-font-heading text-[32px] font-semibold tracking-wide italic text-[var(--ml-gold)]">
               alive
             </span>
           </Link>
