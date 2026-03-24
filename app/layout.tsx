@@ -25,13 +25,18 @@ const cormorant = Cormorant_Garamond({
   style: ["normal", "italic"],
 });
 
-export const metadata: Metadata = buildMetadata({
-  title: "Magicalive — The World's Magic Community",
-  description:
-    "Discover magicians, browse upcoming shows, and explore venues. The definitive hub for magic performers and fans alike.",
-  image: "/og-default.png",
-  type: "website",
-});
+export const metadata: Metadata = {
+  ...buildMetadata({
+    title: "Magicalive — The World's Magic Community",
+    description:
+      "Discover magicians, browse upcoming shows, and explore venues. The definitive hub for magic performers and fans alike.",
+    image: "/og-default.png",
+    type: "website",
+  }),
+  verification: {
+    google: "eUKBhmM38IorTzJnbXBFwCrCLlAF8z-oOyzkQg3Y9Es",
+  },
+};
 
 export default function RootLayout({
   children,
