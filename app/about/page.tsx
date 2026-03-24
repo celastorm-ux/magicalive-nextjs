@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { CLASSES } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 import { getRouteSupabase } from "@/lib/supabase-route";
@@ -34,7 +35,21 @@ async function getFoundingMemberClaimed(): Promise<number> {
   }
 }
 
-export default async function AboutPage() {
+export default function AboutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] flex-1 items-center justify-center bg-black text-zinc-500">
+          <p className="text-sm">Loading…</p>
+        </div>
+      }
+    >
+      <AboutStory />
+    </Suspense>
+  );
+}
+
+async function AboutStory() {
   const foundingClaimed = await getFoundingMemberClaimed();
   const progressPct = Math.round((foundingClaimed / 100) * 100);
 
@@ -239,3 +254,4 @@ export default async function AboutPage() {
     </div>
   );
 }
+
