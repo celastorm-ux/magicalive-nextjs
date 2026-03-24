@@ -95,6 +95,14 @@ type ArticleRow = {
   read_time: string | null;
 };
 
+export type MagicianProfileInitialBundle = {
+  profile: MagicianRow;
+  shows: ShowRow[];
+  pastShows: ShowRow[];
+  reviews: ReviewRow[];
+  articles: ArticleRow[];
+};
+
 const MEDIA_FALLBACK = [
   "from-violet-900/80 to-purple-950",
   "from-indigo-900/80 to-slate-950",
@@ -169,19 +177,29 @@ function youtubeEmbedUrl(raw: string | null): string | null {
   return null;
 }
 
-export default function MagicianProfileClient() {
+type MagicianProfileClientProps = {
+  resolvedProfileId?: string;
+  initial?: MagicianProfileInitialBundle | null;
+};
+
+export default function MagicianProfileClient({
+  resolvedProfileId = "",
+  initial = null,
+}: MagicianProfileClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const paramId = searchParams.get("id")?.trim();
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
   const [tab, setTab] = useState<Tab>("About");
-  const [profile, setProfile] = useState<MagicianRow | null>(null);
-  const [shows, setShows] = useState<ShowRow[]>([]);
-  const [pastShows, setPastShows] = useState<ShowRow[]>([]);
-  const [reviews, setReviews] = useState<ReviewRow[]>([]);
-  const [articles, setArticles] = useState<ArticleRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<MagicianRow | null>(
+    () => (initial?.profile as MagicianRow | undefined) ?? null,
+  );
+  const [shows, setShows] = useState<ShowRow[]>(() => initial?.shows ?? []);
+  const [pastShows, setPastShows] = useState<ShowRow[]>(() => initial?.pastShows ?? []);
+  const [reviews, setReviews] = useState<ReviewRow[]>(() => initial?.reviews ?? []);
+  const [articles, setArticles] = useState<ArticleRow[]>(() => initial?.articles ?? []);
+  const [loading, setLoading] = useState(() => !initial?.profile);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
@@ -190,13 +208,9 @@ export default function MagicianProfileClient() {
   const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().split("T")[0]!);
   const [showsListKind, setShowsListKind] = useState<"shows" | "lectures">("shows");
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const consumedServerInitial = useRef(false);
 
-  const profileId = paramId || (user?.id ?? "");
-  console.log("Profile ID:", profileId, {
-    paramId,
-    userId: user?.id ?? null,
-    pathHint: paramId ? "from query param" : "from current user",
-  });
+  const profileId = (paramId || resolvedProfileId || user?.id || "").trim();
 
   const load = useCallback(async () => {
     if (!profileId) {
@@ -211,7 +225,6 @@ export default function MagicianProfileClient() {
       .eq("id", profileId)
       .eq("account_type", "magician")
       .maybeSingle();
-    console.log("Profile data:", p);
     if (!p) {
       setProfile(null);
       setShows([]);
@@ -221,8 +234,6 @@ export default function MagicianProfileClient() {
       return;
     }
     setProfile(p as unknown as MagicianRow);
-    console.log("Profile is_online:", p.is_online);
-    console.log("Profile last_seen:", p.last_seen);
     const today = new Date().toISOString().split("T")[0];
     const { data: sh, error: shErr } = await supabase
       .from("shows")
@@ -258,8 +269,17 @@ export default function MagicianProfileClient() {
   }, [profileId]);
 
   useEffect(() => {
+    if (!profileId) {
+      setLoading(false);
+      return;
+    }
+    if (!consumedServerInitial.current && initial?.profile && (initial.profile as MagicianRow).id === profileId) {
+      consumedServerInitial.current = true;
+      setLoading(false);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [load, profileId, initial?.profile]);
 
   useEffect(() => {
     if (!isLoaded || !user?.id || user.id !== profileId) return;
@@ -298,10 +318,6 @@ export default function MagicianProfileClient() {
   }, [isLoaded, profileId, user?.id]);
 
   useEffect(() => {
-    console.log("Loading state:", loading);
-  }, [loading]);
-
-  useEffect(() => {
     if (!user?.id || !profileId || user.id === profileId) {
       setIsFollowing(false);
       return;
@@ -336,7 +352,7 @@ export default function MagicianProfileClient() {
     ).toFixed(1);
   }, [reviews]);
 
-  if (!isLoaded) {
+  if (!isLoaded && !initial?.profile) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-zinc-500">
         Loading…

@@ -26,6 +26,9 @@ export function Footer() {
             <Link href="/for-magicians" className={CLASSES.footerLink}>
               For Magicians
             </Link>
+            <Link href="/magicians/cities" className={CLASSES.footerLink}>
+              Magicians by city
+            </Link>
           </div>
         </div>
       </div>

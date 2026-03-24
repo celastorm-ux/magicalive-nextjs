@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { CITY_LANDING_PAGES } from "@/lib/city-landing";
 import { siteBaseUrl } from "@/lib/magicalive-resend";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
@@ -12,9 +13,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     db.from("articles").select("id").eq("status", "published"),
   ]);
 
+  const cityRoutes: MetadataRoute.Sitemap = CITY_LANDING_PAGES.map((c) => ({
+    url: `${base}/magicians/${encodeURIComponent(c.slug)}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.8,
+  }));
+
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${base}/`, changeFrequency: "daily", priority: 1 },
     { url: `${base}/magicians`, changeFrequency: "daily", priority: 0.9 },
+    { url: `${base}/magicians/cities`, changeFrequency: "weekly", priority: 0.75 },
     { url: `${base}/events`, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/venues`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/articles`, changeFrequency: "daily", priority: 0.8 },
@@ -45,5 +53,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })) as MetadataRoute.Sitemap),
   ];
 
-  return [...staticRoutes, ...dynamicRoutes];
+  return [...staticRoutes, ...cityRoutes, ...dynamicRoutes];
 }

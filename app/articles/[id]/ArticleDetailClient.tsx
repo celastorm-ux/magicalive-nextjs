@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 
 export type ArticleDetailMode = "public" | "preview";
 
-type ArticleDetailRow = {
+export type ArticleDetailRow = {
   id: string;
   author_id: string | null;
   title: string | null;
@@ -29,11 +29,17 @@ type ArticleDetailRow = {
     | null;
 };
 
-type MiniArticle = {
+export type MiniArticle = {
   id: string;
   title: string;
   category: string;
   coverImageUrl: string | null;
+};
+
+export type ArticleInitialPublic = {
+  article: ArticleDetailRow;
+  related: MiniArticle[];
+  moreArticles: MiniArticle[];
 };
 
 type Heading = { id: string; text: string };
@@ -123,20 +129,34 @@ function parseBody(body: string) {
   return { blocks, headings };
 }
 
-export function ArticleDetailClient({ mode }: { mode: ArticleDetailMode }) {
+export function ArticleDetailClient({
+  mode,
+  initialPublic = null,
+}: {
+  mode: ArticleDetailMode;
+  initialPublic?: ArticleInitialPublic | null;
+}) {
   const router = useRouter();
   const { user, isLoaded: userLoaded } = useUser();
   const params = useParams<{ id: string }>();
   const articleId = decodeURIComponent(String(params?.id ?? ""));
 
-  const [loading, setLoading] = useState(true);
-  const [article, setArticle] = useState<ArticleDetailRow | null>(null);
+  const [loading, setLoading] = useState(() => !(mode === "public" && initialPublic?.article));
+  const [article, setArticle] = useState<ArticleDetailRow | null>(
+    () => (mode === "public" && initialPublic?.article ? initialPublic.article : null),
+  );
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [related, setRelated] = useState<MiniArticle[]>([]);
-  const [moreArticles, setMoreArticles] = useState<MiniArticle[]>([]);
+  const [likeCount, setLikeCount] = useState(() =>
+    mode === "public" && initialPublic?.article ? Number(initialPublic.article.like_count ?? 0) : 0,
+  );
+  const [related, setRelated] = useState<MiniArticle[]>(
+    () => (mode === "public" && initialPublic ? initialPublic.related : []),
+  );
+  const [moreArticles, setMoreArticles] = useState<MiniArticle[]>(
+    () => (mode === "public" && initialPublic ? initialPublic.moreArticles : []),
+  );
   const [progress, setProgress] = useState(0);
   const [activeSection, setActiveSection] = useState<string>("");
   const articleRef = useRef<HTMLElement>(null);
@@ -144,15 +164,29 @@ export function ArticleDetailClient({ mode }: { mode: ArticleDetailMode }) {
   useEffect(() => {
     if (!articleId || !userLoaded) return;
     void (async () => {
-      setLoading(true);
+      const useServerArticle =
+        mode === "public" && initialPublic?.article && initialPublic.article.id === articleId;
 
-      const { data: artData, error: artErr } = await supabase
-        .from("articles")
-        .select(
-          "id, author_id, title, excerpt, body, category, tags, read_time, cover_image_url, published_at, view_count, like_count, status, profiles:author_id(id, display_name, avatar_url)",
-        )
-        .eq("id", articleId)
-        .maybeSingle();
+      if (!useServerArticle) setLoading(true);
+
+      let artData: ArticleDetailRow | null = null;
+      if (useServerArticle) {
+        artData = initialPublic!.article;
+      } else {
+        const res = await supabase
+          .from("articles")
+          .select(
+            "id, author_id, title, excerpt, body, category, tags, read_time, cover_image_url, published_at, view_count, like_count, status, profiles:author_id(id, display_name, avatar_url)",
+          )
+          .eq("id", articleId)
+          .maybeSingle();
+        if (res.error || !res.data) {
+          setArticle(null);
+          setLoading(false);
+          return;
+        }
+        artData = res.data as ArticleDetailRow;
+      }
 
       let isAdminUser = false;
       if (user?.id) {
@@ -164,13 +198,13 @@ export function ArticleDetailClient({ mode }: { mode: ArticleDetailMode }) {
         isAdminUser = Boolean((prof as { is_admin?: boolean | null } | null)?.is_admin);
       }
 
-      if (artErr || !artData) {
+      if (!artData) {
         setArticle(null);
         setLoading(false);
         return;
       }
 
-      const row = artData as ArticleDetailRow;
+      const row = artData;
       const status = (row.status || "").toLowerCase();
       const isAuthor = Boolean(user?.id && user.id === row.author_id);
 
@@ -220,47 +254,52 @@ export function ArticleDetailClient({ mode }: { mode: ArticleDetailMode }) {
         setSaved(false);
       }
 
-      const sameCategory = row.category?.trim() || "";
-      const [{ data: relRows }, { data: moreRows }] = await Promise.all([
-        supabase
-          .from("articles")
-          .select("id, title, category, cover_image_url")
-          .eq("status", "published")
-          .eq("category", sameCategory)
-          .neq("id", row.id)
-          .order("published_at", { ascending: false })
-          .limit(3),
-        supabase
-          .from("articles")
-          .select("id, title, category, cover_image_url")
-          .eq("status", "published")
-          .neq("id", row.id)
-          .order("published_at", { ascending: false })
-          .limit(3),
-      ]);
-      setRelated(
-        ((relRows ?? []) as Array<{ id: string; title: string | null; category: string | null; cover_image_url: string | null }>).map(
-          (r) => ({
-            id: r.id,
-            title: r.title?.trim() || "Untitled article",
-            category: r.category?.trim() || "General",
-            coverImageUrl: r.cover_image_url,
-          }),
-        ),
-      );
-      setMoreArticles(
-        ((moreRows ?? []) as Array<{ id: string; title: string | null; category: string | null; cover_image_url: string | null }>).map(
-          (r) => ({
-            id: r.id,
-            title: r.title?.trim() || "Untitled article",
-            category: r.category?.trim() || "General",
-            coverImageUrl: r.cover_image_url,
-          }),
-        ),
-      );
+      if (useServerArticle) {
+        setRelated(initialPublic.related);
+        setMoreArticles(initialPublic.moreArticles);
+      } else {
+        const sameCategory = row.category?.trim() || "";
+        const [{ data: relRows }, { data: moreRows }] = await Promise.all([
+          supabase
+            .from("articles")
+            .select("id, title, category, cover_image_url")
+            .eq("status", "published")
+            .eq("category", sameCategory)
+            .neq("id", row.id)
+            .order("published_at", { ascending: false })
+            .limit(3),
+          supabase
+            .from("articles")
+            .select("id, title, category, cover_image_url")
+            .eq("status", "published")
+            .neq("id", row.id)
+            .order("published_at", { ascending: false })
+            .limit(3),
+        ]);
+        setRelated(
+          ((relRows ?? []) as Array<{ id: string; title: string | null; category: string | null; cover_image_url: string | null }>).map(
+            (r) => ({
+              id: r.id,
+              title: r.title?.trim() || "Untitled article",
+              category: r.category?.trim() || "General",
+              coverImageUrl: r.cover_image_url,
+            }),
+          ),
+        );
+        setMoreArticles(
+          ((moreRows ?? []) as Array<{ id: string; title: string | null; category: string | null; cover_image_url: string | null }>).map(
+            (r) => ({
+              id: r.id,
+              title: r.title?.trim() || "Untitled article",
+              category: r.category?.trim() || "General",
+              coverImageUrl: r.cover_image_url,
+            }),
+          ),
+        );
+      }
       setLoading(false);
     })();
-  }, [articleId, user?.id, userLoaded, mode]);
+  }, [articleId, user?.id, userLoaded, mode, initialPublic]);
 
   const parsed = useMemo(() => parseBody(article?.body?.trim() || ""), [article?.body]);
 
