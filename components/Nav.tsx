@@ -43,7 +43,11 @@ export function Nav() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
+  const [profileDisplayName, setProfileDisplayName] = useState<string | null>(null);
+  const [profileHandle, setProfileHandle] = useState<string | null>(null);
   const notifChannelRef = useRef<RealtimeChannel | null>(null);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   const close = useCallback(() => setOpen(false), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
@@ -95,9 +99,21 @@ export function Nav() {
 
   useEffect(() => {
     if (!userMenuOpen) return;
-    const onDocClick = () => closeUserMenu();
-    window.addEventListener("click", onDocClick);
-    return () => window.removeEventListener("click", onDocClick);
+    const onPointerDown = (e: MouseEvent) => {
+      const el = userMenuRef.current;
+      if (el && !el.contains(e.target as Node)) closeUserMenu();
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [userMenuOpen, closeUserMenu]);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeUserMenu();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [userMenuOpen, closeUserMenu]);
 
   useEffect(() => {
@@ -105,17 +121,30 @@ export function Nav() {
       setIsMagician(false);
       setIsAdmin(false);
       setPendingBookingCount(0);
+      setProfileAvatarUrl(null);
+      setProfileDisplayName(null);
+      setProfileHandle(null);
       return;
     }
     void (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("account_type, booking_requests_count, is_admin")
+        .select(
+          "account_type, booking_requests_count, is_admin, avatar_url, display_name, handle",
+        )
         .eq("id", user.id)
         .maybeSingle();
       setIsMagician(data?.account_type === "magician");
       setIsAdmin(Boolean((data as { is_admin?: boolean | null } | null)?.is_admin));
       setPendingBookingCount(Number((data as { booking_requests_count?: number } | null)?.booking_requests_count ?? 0));
+      const row = data as {
+        avatar_url?: string | null;
+        display_name?: string | null;
+        handle?: string | null;
+      } | null;
+      setProfileAvatarUrl(row?.avatar_url?.trim() || null);
+      setProfileDisplayName(row?.display_name?.trim() || null);
+      setProfileHandle(row?.handle?.trim() || null);
     })();
   }, [isSignedIn, user?.id]);
 
@@ -165,9 +194,15 @@ export function Nav() {
     };
   }, [isSignedIn, user?.id, getToken]);
 
-  const userName =
+  const clerkFallbackName =
     user?.fullName || user?.firstName || user?.username || "User";
-  const userImage = user?.imageUrl || null;
+  const headerDisplayName = profileDisplayName || clerkFallbackName;
+  const headerHandleLine =
+    profileHandle != null && profileHandle !== ""
+      ? `@${profileHandle}`
+      : user?.username
+        ? `@${user.username}`
+        : null;
 
   const runSearch = (raw: string) => {
     const q = raw.trim();
@@ -287,71 +322,116 @@ export function Nav() {
             ⌕
           </button>
 
-          <div className="hidden shrink-0 items-center gap-4 sm:flex">
+          <div
+            className={
+              isSignedIn
+                ? "flex shrink-0 items-center gap-4"
+                : "hidden shrink-0 items-center gap-4 sm:flex"
+            }
+          >
             {isSignedIn ? (
-              <>
+              <div className="relative shrink-0" ref={userMenuRef}>
                 <button
                   type="button"
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    router.push("/notifications");
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[var(--ml-gold)] text-[11px] font-semibold transition hover:opacity-95"
+                  style={{
+                    backgroundColor: profileAvatarUrl ? "transparent" : "rgba(0,0,0,0.55)",
+                    color: "var(--ml-gold)",
                   }}
-                  className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-zinc-200 transition hover:bg-white/10"
-                  aria-label="Notifications"
+                  aria-expanded={userMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label="Account menu"
                 >
-                  🔔
-                  {unreadCount > 0 ? (
-                    <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white shadow-sm">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  ) : null}
+                  {profileAvatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={profileAvatarUrl}
+                      alt={headerDisplayName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    getInitials(headerDisplayName)
+                  )}
                 </button>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setUserMenuOpen((v) => !v);
+                {userMenuOpen ? (
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-50 mt-2 min-w-[15.5rem] overflow-hidden py-1 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+                    style={{
+                      backgroundColor: "var(--card-bg)",
+                      borderRadius: 3,
+                      border: "0.5px solid var(--card-border)",
                     }}
-                    className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/5 text-xs font-semibold text-zinc-100 transition hover:bg-white/10"
-                    aria-expanded={userMenuOpen}
-                    aria-label="User menu"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {userImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={userImage}
-                        alt={userName}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      getInitials(userName)
-                    )}
-                  </button>
-                  {userMenuOpen ? (
-                    <div
-                      className="absolute right-0 top-12 z-50 w-44 rounded-xl border border-white/10 bg-black/95 p-1.5 shadow-xl backdrop-blur-md"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <div className="px-3.5 pb-2.5 pt-3">
+                      <p className="truncate text-sm font-medium text-[#f0ebe3]">
+                        {headerDisplayName}
+                      </p>
+                      {headerHandleLine ? (
+                        <p className="mt-0.5 truncate text-xs text-[var(--ml-gold)]/70">
+                          {headerHandleLine}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="mx-2 border-t border-white/10" aria-hidden />
+                    <div className="py-1">
                       <Link
                         href="/profile"
-                        className="block rounded-lg px-3 py-2 text-sm text-zinc-200 transition hover:bg-white/10"
+                        role="menuitem"
+                        className="block px-3.5 py-2.5 text-sm text-zinc-200 transition hover:bg-white/[0.06]"
                         onClick={closeUserMenu}
                       >
-                        My profile
+                        View profile
                       </Link>
+                      {isMagician ? (
+                        <Link
+                          href="/dashboard"
+                          role="menuitem"
+                          className="block px-3.5 py-2.5 text-sm text-zinc-200 transition hover:bg-white/[0.06]"
+                          onClick={closeUserMenu}
+                        >
+                          Dashboard
+                        </Link>
+                      ) : null}
+                      <Link
+                        href="/profile/edit"
+                        role="menuitem"
+                        className="block px-3.5 py-2.5 text-sm text-zinc-200 transition hover:bg-white/[0.06]"
+                        onClick={closeUserMenu}
+                      >
+                        Edit profile
+                      </Link>
+                      <Link
+                        href="/notifications"
+                        role="menuitem"
+                        className="flex items-center justify-between gap-2 px-3.5 py-2.5 text-sm text-zinc-200 transition hover:bg-white/[0.06]"
+                        onClick={closeUserMenu}
+                      >
+                        <span>Notifications</span>
+                        {unreadCount > 0 ? (
+                          <span className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-red-600/95 px-1.5 text-[10px] font-semibold text-white">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        ) : null}
+                      </Link>
+                    </div>
+                    <div className="mx-2 border-t border-white/10" aria-hidden />
+                    <div className="py-1">
                       <SignOutButton>
                         <button
                           type="button"
-                          className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-white/10"
+                          role="menuitem"
+                          className="block w-full px-3.5 py-2.5 text-left text-sm text-red-400/85 transition hover:bg-white/[0.06]"
                         >
                           Sign out
                         </button>
                       </SignOutButton>
                     </div>
-                  ) : null}
-                </div>
-              </>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <>
                 <Link
@@ -579,12 +659,29 @@ export function Nav() {
                     href="/profile"
                     className="block py-4 text-base font-medium text-[var(--ml-gold)]"
                   >
-                    My profile
+                    View profile
+                  </Link>
+                  <Link
+                    href="/profile/edit"
+                    className="block py-4 text-base font-medium text-zinc-300"
+                  >
+                    Edit profile
+                  </Link>
+                  <Link
+                    href="/notifications"
+                    className="flex items-center justify-between gap-2 py-4 text-base font-medium text-zinc-300"
+                  >
+                    <span>Notifications</span>
+                    {unreadCount > 0 ? (
+                      <span className="inline-flex min-w-6 justify-center rounded-full bg-red-600/95 px-2 text-xs font-semibold text-white">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    ) : null}
                   </Link>
                   <SignOutButton>
                     <button
                       type="button"
-                      className="block py-4 text-base font-medium text-zinc-300"
+                      className="block py-4 text-base font-medium text-red-400/85"
                     >
                       Sign out
                     </button>

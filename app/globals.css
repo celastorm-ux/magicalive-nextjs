@@ -37,6 +37,8 @@
   --ml-surface-card: rgba(0, 0, 0, 0.2);
   --ml-surface-cta: rgba(0, 0, 0, 0.2);
   --ml-backdrop-nav: rgba(0, 0, 0, 0.7);
+  --card-bg: #151217;
+  --card-border: rgba(255, 255, 255, 0.12);
 
   /* Gradients / overlays */
   --ml-gradient-vignette: linear-gradient(
