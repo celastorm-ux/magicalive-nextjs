@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { CLASSES } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications";
-import { formatLastSeen } from "@/lib/format-last-seen";
+import { formatLastSeen } from "@/lib/utils";
 import { createClerkSupabaseClient, supabase } from "@/lib/supabase";
 
 type Magician = {
@@ -121,10 +121,12 @@ export default function MagiciansClient() {
           const tags = (row.specialty_tags as string[]) ?? [];
           const avail = (row.available_for as string | null) ?? null;
           const isOnline = Boolean(row.is_online);
-          const lastSeenLabel = formatLastSeen(
-            (row.last_seen as string | null) ?? null,
-            isOnline,
-          );
+          const lastSeenRaw = (row.last_seen as string | null) ?? null;
+          const lastSeenLabel = isOnline
+            ? "Online now"
+            : lastSeenRaw
+              ? formatLastSeen(lastSeenRaw)
+              : "Never active";
           return {
             id,
             name: (row.display_name as string)?.trim() || "Magician",

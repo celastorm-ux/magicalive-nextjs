@@ -9,7 +9,7 @@ import { BookingModal } from "@/components/BookingModal";
 import { ContactModal } from "@/components/ContactModal";
 import { ReviewForm, type CreatedReview } from "@/components/ReviewForm";
 import { CLASSES } from "@/lib/constants";
-import { formatLastSeen } from "@/lib/format-last-seen";
+import { formatLastSeen } from "@/lib/utils";
 import { createNotification } from "@/lib/notifications";
 import { createClerkSupabaseClient, supabase } from "@/lib/supabase";
 
@@ -613,12 +613,11 @@ export default function MagicianProfileClient() {
                       </span>
                       Online now
                     </span>
-                  ) : (
+                  ) : profile.last_seen ? (
                     <span className="text-[10px] font-medium text-zinc-500">
-                      Last seen{" "}
-                      {formatLastSeen(profile.last_seen ?? null, false)}
+                      Last seen {formatLastSeen(profile.last_seen)}
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <p className="mt-1 text-sm text-[var(--ml-gold)]">@{handle}</p>
                 <p className="mt-1 text-sm text-zinc-400">

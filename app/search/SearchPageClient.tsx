@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { SearchBar } from "@/components/SearchBar";
 import { CLASSES } from "@/lib/constants";
-import { formatLastSeen } from "@/lib/format-last-seen";
+import { formatLastSeen } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
 type MagicianResult = {
@@ -234,7 +234,7 @@ export default function SearchPageClient() {
                           </span>
                         ) : (
                           <span className="text-zinc-500">
-                            {formatLastSeen(m.last_seen, false)}
+                            {m.last_seen ? formatLastSeen(m.last_seen) : "Never active"}
                           </span>
                         )}
                       </p>
