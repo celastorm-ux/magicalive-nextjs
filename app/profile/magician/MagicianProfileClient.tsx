@@ -9,6 +9,7 @@ import { BookingModal } from "@/components/BookingModal";
 import { ContactModal } from "@/components/ContactModal";
 import { ReviewForm, type CreatedReview } from "@/components/ReviewForm";
 import { CLASSES } from "@/lib/constants";
+import { formatLastSeen } from "@/lib/format-last-seen";
 import { createNotification } from "@/lib/notifications";
 import { createClerkSupabaseClient, supabase } from "@/lib/supabase";
 
@@ -53,6 +54,8 @@ type MagicianRow = {
   email: string | null;
   contact_email: string | null;
   is_founding_member: boolean | null;
+  is_online: boolean | null;
+  last_seen: string | null;
 };
 
 type ShowRow = {
@@ -578,12 +581,20 @@ export default function MagicianProfileClient() {
                       Verified
                     </span>
                   ) : null}
-                  {profile.online_visible ? (
-                    <span className={CLASSES.badgeOnline}>
-                      <span className="h-2 w-2 rounded-full bg-emerald-300" />
+                  {profile.is_online ? (
+                    <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-200">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                      </span>
                       Online now
                     </span>
-                  ) : null}
+                  ) : (
+                    <span className="text-[10px] font-medium text-zinc-500">
+                      Last seen{" "}
+                      {formatLastSeen(profile.last_seen ?? null, false)}
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1 text-sm text-[var(--ml-gold)]">@{handle}</p>
                 <p className="mt-1 text-sm text-zinc-400">

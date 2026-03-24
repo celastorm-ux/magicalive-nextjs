@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { SearchBar } from "@/components/SearchBar";
 import { CLASSES } from "@/lib/constants";
+import { formatLastSeen } from "@/lib/format-last-seen";
 import { supabase } from "@/lib/supabase";
 
 type MagicianResult = {
@@ -16,6 +17,7 @@ type MagicianResult = {
   rating: number | null;
   review_count: number | null;
   is_online: boolean | null;
+  last_seen: string | null;
   is_founding_member: boolean | null;
 };
 
@@ -111,7 +113,7 @@ export default function SearchPageClient() {
       const magiciansPromise = supabase
         .from("profiles")
         .select(
-          "id, display_name, location, specialty_tags, avatar_url, rating, review_count, is_online, is_founding_member",
+          "id, display_name, location, specialty_tags, avatar_url, rating, review_count, is_online, last_seen, is_founding_member",
         )
         .eq("account_type", "magician")
         .ilike("display_name", `%${q}%`)
@@ -220,6 +222,21 @@ export default function SearchPageClient() {
                       </p>
                       <p className="mt-1 text-sm text-zinc-500">
                         <Highlight text={m.location || "Location not set"} q={searchQuery} />
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {m.is_online ? (
+                          <span className="inline-flex items-center gap-1.5 text-emerald-300/90">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
+                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                            </span>
+                            Online now
+                          </span>
+                        ) : (
+                          <span className="text-zinc-500">
+                            {formatLastSeen(m.last_seen, false)}
+                          </span>
+                        )}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {(m.specialty_tags ?? []).slice(0, 4).map((tag) => (

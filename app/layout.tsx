@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Cormorant_Garamond, Geist, Geist_Mono } from "next/font/google";
 import { LayoutChrome } from "@/components/LayoutChrome";
 import { CookieBanner } from "@/components/CookieBanner";
+import { UserPresence } from "@/components/UserPresence";
 import { buildMetadata } from "@/lib/seo";
 import "./globals.css";
 
@@ -43,6 +44,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-dvh flex-col">
         <ClerkProvider>
+          <UserPresence />
           <LayoutChrome>{children}</LayoutChrome>
           <CookieBanner />
         </ClerkProvider>

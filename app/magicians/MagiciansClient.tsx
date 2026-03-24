@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { CLASSES } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications";
+import { formatLastSeen } from "@/lib/format-last-seen";
 import { createClerkSupabaseClient, supabase } from "@/lib/supabase";
 
 type Magician = {
@@ -19,7 +20,8 @@ type Magician = {
   rating: number;
   reviews: number;
   onlineNow: boolean;
-  lastSeen: string | null;
+  /** Display string from formatLastSeen */
+  lastSeenLabel: string;
   gradient: string;
   isFoundingMember: boolean;
 };
@@ -75,19 +77,6 @@ function firstInitial(name: string) {
   return (name.trim()[0] || "M").toUpperCase();
 }
 
-function formatLastSeen(lastSeen: string | null, isOnline: boolean): string {
-  if (isOnline) return "Online now";
-  if (!lastSeen) return "Offline";
-  const dt = new Date(lastSeen);
-  if (Number.isNaN(dt.getTime())) return "Offline";
-  const ms = Date.now() - dt.getTime();
-  if (ms < 0) return "Offline";
-  const h = Math.floor(ms / (1000 * 60 * 60));
-  if (h < 24) return `${Math.max(1, h)}h ago`;
-  const d = Math.floor(h / 24);
-  return `${Math.max(1, d)}d ago`;
-}
-
 export default function MagiciansClient() {
   const searchParams = useSearchParams();
   const { user } = useUser();
@@ -132,7 +121,10 @@ export default function MagiciansClient() {
           const tags = (row.specialty_tags as string[]) ?? [];
           const avail = (row.available_for as string | null) ?? null;
           const isOnline = Boolean(row.is_online);
-          const lastSeen = formatLastSeen((row.last_seen as string | null) ?? null, isOnline);
+          const lastSeenLabel = formatLastSeen(
+            (row.last_seen as string | null) ?? null,
+            isOnline,
+          );
           return {
             id,
             name: (row.display_name as string)?.trim() || "Magician",
@@ -144,7 +136,7 @@ export default function MagiciansClient() {
             rating: Number(row.rating ?? 0),
             reviews: Number(row.review_count ?? 0),
             onlineNow: isOnline,
-            lastSeen,
+            lastSeenLabel,
             gradient: CARD_GRADIENTS[h % CARD_GRADIENTS.length]!,
             isFoundingMember: Boolean(row.is_founding_member),
           } satisfies Magician;
@@ -548,13 +540,19 @@ export default function MagiciansClient() {
                           </span>
                         ) : null}
                         {m.onlineNow ? (
-                          <span className={CLASSES.badgeOnline}>
-                            <span className="h-2 w-2 rounded-full bg-emerald-300" />
-                            Online now
+                          <span
+                            className="inline-flex items-center justify-center"
+                            title="Online now"
+                            aria-label="Online now"
+                          >
+                            <span className="relative flex h-2.5 w-2.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
+                              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)]" />
+                            </span>
                           </span>
                         ) : (
                           <span className="rounded-full border border-white/10 bg-black/40 px-2.5 py-1 text-[10px] font-medium text-zinc-400 backdrop-blur-sm">
-                            {m.lastSeen}
+                            {m.lastSeenLabel}
                           </span>
                         )}
                       </div>
