@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-type LegalSection = {
+export type LegalSection = {
   id: string;
   title: string;
-  paragraphs: string[];
-  bullets?: string[];
+  paragraphs: readonly string[] | string[];
+  bullets?: readonly string[] | string[];
 };
 
 export function LegalDocument({
@@ -21,7 +21,7 @@ export function LegalDocument({
   titleAccent: string;
   intro: string;
   lastUpdated: string;
-  sections: LegalSection[];
+  sections: readonly LegalSection[] | LegalSection[];
 }) {
   const [activeId, setActiveId] = useState(sections[0]?.id ?? "");
 

@@ -121,7 +121,7 @@ export default function TermsPage() {
       titleAccent="Service"
       lastUpdated="March 2026"
       intro="Please read these terms carefully before using Magicalive"
-      sections={[...sections]}
+      sections={sections}
     />
   );
 }

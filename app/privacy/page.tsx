@@ -158,7 +158,7 @@ export default function PrivacyPage() {
       titleAccent="Policy"
       lastUpdated="March 2026"
       intro="Your privacy is important to us. This policy explains how we collect use and protect your information."
-      sections={[...sections]}
+      sections={sections}
     />
   );
 }
