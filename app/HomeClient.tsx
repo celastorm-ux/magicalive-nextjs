@@ -41,6 +41,7 @@ export default function HomeClient() {
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [foundingRemaining, setFoundingRemaining] = useState<number | null>(null);
   const [foundingBannerDismissed, setFoundingBannerDismissed] = useState(false);
+  const [passwordResetBanner, setPasswordResetBanner] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -133,6 +134,17 @@ export default function HomeClient() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("password_reset") !== "success") return;
+    setPasswordResetBanner(true);
+    p.delete("password_reset");
+    const qs = p.toString();
+    const next = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
+    window.history.replaceState(null, "", next || "/");
+  }, []);
+
   const foundingClaimed =
     foundingRemaining == null ? null : Math.max(0, Math.min(100, 100 - foundingRemaining));
   const foundingProgressPct =
@@ -178,6 +190,21 @@ export default function HomeClient() {
               ×
             </button>
           </div>
+        </div>
+      ) : null}
+      {passwordResetBanner ? (
+        <div
+          className="border-b border-emerald-500/35 bg-emerald-500/15 px-4 py-2 text-center text-sm text-emerald-100"
+          role="status"
+        >
+          Your password was updated. You&apos;re signed in and ready to go.
+          <button
+            type="button"
+            onClick={() => setPasswordResetBanner(false)}
+            className="ml-3 inline text-emerald-200 underline hover:text-white"
+          >
+            Dismiss
+          </button>
         </div>
       ) : null}
       <div

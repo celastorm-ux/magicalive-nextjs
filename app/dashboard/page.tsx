@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth, useClerk, useSessionList, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -107,10 +107,24 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "settings", label: "Settings" },
 ];
 
+function formatLastSignIn(at: Date | null | undefined): string {
+  if (!at) return "—";
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(at);
+  } catch {
+    return "—";
+  }
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
+  const { signOut } = useClerk();
+  const { isLoaded: sessionsLoaded, sessions } = useSessionList();
   const [tab, setTab] = useState<Tab>("overview");
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -124,6 +138,7 @@ export default function DashboardPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [posting, setPosting] = useState(false);
   const [editSaveMsg, setEditSaveMsg] = useState("");
+  const [revokeAllBusy, setRevokeAllBusy] = useState(false);
 
   const [socialYoutube, setSocialYoutube] = useState("");
   const [socialInstagram, setSocialInstagram] = useState("");
@@ -1494,7 +1509,72 @@ export default function DashboardPage() {
         ) : null}
 
         {tab === "settings" ? (
-          <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <div className="mt-8 space-y-6">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <h3 className="ml-font-heading text-lg font-semibold text-zinc-100">Security</h3>
+              <p className="mt-1 text-sm text-zinc-500">
+                Manage your password and active sign-ins. Revoking sessions signs you out everywhere—including this
+                device—and you will need to sign in again.
+              </p>
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Last sign in</p>
+                  <p className="mt-1 text-zinc-200">
+                    {formatLastSignIn(user?.lastSignInAt ? new Date(user.lastSignInAt) : null)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                    Active sessions (this browser)
+                  </p>
+                  <p className="mt-1 text-zinc-200">
+                    {sessionsLoaded ? (sessions?.length ?? 0) : "…"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link
+                  href="/profile/edit#password"
+                  className={`${CLASSES.btnSecondary} inline-flex text-xs uppercase tracking-wider`}
+                >
+                  Change password
+                </Link>
+                <button
+                  type="button"
+                  disabled={revokeAllBusy}
+                  onClick={() => {
+                    void (async () => {
+                      if (
+                        !window.confirm(
+                          "Sign out all devices? You will be signed out everywhere and must sign in again.",
+                        )
+                      ) {
+                        return;
+                      }
+                      setRevokeAllBusy(true);
+                      setErrorMsg("");
+                      try {
+                        const res = await fetch("/api/auth/revoke-all-sessions", { method: "POST" });
+                        if (!res.ok) {
+                          setErrorMsg("Could not revoke sessions.");
+                          setRevokeAllBusy(false);
+                          return;
+                        }
+                        await signOut({ redirectUrl: "/sign-in" });
+                      } catch {
+                        setErrorMsg("Could not revoke sessions.");
+                        setRevokeAllBusy(false);
+                      }
+                    })();
+                  }}
+                  className="rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-red-200 transition hover:bg-red-500/20 disabled:opacity-60"
+                >
+                  {revokeAllBusy ? "Signing out…" : "Sign out all devices"}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
             <div className="space-y-3">
               {[
                 { field: "is_online", label: "Show in directory", value: Boolean(profile.is_online) },
@@ -1520,6 +1600,7 @@ export default function DashboardPage() {
             <Link href="/profile/edit" className={`${CLASSES.btnSecondary} mt-5 inline-flex text-xs uppercase tracking-wider`}>
               Edit profile
             </Link>
+          </div>
           </div>
         ) : null}
       </div>

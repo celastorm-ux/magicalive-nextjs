@@ -100,6 +100,13 @@ export default function EditProfilePage() {
   const [website, setWebsite] = useState("");
   const [contactEmail, setContactEmail] = useState("");
 
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdOk, setPwdOk] = useState("");
+  const [pwdErr, setPwdErr] = useState("");
+
   useEffect(() => {
     if (!isLoaded) return;
     if (!user?.id) {
@@ -274,6 +281,41 @@ export default function EditProfilePage() {
       return;
     }
     setOkMsg("Profile updated successfully");
+  };
+
+  const savePassword = async () => {
+    if (!user) return;
+    setPwdErr("");
+    setPwdOk("");
+    if (!currentPassword.trim()) {
+      setPwdErr("Enter your current password.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPwdErr("New password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPwdErr("New password and confirmation do not match.");
+      return;
+    }
+    setPwdSaving(true);
+    try {
+      await user.updatePassword({
+        currentPassword: currentPassword.trim(),
+        newPassword: newPassword,
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setPwdOk("Password updated successfully");
+    } catch (e: unknown) {
+      const errObj = e as { errors?: Array<{ message?: string; longMessage?: string }> };
+      const msg = errObj.errors?.[0]?.longMessage || errObj.errors?.[0]?.message;
+      setPwdErr(msg || "Could not update password.");
+    } finally {
+      setPwdSaving(false);
+    }
   };
 
   const deleteAccount = async () => {
@@ -556,6 +598,64 @@ export default function EditProfilePage() {
               <input className={inputClass} value={website} onChange={(e) => setWebsite(e.target.value)} />
             </div>
           </div>
+        </section>
+
+        <section id="password" className="mb-8 scroll-mt-24 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <h2 className="mb-4 ml-font-heading text-xl font-semibold text-zinc-100">Change password</h2>
+          {!user?.passwordEnabled ? (
+            <p className="text-sm text-zinc-500">
+              Your account does not use a password (you may sign in with a social provider). Use{" "}
+              <Link href="/forgot-password" className="text-[var(--ml-gold)] hover:underline">
+                forgot password
+              </Link>{" "}
+              only if you have a password on file.
+            </p>
+          ) : (
+            <>
+              <div className="mb-4">
+                <label className={labelClass}>Current password</label>
+                <input
+                  type="password"
+                  className={inputClass}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+              </div>
+              <div className="mb-4">
+                <label className={labelClass}>New password</label>
+                <input
+                  type="password"
+                  className={inputClass}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  minLength={8}
+                />
+              </div>
+              <div className="mb-4">
+                <label className={labelClass}>Confirm new password</label>
+                <input
+                  type="password"
+                  className={inputClass}
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  minLength={8}
+                />
+              </div>
+              {pwdOk ? <p className="mb-3 text-sm font-medium text-emerald-400">{pwdOk}</p> : null}
+              {pwdErr ? <p className="mb-3 text-sm font-medium text-red-400">{pwdErr}</p> : null}
+              <button
+                type="button"
+                disabled={pwdSaving}
+                onClick={() => void savePassword()}
+                className={`${CLASSES.btnPrimary} text-xs uppercase tracking-wider disabled:opacity-60`}
+              >
+                {pwdSaving ? "Saving…" : "Save password"}
+              </button>
+            </>
+          )}
         </section>
 
         {okMsg ? <p className="mb-4 text-sm font-medium text-emerald-400">{okMsg}</p> : null}

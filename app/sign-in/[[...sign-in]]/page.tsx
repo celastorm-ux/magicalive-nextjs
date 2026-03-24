@@ -1,8 +1,9 @@
 import { SignIn } from "@clerk/nextjs";
+import Link from "next/link";
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-black px-4 py-12">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-black px-4 py-12">
       <SignIn
         routing="path"
         path="/sign-in"
@@ -23,6 +24,14 @@ export default function SignInPage() {
           },
         }}
       />
+      <p className="mt-3 text-center">
+        <Link
+          href="/forgot-password"
+          className="text-xs text-[#f5cc71]/70 transition hover:text-[#f5cc71] hover:underline"
+        >
+          Forgot your password?
+        </Link>
+      </p>
     </div>
   );
 }
