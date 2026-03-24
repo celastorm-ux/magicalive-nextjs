@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { CLASSES } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications";
 import { formatLastSeen } from "@/lib/utils";
-import { createClerkSupabaseClient, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 type Magician = {
   id: string;
@@ -80,7 +80,6 @@ function firstInitial(name: string) {
 export default function MagiciansClient() {
   const searchParams = useSearchParams();
   const { user } = useUser();
-  const { getToken } = useAuth();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [city, setCity] = useState<string>(CITIES[0]);
@@ -223,19 +222,15 @@ export default function MagiciansClient() {
           .select("avatar_url")
           .eq("id", user.id)
           .maybeSingle();
-        const db = await createClerkSupabaseClient(getToken);
-        void createNotification(
-          {
-            recipientId: magicianId,
-            senderId: user.id,
-            senderName: fanName,
-            senderAvatar: selfProf?.avatar_url?.trim() || undefined,
-            type: "new_follower",
-            message: `${fanName} started following you`,
-            link: `/profile/magician?id=${encodeURIComponent(user.id)}`,
-          },
-          db,
-        );
+        void createNotification({
+          recipientId: magicianId,
+          senderId: user.id,
+          senderName: fanName,
+          senderAvatar: selfProf?.avatar_url?.trim() || undefined,
+          type: "new_follower",
+          message: `${fanName} started following you`,
+          link: `/profile/magician?id=${encodeURIComponent(user.id)}`,
+        });
       }
       void fetch("/api/send-email", {
         method: "POST",

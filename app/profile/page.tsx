@@ -1,14 +1,17 @@
 "use client";
 
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { createClerkSupabaseClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export default function ProfileRouterPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
-  const { getToken } = useAuth();
+  useEffect(() => {
+    console.log("Profile router - isLoaded:", isLoaded);
+    console.log("Profile router - user:", user?.id);
+  }, [isLoaded, user?.id]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -18,29 +21,32 @@ export default function ProfileRouterPage() {
     }
     console.log("Current user id:", user.id);
     void (async () => {
-      const client = await createClerkSupabaseClient(getToken);
-      const { data: profile, error } = await client
+      console.log("Fetching profile for id:", user.id);
+      const { data, error } = await supabase
         .from("profiles")
         .select("account_type")
         .eq("id", String(user.id))
         .maybeSingle();
 
-      console.log("Profile found:", profile, error);
+      console.log("Supabase result:", data, error);
+      console.log("Account type:", data?.account_type);
 
       if (error) {
         console.warn("Profile router Supabase error:", error);
       }
 
-      if (!profile) {
+      if (!data) {
         router.replace("/create-profile");
         return;
       }
 
-      const t = profile.account_type as string | undefined;
+      const t = data.account_type as string | undefined;
       const uid = encodeURIComponent(user.id);
 
       if (t === "magician") {
-        router.replace(`/profile/magician?id=${uid}`);
+        const dest = `/profile/magician?id=${uid}`;
+        console.log("Redirecting to:", dest);
+        router.replace(dest);
         return;
       }
       if (t === "fan") {
@@ -50,7 +56,7 @@ export default function ProfileRouterPage() {
       if (t === "venue") {
         const email = user.primaryEmailAddress?.emailAddress;
         if (email) {
-          const { data: vRow } = await client
+          const { data: vRow } = await supabase
             .from("venues")
             .select("id")
             .eq("contact_email", email)
@@ -68,7 +74,7 @@ export default function ProfileRouterPage() {
 
       router.replace("/create-profile");
     })();
-  }, [isLoaded, user, router, getToken]);
+  }, [isLoaded, user, router]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black text-zinc-400">

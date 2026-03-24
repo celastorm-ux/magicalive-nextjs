@@ -157,6 +157,21 @@ export default function EditProfilePage() {
     };
   }, [bannerPreview]);
 
+  useEffect(() => {
+    if (loading) return;
+    const scrollToPassword = () => {
+      if (typeof window === "undefined" || window.location.hash !== "#password") return;
+      const el = document.getElementById("password");
+      if (!el) return;
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+    scrollToPassword();
+    window.addEventListener("hashchange", scrollToPassword);
+    return () => window.removeEventListener("hashchange", scrollToPassword);
+  }, [loading]);
+
   const toggleTag = useCallback((tag: string) => {
     setSelectedTags((prev) => {
       const next = new Set(prev);

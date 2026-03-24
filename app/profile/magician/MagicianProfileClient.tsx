@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -11,7 +11,7 @@ import { ReviewForm, type CreatedReview } from "@/components/ReviewForm";
 import { CLASSES } from "@/lib/constants";
 import { formatLastSeen } from "@/lib/utils";
 import { createNotification } from "@/lib/notifications";
-import { createClerkSupabaseClient, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 const TABS = [
   "About",
@@ -190,7 +190,6 @@ export default function MagicianProfileClient({
   const searchParams = useSearchParams();
   const paramId = searchParams.get("id")?.trim();
   const { user, isLoaded } = useUser();
-  const { getToken } = useAuth();
   const [tab, setTab] = useState<Tab>("About");
   const [profile, setProfile] = useState<MagicianRow | null>(
     () => (initial?.profile as MagicianRow | undefined) ?? null,
@@ -485,19 +484,15 @@ export default function MagicianProfileClient({
           .select("avatar_url")
           .eq("id", user.id)
           .maybeSingle();
-        const db = await createClerkSupabaseClient(getToken);
-        void createNotification(
-          {
-            recipientId: profile.id,
-            senderId: user.id,
-            senderName: fanName,
-            senderAvatar: selfProf?.avatar_url?.trim() || undefined,
-            type: "new_follower",
-            message: `${fanName} started following you`,
-            link: `/profile/magician?id=${encodeURIComponent(user.id)}`,
-          },
-          db,
-        );
+        void createNotification({
+          recipientId: profile.id,
+          senderId: user.id,
+          senderName: fanName,
+          senderAvatar: selfProf?.avatar_url?.trim() || undefined,
+          type: "new_follower",
+          message: `${fanName} started following you`,
+          link: `/profile/magician?id=${encodeURIComponent(user.id)}`,
+        });
       }
       void fetch("/api/send-email", {
         method: "POST",

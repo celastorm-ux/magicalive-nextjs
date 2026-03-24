@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FoundingMemberSpots } from "@/components/FoundingMemberSpots";
+import { SmoothScrollAnchor } from "@/components/SmoothScrollAnchor";
 
 const BENEFITS = [
   ["Your own profile page", "A beautiful public profile showcasing your bio, specialty, credentials, photos and videos"],
@@ -21,7 +22,9 @@ export default function ForMagiciansPage() {
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/create-profile" className="rounded-xl bg-[var(--ml-gold)] px-5 py-3 font-semibold text-black">Create your free profile</Link>
-            <a href="#how-it-works" className="rounded-xl border border-white/15 px-5 py-3">See how it works</a>
+            <SmoothScrollAnchor href="#how-it-works" className="rounded-xl border border-white/15 px-5 py-3">
+              See how it works
+            </SmoothScrollAnchor>
           </div>
           <div className="mt-6 text-lg"><FoundingMemberSpots /></div>
         </section>

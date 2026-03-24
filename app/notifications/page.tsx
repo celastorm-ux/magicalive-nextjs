@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { CLASSES } from "@/lib/constants";
-import { createClerkSupabaseClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 const PAGE_SIZE = 20;
 
@@ -62,7 +62,6 @@ const SYSTEM_TYPES = new Set(["new_article_published", "article_rejected"]);
 export default function NotificationsPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
-  const { getToken } = useAuth();
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -91,11 +90,10 @@ export default function NotificationsPage() {
       console.log("Current user id type:", typeof userId, "value:", userId);
       console.log("Fetching notifications for user:", userId);
 
-      const client = await createClerkSupabaseClient(getToken);
       const from = reset ? 0 : offsetRef.current;
       const to = from + PAGE_SIZE - 1;
 
-      const { data, error } = await client
+      const { data, error } = await supabase
         .from("notifications")
         .select("*")
         .eq("recipient_id", userId)
@@ -131,7 +129,7 @@ export default function NotificationsPage() {
       }
       setHasMore(rows.length === PAGE_SIZE);
     },
-    [getToken, user?.id],
+    [user?.id],
   );
 
   useEffect(() => {
@@ -154,9 +152,8 @@ export default function NotificationsPage() {
     let cancelled = false;
 
     void (async () => {
-      const client = await createClerkSupabaseClient(getToken);
       if (cancelled) return;
-      const ch = client
+      const ch = supabase
         .channel("notifications")
         .on(
           "postgres_changes",
@@ -185,7 +182,7 @@ export default function NotificationsPage() {
       void channelRef.current?.unsubscribe();
       channelRef.current = null;
     };
-  }, [user?.id, getToken, showToast]);
+  }, [user?.id, showToast]);
 
   const grouped = useMemo(() => {
     const order: Array<"Today" | "Yesterday" | "This week" | "Earlier"> = [
@@ -207,8 +204,7 @@ export default function NotificationsPage() {
   const markAllRead = async () => {
     if (!user?.id || markingAll) return;
     setMarkingAll(true);
-    const client = await createClerkSupabaseClient(getToken);
-    await client.from("notifications").update({ is_read: true }).eq("recipient_id", user.id).eq("is_read", false);
+    await supabase.from("notifications").update({ is_read: true }).eq("recipient_id", user.id).eq("is_read", false);
     setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setMarkingAll(false);
   };
@@ -217,8 +213,7 @@ export default function NotificationsPage() {
     if (!user?.id || deletingAll) return;
     if (!window.confirm("Delete all notifications? This cannot be undone.")) return;
     setDeletingAll(true);
-    const client = await createClerkSupabaseClient(getToken);
-    await client.from("notifications").delete().eq("recipient_id", user.id);
+    await supabase.from("notifications").delete().eq("recipient_id", user.id);
     setItems([]);
     offsetRef.current = 0;
     setHasMore(false);
@@ -233,9 +228,8 @@ export default function NotificationsPage() {
   };
 
   const onRowClick = async (n: NotificationRow) => {
-    const client = await createClerkSupabaseClient(getToken);
     if (!n.is_read) {
-      await client.from("notifications").update({ is_read: true }).eq("id", n.id);
+      await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
     }
     const href = n.link.startsWith("/") ? n.link : `/${n.link}`;

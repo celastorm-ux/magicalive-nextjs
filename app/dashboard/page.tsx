@@ -1,13 +1,13 @@
 "use client";
 
-import { useAuth, useClerk, useSessionList, useUser } from "@clerk/nextjs";
+import { useClerk, useSessionList, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AvailabilityCalendar } from "@/components/AvailabilityCalendar";
 import { CLASSES } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications";
-import { createClerkSupabaseClient, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 type Tab = "overview" | "post" | "shows" | "availability" | "articles" | "settings";
 
@@ -122,7 +122,6 @@ function formatLastSignIn(at: Date | null | undefined): string {
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
-  const { getToken } = useAuth();
   const { signOut } = useClerk();
   const { isLoaded: sessionsLoaded, sessions } = useSessionList();
   const [tab, setTab] = useState<Tab>("overview");
@@ -624,22 +623,18 @@ export default function DashboardPage() {
       user?.firstName?.trim() ||
       "A magician";
     if (requesterId && user?.id) {
-      const db = await createClerkSupabaseClient(getToken);
-      void createNotification(
-        {
-          recipientId: requesterId,
-          senderId: user.id,
-          senderName: magicianName,
-          senderAvatar: profile?.avatar_url?.trim() || undefined,
-          type: status === "accepted" ? "booking_accepted" : "booking_declined",
-          message:
-            status === "accepted"
-              ? `${magicianName} accepted your booking request`
-              : `${magicianName} is unavailable for your requested date`,
-          link: status === "accepted" ? "/dashboard" : "/magicians",
-        },
-        db,
-      );
+      void createNotification({
+        recipientId: requesterId,
+        senderId: user.id,
+        senderName: magicianName,
+        senderAvatar: profile?.avatar_url?.trim() || undefined,
+        type: status === "accepted" ? "booking_accepted" : "booking_declined",
+        message:
+          status === "accepted"
+            ? `${magicianName} accepted your booking request`
+            : `${magicianName} is unavailable for your requested date`,
+        link: status === "accepted" ? "/dashboard" : "/magicians",
+      });
     }
     setBookingRequests((curr) => {
       const next = curr.map((r) => (r.id === id ? { ...r, status, reply_message } : r));

@@ -1,11 +1,11 @@
 "use client";
 
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useState } from "react";
 import { CLASSES } from "@/lib/constants";
 import { createNotification } from "@/lib/notifications";
-import { createClerkSupabaseClient, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export type CreatedReview = {
   id: string;
@@ -25,7 +25,6 @@ type ReviewFormProps = {
 
 export function ReviewForm({ magicianId, isOwnProfile, onSubmitted }: ReviewFormProps) {
   const { user } = useUser();
-  const { getToken } = useAuth();
   const [rating, setRating] = useState(0);
   const [showAttended, setShowAttended] = useState("");
   const [body, setBody] = useState("");
@@ -99,19 +98,15 @@ export function ReviewForm({ magicianId, isOwnProfile, onSubmitted }: ReviewForm
       .update({ review_count: Number(profile?.review_count ?? 0) + 1 })
       .eq("id", magicianId);
 
-    const db = await createClerkSupabaseClient(getToken);
-    void createNotification(
-      {
-        recipientId: magicianId,
-        senderId: user.id,
-        senderName: reviewerName,
-        senderAvatar: reviewerProfile?.avatar_url?.trim() || undefined,
-        type: "new_review",
-        message: `${reviewerName} left you a ${rating} star review`,
-        link: `/profile/magician?id=${encodeURIComponent(magicianId)}#reviews`,
-      },
-      db,
-    );
+    void createNotification({
+      recipientId: magicianId,
+      senderId: user.id,
+      senderName: reviewerName,
+      senderAvatar: reviewerProfile?.avatar_url?.trim() || undefined,
+      type: "new_review",
+      message: `${reviewerName} left you a ${rating} star review`,
+      link: `/profile/magician?id=${encodeURIComponent(magicianId)}#reviews`,
+    });
 
     void fetch("/api/send-email", {
       method: "POST",

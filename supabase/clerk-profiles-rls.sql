@@ -3,12 +3,9 @@
 -- Run in Supabase Dashboard → SQL Editor
 -- =============================================================================
 --
--- PREREQ (choose one):
--- A) Supabase Dashboard → Authentication → Sign In / Providers → enable
---    "Clerk" (third-party auth), OR
--- B) Clerk Dashboard → JWT Templates → New → "Supabase" template, paste your
---    Supabase JWT secret (Settings → API → JWT Secret) as the signing key.
---    Then use template name "supabase" in getToken({ template: 'supabase' }).
+-- App uses the Supabase anon key; Clerk provides user.id only (stored as
+-- profiles.id). RLS policies should allow the operations you need for anon
+-- (e.g. public read, or restrictive policies if you use a service role on the server).
 --
 -- =============================================================================
 

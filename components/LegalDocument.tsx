@@ -115,6 +115,13 @@ export function LegalDocument({
                         ? "bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]"
                         : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
                     }`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById(item.id)?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }}
                   >
                     {item.label}
                   </a>

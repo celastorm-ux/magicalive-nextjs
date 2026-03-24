@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SignOutButton, useAuth, useUser } from "@clerk/nextjs";
+import { SignOutButton, useUser } from "@clerk/nextjs";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { CLASSES } from "@/lib/constants";
-import { createClerkSupabaseClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 const NAV_ITEMS = [
   { label: "Home", href: "/" },
@@ -25,7 +25,6 @@ export function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isSignedIn } = useUser();
-  const { getToken } = useAuth();
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -117,8 +116,7 @@ export function Nav() {
 
   const fetchNavProfile = useCallback(async () => {
     if (!user?.id) return;
-    const client = await createClerkSupabaseClient(getToken);
-    const { data: profile, error } = await client
+    const { data: profile, error } = await supabase
       .from("profiles")
       .select(
         "avatar_url, display_name, handle, account_type, booking_requests_count, is_admin",
@@ -147,7 +145,7 @@ export function Nav() {
     setIsMagician(profile.account_type === "magician");
     setIsAdmin(Boolean(profile.is_admin));
     setPendingBookingCount(Number(profile.booking_requests_count ?? 0));
-  }, [user?.id, getToken]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!isSignedIn || !user?.id) {
@@ -171,9 +169,8 @@ export function Nav() {
     let cancelled = false;
 
     void (async () => {
-      const client = await createClerkSupabaseClient(getToken);
       const refetchCount = async () => {
-        const { count } = await client
+        const { count } = await supabase
           .from("notifications")
           .select("*", { count: "exact", head: true })
           .eq("recipient_id", user.id)
@@ -183,7 +180,7 @@ export function Nav() {
 
       await refetchCount();
 
-      const ch = client
+      const ch = supabase
         .channel("notifications")
         .on(
           "postgres_changes",
@@ -204,7 +201,7 @@ export function Nav() {
       void notifChannelRef.current?.unsubscribe();
       notifChannelRef.current = null;
     };
-  }, [isSignedIn, user?.id, getToken]);
+  }, [isSignedIn, user?.id]);
 
   const clerkFallbackName =
     user?.fullName || user?.firstName || user?.username || "User";
