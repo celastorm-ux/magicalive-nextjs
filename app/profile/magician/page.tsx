@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import JsonLd from "@/components/JsonLd";
 import { CLASSES } from "@/lib/constants";
 import { siteBaseUrl } from "@/lib/magicalive-resend";
@@ -36,91 +36,73 @@ function MagicianProfilePageContent() {
 
   const profileIdFromUrl = searchParams.get("id");
   const profileId = (profileIdFromUrl?.trim() || user?.id || "").trim();
+  const readyForOwnId = Boolean(profileIdFromUrl?.trim()) || isLoaded;
 
+  const [isLoading, setIsLoading] = useState(true);
   const [bundle, setBundle] = useState<BundleJson | null>(null);
-  const [fetchState, setFetchState] = useState<"idle" | "loading" | "done">("idle");
   const [profileProbe, setProfileProbe] = useState<{
     data: Record<string, unknown> | null;
     error: unknown;
   } | null>(null);
 
-  const readyForOwnId = profileIdFromUrl?.trim() ? true : isLoaded;
+  const fetchGenRef = useRef(0);
 
   useEffect(() => {
-    console.log("Magician page - searchParams:", searchParams.toString());
-    console.log("Magician page - profileId from URL:", profileIdFromUrl);
-    console.log("Magician page - current user:", user?.id);
-    console.log("Magician page - using id:", profileId);
-  }, [searchParams, profileIdFromUrl, user?.id, profileId]);
-
-  useEffect(() => {
-    console.log("Final profileId being used:", profileId || "(empty)");
-    if (!profileId) {
-      console.log("No profileId found - showing not found");
-    }
-  }, [profileId]);
-
-  useEffect(() => {
-    if (!readyForOwnId) return;
-    if (!profileId) {
-      setBundle(null);
-      setProfileProbe(null);
-      setFetchState("done");
+    if (!readyForOwnId) {
       return;
     }
 
+    if (!profileId) {
+      fetchGenRef.current += 1;
+      setBundle(null);
+      setProfileProbe(null);
+      setIsLoading(false);
+      return;
+    }
+
+    const gen = ++fetchGenRef.current;
+    setIsLoading(true);
     setBundle(null);
     setProfileProbe(null);
-    setFetchState("loading");
+
     let cancelled = false;
 
     void (async () => {
-      const { data: allProfiles, error: sampleError } = await supabase
-        .from("profiles")
-        .select("id, display_name, account_type")
-        .limit(5);
-      console.log("Sample profiles in database:", allProfiles, "sampleError:", sampleError);
-
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", profileId)
         .single();
 
-      console.log("Magician page - Supabase result:", data, error);
-      console.log("Profile query result:", data, error);
-      console.log("Profile id being queried:", profileId);
-
-      if (cancelled) return;
+      if (cancelled || gen !== fetchGenRef.current) return;
 
       setProfileProbe({ data: data as Record<string, unknown> | null, error });
 
       if (error || !data) {
         setBundle(null);
-        setFetchState("done");
+        setIsLoading(false);
         return;
       }
 
       const accountType = (data as { account_type?: string | null }).account_type;
       if (accountType !== "magician") {
-        console.log(
-          "Magician page - row exists but account_type is not magician:",
-          accountType,
-        );
         setBundle(null);
-        setFetchState("done");
+        setIsLoading(false);
         return;
       }
 
       try {
         const res = await fetch(`/api/profile/magician-bundle?id=${encodeURIComponent(profileId)}`);
         const bundleJson = (await res.json()) as BundleJson;
-        if (!cancelled) setBundle(bundleJson);
-      } catch (e) {
-        console.log("Magician page - magician-bundle fetch failed:", e);
-        if (!cancelled) setBundle(null);
+        if (cancelled || gen !== fetchGenRef.current) return;
+        setBundle(bundleJson);
+      } catch {
+        if (cancelled || gen !== fetchGenRef.current) return;
+        setBundle(null);
       } finally {
-        if (!cancelled) setFetchState("done");
+        if (!cancelled && gen === fetchGenRef.current) {
+          setIsLoading(false);
+        }
       }
     })();
 
@@ -129,7 +111,7 @@ function MagicianProfilePageContent() {
     };
   }, [readyForOwnId, profileId]);
 
-  if (!readyForOwnId || fetchState === "loading" || (fetchState === "idle" && profileId)) {
+  if (!readyForOwnId || isLoading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black text-zinc-400">
         <span
@@ -153,11 +135,10 @@ function MagicianProfilePageContent() {
   }
 
   if (
-    fetchState === "done" &&
-    (profileProbe?.error ||
-      !profileProbe?.data ||
-      (profileProbe.data as { account_type?: string }).account_type !== "magician" ||
-      !bundle?.profile)
+    profileProbe?.error ||
+    !profileProbe?.data ||
+    (profileProbe.data as { account_type?: string }).account_type !== "magician" ||
+    !bundle?.profile
   ) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-6 text-center">
@@ -169,7 +150,7 @@ function MagicianProfilePageContent() {
     );
   }
 
-  const p = bundle!.profile as {
+  const p = bundle.profile as {
     id: string;
     display_name?: string | null;
     short_bio?: string | null;
@@ -202,11 +183,11 @@ function MagicianProfilePageContent() {
   };
 
   const initial: MagicianProfileInitialBundle = {
-    profile: bundle!.profile as MagicianProfileInitialBundle["profile"],
-    shows: bundle!.shows as MagicianProfileInitialBundle["shows"],
-    pastShows: bundle!.pastShows as MagicianProfileInitialBundle["pastShows"],
-    reviews: bundle!.reviews as MagicianProfileInitialBundle["reviews"],
-    articles: bundle!.articles as MagicianProfileInitialBundle["articles"],
+    profile: bundle.profile as MagicianProfileInitialBundle["profile"],
+    shows: bundle.shows as MagicianProfileInitialBundle["shows"],
+    pastShows: bundle.pastShows as MagicianProfileInitialBundle["pastShows"],
+    reviews: bundle.reviews as MagicianProfileInitialBundle["reviews"],
+    articles: bundle.articles as MagicianProfileInitialBundle["articles"],
   };
 
   return (

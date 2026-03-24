@@ -2,79 +2,86 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 
+/** Redirect-only route: one loader until Next.js replaces the URL. Refs avoid duplicate Supabase/redirect work. */
 export default function ProfileRouterPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
-  useEffect(() => {
-    console.log("Profile router - isLoaded:", isLoaded);
-    console.log("Profile router - user:", user?.id);
-  }, [isLoaded, user?.id]);
+  const hasRedirectedUnauthedRef = useRef(false);
+  const fetchStartedForUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (!user) {
-      router.replace("/sign-in");
+
+    if (!user?.id) {
+      if (!hasRedirectedUnauthedRef.current) {
+        hasRedirectedUnauthedRef.current = true;
+        router.replace("/sign-in");
+      }
       return;
     }
-    console.log("Current user id:", user.id);
+
+    if (fetchStartedForUserIdRef.current === user.id) {
+      return;
+    }
+    fetchStartedForUserIdRef.current = user.id;
+
     void (async () => {
-      console.log("Fetching profile for id:", user.id);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("account_type")
-        .eq("id", String(user.id))
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("account_type")
+          .eq("id", String(user.id))
+          .maybeSingle();
 
-      console.log("Supabase result:", data, error);
-      console.log("Account type:", data?.account_type);
-
-      if (error) {
-        console.warn("Profile router Supabase error:", error);
-      }
-
-      if (!data) {
-        router.replace("/create-profile");
-        return;
-      }
-
-      const t = data.account_type as string | undefined;
-      const uid = encodeURIComponent(user.id);
-
-      if (t === "magician") {
-        const dest = `/profile/magician?id=${uid}`;
-        console.log("Redirecting to:", dest);
-        router.replace(dest);
-        return;
-      }
-      if (t === "fan") {
-        router.replace(`/profile/fan?id=${uid}`);
-        return;
-      }
-      if (t === "venue") {
-        const email = user.primaryEmailAddress?.emailAddress;
-        if (email) {
-          const { data: vRow } = await supabase
-            .from("venues")
-            .select("id")
-            .eq("contact_email", email)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (vRow?.id) {
-            router.replace(`/profile/venue?id=${encodeURIComponent(String(vRow.id))}`);
-            return;
-          }
+        if (error) {
+          console.warn("Profile router Supabase error:", error);
         }
-        router.replace("/profile/venue");
-        return;
-      }
 
-      router.replace("/create-profile");
+        if (!data) {
+          router.replace("/create-profile");
+          return;
+        }
+
+        const t = data.account_type as string | undefined;
+        const uid = encodeURIComponent(user.id);
+
+        if (t === "magician") {
+          router.replace(`/profile/magician?id=${uid}`);
+          return;
+        }
+        if (t === "fan") {
+          router.replace(`/profile/fan?id=${uid}`);
+          return;
+        }
+        if (t === "venue") {
+          const email = user.primaryEmailAddress?.emailAddress;
+          if (email) {
+            const { data: vRow } = await supabase
+              .from("venues")
+              .select("id")
+              .eq("contact_email", email)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (vRow?.id) {
+              router.replace(`/profile/venue?id=${encodeURIComponent(String(vRow.id))}`);
+              return;
+            }
+          }
+          router.replace("/profile/venue");
+          return;
+        }
+
+        router.replace("/create-profile");
+      } catch (e) {
+        console.warn("Profile router error:", e);
+        router.replace("/create-profile");
+      }
     })();
-  }, [isLoaded, user, router]);
+  }, [isLoaded, user?.id, router]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black text-zinc-400">
