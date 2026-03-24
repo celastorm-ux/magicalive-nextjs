@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { HomeOurStoryTeaser } from "@/components/HomeOurStoryTeaser";
 import { CLASSES } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
 
@@ -600,6 +601,8 @@ export default function HomeClient() {
                   ))}
           </div>
         </section>
+
+        <HomeOurStoryTeaser />
 
         <section className="border-t border-white/10">
           <div className={`${CLASSES.section} py-14`}>

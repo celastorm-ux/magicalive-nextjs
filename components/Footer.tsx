@@ -20,11 +20,11 @@ export function Footer() {
             <Link href="/privacy" className={CLASSES.footerLink}>
               Privacy Policy
             </Link>
-            <Link href="/contact" className={CLASSES.footerLink}>
-              Contact
-            </Link>
             <Link href="/about" className={CLASSES.footerLink}>
               About
+            </Link>
+            <Link href="/contact" className={CLASSES.footerLink}>
+              Contact
             </Link>
             <Link href="/for-magicians" className={CLASSES.footerLink}>
               For Magicians
