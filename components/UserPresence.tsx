@@ -25,6 +25,8 @@ export function UserPresence() {
     let cancelled = false;
 
     const markOnline = async () => {
+      if (!isLoaded || !user || !user.id) return;
+      console.log("Setting user online:", uid);
       const db = await createClerkSupabaseClient(getToken);
       const now = new Date().toISOString();
       await db
@@ -34,6 +36,7 @@ export function UserPresence() {
     };
 
     const pulseLastSeen = async () => {
+      if (!isLoaded || !user || !user.id) return;
       const db = await createClerkSupabaseClient(getToken);
       const now = new Date().toISOString();
       await db
@@ -43,6 +46,7 @@ export function UserPresence() {
     };
 
     const markOfflineClient = async () => {
+      if (!isLoaded || !user || !user.id) return;
       try {
         const db = await createClerkSupabaseClient(getToken);
         await db.from("profiles").update({ is_online: false }).eq("id", uid);
@@ -52,6 +56,7 @@ export function UserPresence() {
     };
 
     const markOfflineBeacon = () => {
+      if (!isLoaded || !user || !user.id) return;
       try {
         void fetch("/api/presence/offline", {
           method: "POST",
@@ -65,15 +70,18 @@ export function UserPresence() {
 
     void markOnline();
 
+    if (!isLoaded || !user || !user.id) return;
     intervalId = setInterval(() => {
-      if (!cancelled) void pulseLastSeen();
+      if (!cancelled && userIdRef.current) void pulseLastSeen();
     }, 60_000);
 
+    if (!isLoaded || !user || !user.id) return;
     const onBeforeUnload = () => {
       markOfflineBeacon();
       void markOfflineClient();
     };
 
+    if (!isLoaded || !user || !user.id) return;
     const onPageHide = () => {
       markOfflineBeacon();
       void markOfflineClient();

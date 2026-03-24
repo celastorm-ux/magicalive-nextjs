@@ -207,7 +207,7 @@ export default function MagicianProfileClient() {
     setLoading(true);
     const { data: p } = await supabase
       .from("profiles")
-      .select("*")
+      .select("*, is_online, last_seen")
       .eq("id", profileId)
       .eq("account_type", "magician")
       .maybeSingle();
@@ -221,6 +221,8 @@ export default function MagicianProfileClient() {
       return;
     }
     setProfile(p as unknown as MagicianRow);
+    console.log("Profile is_online:", p.is_online);
+    console.log("Profile last_seen:", p.last_seen);
     const today = new Date().toISOString().split("T")[0];
     const { data: sh, error: shErr } = await supabase
       .from("shows")
