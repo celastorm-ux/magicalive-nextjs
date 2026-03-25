@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CLASSES } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
@@ -81,6 +82,7 @@ function venueLine(e: EventRow) {
 }
 
 export default function EventsPage() {
+  const searchParams = useSearchParams();
   const [catalogTab, setCatalogTab] = useState<"shows" | "lectures">("shows");
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("All cities");
@@ -92,6 +94,13 @@ export default function EventsPage() {
   const [view, setView] = useState<"list" | "cards">("list");
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const c = searchParams.get("city")?.trim();
+    if (c) setCity(c);
+    const s = searchParams.get("style")?.trim();
+    if (s) setStyle(s);
+  }, [searchParams]);
 
   useEffect(() => {
     void (async () => {
@@ -123,6 +132,12 @@ export default function EventsPage() {
     return ["All cities", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [events]);
 
+  const citiesWithQuery = useMemo(() => {
+    const qp = searchParams.get("city")?.trim();
+    if (!qp || cities.includes(qp)) return cities;
+    return ["All cities", qp, ...cities.filter((c) => c !== "All cities")];
+  }, [cities, searchParams]);
+
   const styles = useMemo(() => {
     const set = new Set<string>(CORE_SPECIALTY_TAGS);
     for (const e of events) for (const t of e.profiles?.specialty_tags ?? []) set.add(t);
@@ -130,6 +145,12 @@ export default function EventsPage() {
     const extras = Array.from(set).filter((t) => !CORE_SPECIALTY_TAGS.includes(t as (typeof CORE_SPECIALTY_TAGS)[number]));
     return ["Any style", ...orderedCore, ...extras.sort((a, b) => a.localeCompare(b))];
   }, [events]);
+
+  const stylesWithQuery = useMemo(() => {
+    const qp = searchParams.get("style")?.trim();
+    if (!qp || styles.includes(qp)) return styles;
+    return ["Any style", qp, ...styles.filter((s) => s !== "Any style")];
+  }, [styles, searchParams]);
 
   const cityCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -277,14 +298,14 @@ export default function EventsPage() {
           </div>
           <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:gap-4">
             <select className={selectClass} value={city} onChange={(e) => setCity(e.target.value)}>
-              {cities.map((c) => (
+              {citiesWithQuery.map((c) => (
                 <option key={c} value={c} className="bg-zinc-900">
                   {c}
                 </option>
               ))}
             </select>
             <select className={selectClass} value={style} onChange={(e) => setStyle(e.target.value)}>
-              {styles.map((s) => (
+              {stylesWithQuery.map((s) => (
                 <option key={s} value={s} className="bg-zinc-900">
                   {s}
                 </option>

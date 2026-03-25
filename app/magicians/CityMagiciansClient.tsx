@@ -358,6 +358,39 @@ export default function CityMagiciansClient({
             </Link>
           </div>
         </section>
+
+        <section className="mt-16 max-w-3xl border-t border-white/10 pt-12">
+          <h2 className="ml-font-heading text-2xl font-semibold text-zinc-100">
+            Hire a Magician in {definition.displayName}
+          </h2>
+          <div className="mt-4 space-y-4 text-sm leading-relaxed text-zinc-400">
+            <p>{definition.hireBookerParagraphs[0]}</p>
+            <p>{definition.hireBookerParagraphs[1]}</p>
+            {venues.length ? (
+              <p>
+                Venues on Magicalive in this area include{" "}
+                {venues.slice(0, 6).map((v, i) => (
+                  <span key={v.id}>
+                    {i > 0 ? ", " : ""}
+                    <Link
+                      href={`/venues/${encodeURIComponent(v.id)}`}
+                      className="text-[var(--ml-gold)] underline decoration-[var(--ml-gold)]/30 underline-offset-2 hover:decoration-[var(--ml-gold)]"
+                    >
+                      {v.name}
+                    </Link>
+                  </span>
+                ))}
+                {venues.length > 6 ? " — and more listed on the platform." : "."}
+              </p>
+            ) : null}
+          </div>
+          <Link
+            href="/hire-a-magician"
+            className={`${CLASSES.btnPrimarySm} mt-8 inline-flex`}
+          >
+            Hire a magician — get started
+          </Link>
+        </section>
       </div>
     </div>
   );

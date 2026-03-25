@@ -96,9 +96,11 @@ export default function MagiciansClient() {
   useEffect(() => {
     const styleParam = searchParams.get("style")?.trim();
     const cityParam = searchParams.get("city")?.trim();
+    const availableFor = searchParams.get("available_for")?.trim();
     setStyle(styleParam || STYLES[0]);
     setSidebarTag(styleParam || null);
     setCity(cityParam || CITIES[0]);
+    if (availableFor) setBooking(availableFor);
   }, [searchParams]);
 
   useEffect(() => {
@@ -296,6 +298,12 @@ export default function MagiciansClient() {
     return [BOOKINGS[0], ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [magicians]);
 
+  const bookingOptionsWithQuery = useMemo(() => {
+    const qp = searchParams.get("available_for")?.trim();
+    if (!qp || bookingOptions.includes(qp)) return bookingOptions;
+    return [BOOKINGS[0], qp, ...bookingOptions.filter((b) => b !== BOOKINGS[0])];
+  }, [bookingOptions, searchParams]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return magicians.filter((m) => {
@@ -416,7 +424,7 @@ export default function MagiciansClient() {
               value={booking}
               onChange={(e) => setBooking(e.target.value)}
             >
-              {bookingOptions.map((b) => (
+              {bookingOptionsWithQuery.map((b) => (
                 <option key={b} value={b} className="bg-zinc-900">
                   {b}
                 </option>

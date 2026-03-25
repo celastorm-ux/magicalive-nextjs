@@ -23,6 +23,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/`, changeFrequency: "daily", priority: 1 },
     { url: `${base}/magicians`, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/magicians/cities`, changeFrequency: "weekly", priority: 0.75 },
+    { url: `${base}/hire-a-magician`, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${base}/magic-shows`, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/events`, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/venues`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/articles`, changeFrequency: "daily", priority: 0.8 },
