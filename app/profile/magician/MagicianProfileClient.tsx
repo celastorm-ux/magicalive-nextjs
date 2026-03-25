@@ -56,6 +56,7 @@ type MagicianRow = {
   is_founding_member: boolean | null;
   is_online: boolean | null;
   last_seen: string | null;
+  is_unclaimed?: boolean | null;
 };
 
 type ShowRow = {
@@ -207,8 +208,20 @@ export default function MagicianProfileClient({
   const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().split("T")[0]!);
   const [showsListKind, setShowsListKind] = useState<"shows" | "lectures">("shows");
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const [viewerIsAdmin, setViewerIsAdmin] = useState(false);
 
   const profileId = (paramId || resolvedProfileId || user?.id || "").trim();
+
+  useEffect(() => {
+    if (!isLoaded || !user?.id) {
+      setViewerIsAdmin(false);
+      return;
+    }
+    void (async () => {
+      const { data } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
+      setViewerIsAdmin(Boolean((data as { is_admin?: boolean | null } | null)?.is_admin));
+    })();
+  }, [isLoaded, user?.id]);
 
   const load = useCallback(async () => {
     if (!profileId) {
@@ -337,6 +350,10 @@ export default function MagicianProfileClient({
   }, [user?.id, profileId]);
 
   const isOwn = Boolean(user?.id && profileId === user.id);
+  const showUnclaimedClaimBanner =
+    Boolean(profile?.is_unclaimed) &&
+    !viewerIsAdmin &&
+    (!user?.id || user.id !== profileId);
   const upcoming = useMemo(() => shows, [shows]);
   const upcomingShowEvents = useMemo(
     () => upcoming.filter((s) => (s.event_type ?? "show") !== "lecture"),
@@ -527,6 +544,21 @@ export default function MagicianProfileClient({
 
   return (
     <div className="min-h-screen bg-black pb-20 text-zinc-100">
+      {showUnclaimedClaimBanner ? (
+        <div className="border-b border-amber-600/40 bg-gradient-to-r from-amber-600/25 via-amber-500/20 to-amber-600/25 px-4 py-4 sm:px-8">
+          <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-amber-100/95 sm:text-base">
+              Is this you? Claim this profile to take ownership, edit your details and manage your shows.
+            </p>
+            <Link
+              href={`/claim-profile?id=${encodeURIComponent(profile.id)}`}
+              className="inline-flex shrink-0 items-center justify-center rounded-xl border border-amber-800/50 bg-black/30 px-4 py-2.5 text-sm font-semibold text-amber-50 transition hover:border-amber-500/60 hover:bg-black/45"
+            >
+              Claim this profile →
+            </Link>
+          </div>
+        </div>
+      ) : null}
       <div className="relative h-56 sm:h-72 md:h-80">
         {profile.banner_url ? (
           // eslint-disable-next-line @next/next/no-img-element

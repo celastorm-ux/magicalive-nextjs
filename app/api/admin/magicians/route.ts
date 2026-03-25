@@ -10,7 +10,7 @@ export async function GET() {
   }
   const { data, error } = await ctx.db
     .from("profiles")
-    .select("id, display_name, location, is_verified, account_type, updated_at, created_at, review_count")
+    .select("id, display_name, location, is_verified, account_type, updated_at, created_at, review_count, is_unclaimed")
     .eq("account_type", "magician")
     .order("display_name", { ascending: true });
 

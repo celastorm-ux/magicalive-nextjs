@@ -10,7 +10,7 @@ export async function GET() {
   }
   const { data, error } = await ctx.db
     .from("venues")
-    .select("id, name, city, venue_type, created_at, is_verified")
+    .select("id, name, city, state, venue_type, created_at, is_verified")
     .order("created_at", { ascending: false });
 
   if (error) {

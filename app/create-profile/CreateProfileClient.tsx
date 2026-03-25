@@ -3,39 +3,81 @@
 import { useClerk, useSignUp, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+} from "react";
 import { CLASSES } from "@/lib/constants";
+import { OAuthEmailDivider, SocialOAuthButtons } from "@/components/SocialOAuthButtons";
+import { clerkOAuthSignUp } from "@/lib/clerk-oauth";
 import { FoundingMemberSpots } from "@/components/FoundingMemberSpots";
 import { generateFanHandle } from "@/lib/generate-fan-handle";
+import {
+  PENDING_MAGICIAN_PROFILE_KEY,
+  type PendingMagicianProfileV1,
+} from "@/lib/pending-magician-profile";
 import { supabase } from "@/lib/supabase";
+import pkg from "../../package.json";
 
 function clerkEmailAlreadyExists(err: unknown): boolean {
   const errors = (err as { errors?: Array<{ code?: string }> })?.errors;
   return errors?.some((e) => e.code === "form_identifier_exists") ?? false;
 }
 
-/** Clerk client sign-up resource (verification methods exist at runtime). */
-type ClerkSignUpResource = {
+function isValidEmailFormat(email: string): boolean {
+  const t = email.trim();
+  if (!t) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
+}
+
+type MagStep1UiError = null | { kind: "terms" } | { kind: "message"; text: string };
+
+/** Narrow typing for `signUp.create` from `useSignUp()`. */
+type ClerkSignUpClient = {
   create: (params: {
     emailAddress: string;
     password: string;
-    firstName: string;
+    firstName?: string;
     lastName?: string;
+    unsafeMetadata?: { display_name?: string };
   }) => Promise<unknown>;
-  prepareEmailAddressVerification: (params: {
-    strategy: "email_code";
-  }) => Promise<unknown>;
-  attemptEmailAddressVerification: (params: {
-    code: string;
-  }) => Promise<unknown>;
-  status: string | null;
-  createdSessionId: string | null;
 };
 
-function asClerkSignUp(
-  signUp: NonNullable<ReturnType<typeof useSignUp>["signUp"]>,
-): ClerkSignUpResource {
-  return signUp as unknown as ClerkSignUpResource;
+function resolveSignUpSessionAndUserId(
+  result: unknown,
+  signUpResource: unknown,
+): { sessionId: string | null; userId: string | null; status: string | undefined } {
+  const res = result as {
+    status?: string;
+    createdSessionId?: string | null;
+    createdUserId?: string | null;
+  };
+  const su = signUpResource as {
+    status?: string | null;
+    createdSessionId?: string | null;
+    createdUserId?: string | null;
+  };
+  const status = res.status ?? su.status ?? undefined;
+  const sessionId = res.createdSessionId ?? su.createdSessionId ?? null;
+  const userId = res.createdUserId ?? su.createdUserId ?? null;
+  return { sessionId, userId, status };
+}
+
+function unverifiedFieldsIncludeEmailAddress(fields: unknown): boolean {
+  if (!fields || !Array.isArray(fields)) return false;
+  return fields.some((item) => {
+    if (item === "email_address" || item === "emailAddress") return true;
+    if (typeof item === "string") return item.toLowerCase().includes("email");
+    if (item && typeof item === "object" && "name" in item) {
+      const n = String((item as { name?: string }).name ?? "");
+      return n.includes("email");
+    }
+    return false;
+  });
 }
 
 const signInHintClass = "mt-2 block text-[11px] text-zinc-500";
@@ -100,49 +142,31 @@ export default function CreateProfileClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
-  const { signUp } = useSignUp();
-  const { setActive, loaded: clerkLoaded } = useClerk();
+  const clerk = useClerk();
+  const { loaded: clerkLoaded } = clerk;
+  const { signUp, setActive: setActiveFromSignUp, isLoaded: isSignUpLoaded } =
+    useSignUp() as unknown as {
+      signUp: ReturnType<typeof useSignUp>["signUp"];
+      setActive?: (opts: { session: string }) => Promise<void>;
+      isLoaded?: boolean;
+    };
+  const setActiveSession = setActiveFromSignUp ?? ((opts) => clerk.setActive(opts));
+  const signUpLoaded =
+    typeof isSignUpLoaded === "boolean" ? isSignUpLoaded : clerkLoaded;
   const typeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [magPassword, setMagPassword] = useState("");
   const [magPasswordConfirm, setMagPasswordConfirm] = useState("");
-  const [magStep1Error, setMagStep1Error] = useState<
-    null | "exists" | "verify" | "generic" | "validation" | "terms"
-  >(null);
-  const [magStep1Loading, setMagStep1Loading] = useState(false);
-  const [magAwaitingVerify, setMagAwaitingVerify] = useState(false);
-  const [magVerifyCode, setMagVerifyCode] = useState("");
+  const [magStep1Error, setMagStep1Error] = useState<MagStep1UiError>(null);
   const [magTermsAccepted, setMagTermsAccepted] = useState(false);
 
   const [fanPassword, setFanPassword] = useState("");
   const [fanPasswordConfirm, setFanPasswordConfirm] = useState("");
-  const [fanAwaitingVerify, setFanAwaitingVerify] = useState(false);
-  const [fanVerifyCode, setFanVerifyCode] = useState("");
   const [fanTermsAccepted, setFanTermsAccepted] = useState(false);
 
   const [venuePassword, setVenuePassword] = useState("");
   const [venuePasswordConfirm, setVenuePasswordConfirm] = useState("");
-  const [venueAwaitingVerify, setVenueAwaitingVerify] = useState(false);
-  const [venueVerifyCode, setVenueVerifyCode] = useState("");
   const [venueTermsAccepted, setVenueTermsAccepted] = useState(false);
-
-  const pendingFanInsertRef = useRef<{
-    display_name: string;
-    email: string;
-  } | null>(null);
-  const pendingVenueInsertRef = useRef<{
-    name: string;
-    city: string;
-    state: string | null;
-    venue_type: string | null;
-    capacity: number | null;
-    established_year: null;
-    description: string;
-    contact_email: string;
-    tags: string[];
-  } | null>(null);
-  const [postAuthFan, setPostAuthFan] = useState(false);
-  const [postAuthVenue, setPostAuthVenue] = useState(false);
 
   type Flow = "pick" | "magician" | "fan" | "venue";
   const [flow, setFlow] = useState<Flow>("pick");
@@ -198,6 +222,9 @@ export default function CreateProfileClient() {
   const credIdRef = useRef(2);
   const [credRowIds, setCredRowIds] = useState([0, 1]);
   const magAvatarInputRef = useRef<HTMLInputElement | null>(null);
+  const magMediaStep5InputRef = useRef<HTMLInputElement | null>(null);
+  const [magAvatarUploadError, setMagAvatarUploadError] = useState("");
+  const [isDraggingMedia, setIsDraggingMedia] = useState(false);
 
   const progressWidth = useMemo(() => {
     if (flow === "magician" && mStep >= 1) return WIDTHS[mStep];
@@ -249,57 +276,11 @@ export default function CreateProfileClient() {
   }, [magAvatarFile]);
 
   useEffect(() => {
-    if (!postAuthFan || !user?.id || !pendingFanInsertRef.current) return;
-    const row = pendingFanInsertRef.current;
-    pendingFanInsertRef.current = null;
-    setPostAuthFan(false);
-    void (async () => {
-      const handle = generateFanHandle(row.display_name);
-      const { error } = await supabase.from("profiles").insert({
-        id: String(user.id),
-        account_type: "fan",
-        display_name: row.display_name,
-        email: row.email,
-        handle,
-      });
-      setFanSubmitting(false);
-      if (error) {
-        setFanError("Something went wrong, please try again");
-        return;
-      }
-      router.push("/onboarding/fan");
-    })();
-  }, [postAuthFan, user?.id, router]);
-
-  useEffect(() => {
-    if (!postAuthVenue || !user?.id || !pendingVenueInsertRef.current) return;
-    const v = pendingVenueInsertRef.current;
-    pendingVenueInsertRef.current = null;
-    setPostAuthVenue(false);
-    void (async () => {
-      const { data, error } = await supabase
-        .from("venues")
-        .insert({
-          name: v.name,
-          city: v.city,
-          state: v.state,
-          venue_type: v.venue_type,
-          capacity: v.capacity,
-          established_year: v.established_year,
-          description: v.description,
-          contact_email: v.contact_email,
-          tags: v.tags,
-        })
-        .select("id")
-        .single();
-      setVenueSubmitting(false);
-      if (error || !data?.id) {
-        setVenueError("Something went wrong, please try again");
-        return;
-      }
-      router.push(`/onboarding/venue?venueId=${encodeURIComponent(data.id)}`);
-    })();
-  }, [postAuthVenue, user?.id, router]);
+    const clerkDep = (
+      pkg as { dependencies?: Record<string, string> }
+    ).dependencies?.["@clerk/nextjs"];
+    console.log("@clerk/nextjs (package.json):", clerkDep ?? "(not listed)");
+  }, []);
 
   const goToM = useCallback((n: number) => {
     setMStep(n);
@@ -319,8 +300,6 @@ export default function CreateProfileClient() {
       goToM(mStep - 1);
       return;
     }
-    setMagAwaitingVerify(false);
-    setMagVerifyCode("");
     setMagStep1Error(null);
     setFlow("pick");
     setMStep(0);
@@ -330,10 +309,10 @@ export default function CreateProfileClient() {
     setFanFooterHidden(false);
   }, [flow, mStep, goToM]);
 
-  const handleMagicianStep1Continue = useCallback(async () => {
+  const handleMagicianStep1Continue = useCallback(() => {
     setMagStep1Error(null);
     if (!magTermsAccepted) {
-      setMagStep1Error("terms");
+      setMagStep1Error({ kind: "terms" });
       return;
     }
     if (!isLoaded) return;
@@ -341,101 +320,43 @@ export default function CreateProfileClient() {
       goToM(2);
       return;
     }
-    if (!clerkLoaded || !signUp) {
-      setMagStep1Error("generic");
-      return;
-    }
-    const su = asClerkSignUp(signUp);
-    if (magAwaitingVerify) {
-      const code = magVerifyCode.trim();
-      if (!code) {
-        setMagStep1Error("validation");
-        return;
-      }
-      setMagStep1Loading(true);
-      try {
-        await su.attemptEmailAddressVerification({ code });
-        if (su.status === "complete" && su.createdSessionId) {
-          await setActive({ session: su.createdSessionId });
-          await router.refresh();
-          setMagAwaitingVerify(false);
-          setMagVerifyCode("");
-          goToM(2);
-        } else {
-          setMagStep1Error("verify");
-        }
-      } catch {
-        setMagStep1Error("verify");
-      } finally {
-        setMagStep1Loading(false);
-      }
-      return;
-    }
-    const email = magEmail.trim();
+
     const name = displayName.trim();
-    if (!email || !name) {
-      setMagStep1Error("validation");
+    const email = magEmail.trim();
+    if (!name) {
+      setMagStep1Error({ kind: "message", text: "Please enter your display name" });
       return;
     }
-    if (magPassword.length < 8) {
-      setMagStep1Error("validation");
+    if (!email) {
+      setMagStep1Error({ kind: "message", text: "Please enter your email" });
+      return;
+    }
+    if (!isValidEmailFormat(email)) {
+      setMagStep1Error({ kind: "message", text: "Please enter a valid email address" });
+      return;
+    }
+    if (!magPassword.trim()) {
+      setMagStep1Error({ kind: "message", text: "Please enter a password" });
       return;
     }
     if (magPassword !== magPasswordConfirm) {
-      setMagStep1Error("validation");
+      setMagStep1Error({ kind: "message", text: "Passwords do not match" });
       return;
     }
-    const nameParts = name.split(/\s+/).filter(Boolean);
-    const firstName = nameParts[0] ?? "User";
-    const lastName =
-      nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
-    setMagStep1Loading(true);
-    try {
-      await su.create({
-        emailAddress: email,
-        password: magPassword,
-        firstName,
-        ...(lastName ? { lastName } : {}),
-      });
-    } catch (err) {
-      setMagStep1Loading(false);
-      if (clerkEmailAlreadyExists(err)) {
-        setMagStep1Error("exists");
-      } else {
-        setMagStep1Error("generic");
-      }
+    if (magPassword.length < 8) {
+      setMagStep1Error({ kind: "message", text: "Password must be at least 8 characters" });
       return;
     }
-    try {
-      if (su.status === "complete" && su.createdSessionId) {
-        await setActive({ session: su.createdSessionId });
-        await router.refresh();
-        goToM(2);
-      } else {
-        await su.prepareEmailAddressVerification({
-          strategy: "email_code",
-        });
-        setMagAwaitingVerify(true);
-      }
-    } catch {
-      setMagStep1Error("generic");
-    } finally {
-      setMagStep1Loading(false);
-    }
+
+    goToM(2);
   }, [
     isLoaded,
     user?.id,
-    clerkLoaded,
-    signUp,
-    magAwaitingVerify,
-    magVerifyCode,
     magTermsAccepted,
     magEmail,
     displayName,
     magPassword,
     magPasswordConfirm,
-    setActive,
-    router,
     goToM,
   ]);
 
@@ -470,35 +391,8 @@ export default function CreateProfileClient() {
       router.push("/onboarding/fan");
       return;
     }
-    if (!clerkLoaded || !signUp) {
+    if (!signUpLoaded || !signUp) {
       setFanError("Something went wrong, please try again");
-      return;
-    }
-    const suFan = asClerkSignUp(signUp);
-    if (fanAwaitingVerify) {
-      const code = fanVerifyCode.trim();
-      if (!code) {
-        setFanError("Enter the verification code from your email.");
-        return;
-      }
-      setFanSubmitting(true);
-      try {
-        await suFan.attemptEmailAddressVerification({ code });
-        if (suFan.status === "complete" && suFan.createdSessionId) {
-          await setActive({ session: suFan.createdSessionId });
-          await router.refresh();
-          pendingFanInsertRef.current = { display_name, email };
-          setFanAwaitingVerify(false);
-          setFanVerifyCode("");
-          setPostAuthFan(true);
-        } else {
-          setFanSubmitting(false);
-          setFanError("Something went wrong, please try again");
-        }
-      } catch {
-        setFanSubmitting(false);
-        setFanError("Something went wrong, please try again");
-      }
       return;
     }
     if (fanPassword.length < 8) {
@@ -515,51 +409,57 @@ export default function CreateProfileClient() {
       nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
     setFanSubmitting(true);
     try {
-      await suFan.create({
+      const result = await (signUp as unknown as ClerkSignUpClient).create({
         emailAddress: email,
         password: fanPassword,
         firstName,
         ...(lastName ? { lastName } : {}),
       });
-    } catch (err) {
+      console.log("Signup result:", result);
+      const { sessionId, userId, status } = resolveSignUpSessionAndUserId(
+        result,
+        signUp,
+      );
+      if (status !== "complete" || !sessionId || !userId) {
+        setFanSubmitting(false);
+        setFanError("Something went wrong, please try again");
+        return;
+      }
+      await setActiveSession({ session: sessionId });
+      await router.refresh();
+      const handle = generateFanHandle(display_name);
+      const { error } = await supabase.from("profiles").insert({
+        id: String(userId),
+        account_type: "fan",
+        display_name,
+        email,
+        handle,
+      });
+      setFanSubmitting(false);
+      if (error) {
+        setFanError("Something went wrong, please try again");
+        return;
+      }
+      router.push("/onboarding/fan");
+    } catch (err: unknown) {
       setFanSubmitting(false);
       if (clerkEmailAlreadyExists(err)) {
         setFanError("exists");
       } else {
         setFanError("Something went wrong, please try again");
       }
-      return;
-    }
-    try {
-      if (suFan.status === "complete" && suFan.createdSessionId) {
-        await setActive({ session: suFan.createdSessionId });
-        await router.refresh();
-        pendingFanInsertRef.current = { display_name, email };
-        setPostAuthFan(true);
-      } else {
-        await suFan.prepareEmailAddressVerification({
-          strategy: "email_code",
-        });
-        setFanAwaitingVerify(true);
-        setFanSubmitting(false);
-      }
-    } catch {
-      setFanSubmitting(false);
-      setFanError("Something went wrong, please try again");
     }
   }, [
     isLoaded,
     user?.id,
-    clerkLoaded,
+    signUpLoaded,
     signUp,
-    fanAwaitingVerify,
-    fanVerifyCode,
     fanTermsAccepted,
     fanName,
     fanEmail,
     fanPassword,
     fanPasswordConfirm,
-    setActive,
+    setActiveSession,
     router,
   ]);
 
@@ -611,35 +511,8 @@ export default function CreateProfileClient() {
       );
       return;
     }
-    if (!clerkLoaded || !signUp) {
+    if (!signUpLoaded || !signUp) {
       setVenueError("Something went wrong, please try again");
-      return;
-    }
-    const suVenue = asClerkSignUp(signUp);
-    if (venueAwaitingVerify) {
-      const code = venueVerifyCode.trim();
-      if (!code) {
-        setVenueError("Enter the verification code from your email.");
-        return;
-      }
-      setVenueSubmitting(true);
-      try {
-        await suVenue.attemptEmailAddressVerification({ code });
-        if (suVenue.status === "complete" && suVenue.createdSessionId) {
-          await setActive({ session: suVenue.createdSessionId });
-          await router.refresh();
-          pendingVenueInsertRef.current = venuePayload;
-          setVenueAwaitingVerify(false);
-          setVenueVerifyCode("");
-          setPostAuthVenue(true);
-        } else {
-          setVenueSubmitting(false);
-          setVenueError("Something went wrong, please try again");
-        }
-      } catch {
-        setVenueSubmitting(false);
-        setVenueError("Something went wrong, please try again");
-      }
       return;
     }
     if (venuePassword.length < 8) {
@@ -657,45 +530,48 @@ export default function CreateProfileClient() {
       nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
     setVenueSubmitting(true);
     try {
-      await suVenue.create({
+      const result = await (signUp as unknown as ClerkSignUpClient).create({
         emailAddress: venuePayload.contact_email,
         password: venuePassword,
         firstName,
         ...(lastName ? { lastName } : {}),
       });
-    } catch (err) {
+      console.log("Signup result:", result);
+      const { sessionId, userId, status } = resolveSignUpSessionAndUserId(
+        result,
+        signUp,
+      );
+      if (status !== "complete" || !sessionId || !userId) {
+        setVenueSubmitting(false);
+        setVenueError("Something went wrong, please try again");
+        return;
+      }
+      await setActiveSession({ session: sessionId });
+      await router.refresh();
+      const { data, error } = await supabase
+        .from("venues")
+        .insert(venuePayload)
+        .select("id")
+        .single();
+      setVenueSubmitting(false);
+      if (error || !data?.id) {
+        setVenueError("Something went wrong, please try again");
+        return;
+      }
+      router.push(`/onboarding/venue?venueId=${encodeURIComponent(data.id)}`);
+    } catch (err: unknown) {
       setVenueSubmitting(false);
       if (clerkEmailAlreadyExists(err)) {
         setVenueError("exists");
       } else {
         setVenueError("Something went wrong, please try again");
       }
-      return;
-    }
-    try {
-      if (suVenue.status === "complete" && suVenue.createdSessionId) {
-        await setActive({ session: suVenue.createdSessionId });
-        await router.refresh();
-        pendingVenueInsertRef.current = venuePayload;
-        setPostAuthVenue(true);
-      } else {
-        await suVenue.prepareEmailAddressVerification({
-          strategy: "email_code",
-        });
-        setVenueAwaitingVerify(true);
-        setVenueSubmitting(false);
-      }
-    } catch {
-      setVenueSubmitting(false);
-      setVenueError("Something went wrong, please try again");
     }
   }, [
     isLoaded,
     user?.id,
-    clerkLoaded,
+    signUpLoaded,
     signUp,
-    venueAwaitingVerify,
-    venueVerifyCode,
     venueTermsAccepted,
     venueName,
     venueCity,
@@ -705,67 +581,301 @@ export default function CreateProfileClient() {
     venueDesc,
     venuePassword,
     venuePasswordConfirm,
-    setActive,
+    setActiveSession,
     router,
   ]);
+
+  const saveMagicianProfileToSupabase = useCallback(
+    async (ClerkUserId: string) => {
+      let avatarUrl: string | null = null;
+      if (magAvatarFile && ClerkUserId) {
+        const rawExt = magAvatarFile.name.split(".").pop()?.toLowerCase();
+        const ext =
+          rawExt && ["jpg", "jpeg", "png", "webp"].includes(rawExt)
+            ? rawExt === "jpeg"
+              ? "jpg"
+              : rawExt
+            : "jpg";
+        const storagePath = `${String(ClerkUserId)}/avatar.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("avatars")
+          .upload(storagePath, magAvatarFile, {
+            upsert: true,
+            contentType: magAvatarFile.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
+          });
+        if (!uploadError) {
+          const { data } = supabase.storage.from("avatars").getPublicUrl(storagePath);
+          avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+        }
+      }
+      const credentials = credRowIds
+        .map((id) => credValues[id]?.trim())
+        .filter(Boolean) as string[];
+      const ageNum = age.trim() ? parseInt(age, 10) : NaN;
+      const availableVal =
+        availableFor === EVENT_TYPES[0] ? null : availableFor;
+      const emailForRow =
+        magEmail.trim() ||
+        user?.primaryEmailAddress?.emailAddress ||
+        "";
+      const { error } = await supabase.from("profiles").insert({
+        id: String(ClerkUserId),
+        display_name: displayName.trim(),
+        handle: handle.replace(/^@/, "").trim(),
+        email: emailForRow,
+        location: city.trim(),
+        age: Number.isFinite(ageNum) ? ageNum : null,
+        short_bio: shortBio.trim(),
+        full_bio: fullBio.trim(),
+        account_type: "magician",
+        specialty_tags: [...selectedTags],
+        available_for: availableVal,
+        credentials,
+        instagram: instagram.trim(),
+        tiktok: tiktok.trim(),
+        youtube: youtube.trim(),
+        website: website.trim(),
+        showreel_url: showreelUrl.trim(),
+        avatar_url: avatarUrl,
+      });
+      if (error) {
+        console.error("Supabase save error:", error);
+        throw error;
+      }
+      void fetch("/api/founding-member/welcome", { method: "POST" });
+    },
+    [
+      magAvatarFile,
+      credRowIds,
+      credValues,
+      age,
+      availableFor,
+      magEmail,
+      user?.primaryEmailAddress?.emailAddress,
+      displayName,
+      handle,
+      city,
+      shortBio,
+      fullBio,
+      selectedTags,
+      showreelUrl,
+      instagram,
+      tiktok,
+      youtube,
+      website,
+    ],
+  );
 
   const publishMagician = useCallback(async () => {
     setPublishError("");
     if (!isLoaded) return;
-    if (!user?.id) {
-      setPublishError("Please sign in to publish your profile.");
-      return;
-    }
-    setPublishLoading(true);
-    let avatarUrl: string | null = null;
-    if (magAvatarFile) {
-      const storagePath = `${String(user.id)}/avatar.jpg`;
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(storagePath, magAvatarFile, { upsert: true });
-      if (!uploadError) {
-        const { data } = supabase.storage.from("avatars").getPublicUrl(storagePath);
-        avatarUrl = data.publicUrl;
+
+    let clerkUserId: string | null = user?.id ?? null;
+
+    if (!clerkUserId) {
+      if (!signUpLoaded || !signUp) {
+        setPublishError(
+          "Account signup is not ready. Please refresh and try again.",
+        );
+        return;
+      }
+      const name = displayName.trim();
+      const email = magEmail.trim();
+      if (!name || !email || !isValidEmailFormat(email)) {
+        setPublishError(
+          "Please go back to step 1 and enter a valid display name and email.",
+        );
+        return;
+      }
+      if (
+        !magPassword.trim() ||
+        magPassword.length < 8 ||
+        magPassword !== magPasswordConfirm
+      ) {
+        setPublishError(
+          "Please go back to step 1 and enter matching passwords (min. 8 characters).",
+        );
+        return;
+      }
+      try {
+        console.log("Starting publish...");
+        console.log("Email:", email);
+        console.log("Display name:", name);
+        console.log("signUp object:", signUp);
+        console.log("isLoaded (useUser):", isLoaded);
+        console.log("signUpLoaded:", signUpLoaded);
+
+        const result = await (signUp as unknown as ClerkSignUpClient).create({
+          emailAddress: email,
+          password: magPassword,
+          firstName: name,
+          unsafeMetadata: { display_name: name },
+        });
+
+        type SignUpShape = {
+          status?: string | null;
+          createdUserId?: string | null;
+          createdSessionId?: string | null;
+          missingFields?: unknown;
+          unverifiedFields?: unknown;
+        };
+        const res = result as SignUpShape;
+        const su = signUp as SignUpShape;
+        console.log("Signup result:", result);
+        console.log("Signup status (result):", res.status);
+        console.log("Created user id (result):", res.createdUserId);
+        console.log("Created session id (result):", res.createdSessionId);
+        console.log("signUp after create — status:", su.status);
+        console.log("signUp after create — createdUserId:", su.createdUserId);
+        console.log("signUp after create — createdSessionId:", su.createdSessionId);
+
+        const suLog = signUp as unknown as Record<string, unknown>;
+        console.log("Verifications:", suLog.verifications);
+        console.log("Unverified fields:", suLog.unverifiedFields);
+        console.log("Required fields:", suLog.requiredFields);
+        console.log("Missing fields:", suLog.missingFields);
+
+        const effectiveStatus =
+          (res.status ?? su.status)?.toString() ?? "";
+
+        if (effectiveStatus === "complete") {
+          const resolved = resolveSignUpSessionAndUserId(result, signUp);
+          console.log("resolveSignUpSessionAndUserId:", resolved);
+          const { sessionId, userId } = resolved;
+          if (!sessionId || !userId) {
+            console.warn(
+              "Status complete but missing sessionId or userId after resolve",
+              { sessionId, userId },
+            );
+            setPublishError(
+              "Signup completed but session details were missing. Please try signing in.",
+            );
+            return;
+          }
+          console.log("Setting active session...");
+          await setActiveSession({ session: sessionId });
+          console.log("Session set — continuing to profile save…");
+          await router.refresh();
+          clerkUserId = userId;
+        } else if (effectiveStatus === "missing_requirements") {
+          const missing =
+            res.missingFields ??
+            (signUp as { missingFields?: unknown }).missingFields;
+          const unverified =
+            res.unverifiedFields ??
+            (signUp as { unverifiedFields?: unknown }).unverifiedFields;
+          console.log("Missing requirements:", missing);
+          console.log("Unverified fields:", unverified);
+          if (unverifiedFieldsIncludeEmailAddress(unverified)) {
+            try {
+              const credentialsForPending = credRowIds
+                .map((id) => credValues[id]?.trim())
+                .filter(Boolean) as string[];
+              const pending: PendingMagicianProfileV1 = {
+                displayName: displayName.trim(),
+                handle: handle.trim(),
+                email,
+                location: city.trim(),
+                age: age.trim(),
+                shortBio: shortBio.trim(),
+                fullBio: fullBio.trim(),
+                selectedTags: [...selectedTags],
+                availableFor: availableFor,
+                credentials: credentialsForPending,
+                instagram: instagram.trim(),
+                tiktok: tiktok.trim(),
+                youtube: youtube.trim(),
+                website: website.trim(),
+                showreelUrl: showreelUrl.trim(),
+                accountType: "magician",
+                v: 1,
+              };
+              localStorage.setItem(
+                PENDING_MAGICIAN_PROFILE_KEY,
+                JSON.stringify(pending),
+              );
+              console.log(
+                "Stored pending_profile in localStorage; redirecting to /verify-email",
+              );
+              router.push("/verify-email");
+            } catch (storeErr: unknown) {
+              console.error("pending_profile localStorage error:", storeErr);
+              setPublishError(
+                "Could not save your profile draft. Check browser storage or try again.",
+              );
+            }
+            return;
+          }
+          setPublishError("Please verify your email to continue");
+          return;
+        } else {
+          console.log("Unexpected status:", effectiveStatus || "(empty)");
+          setPublishError(
+            `Unexpected error (${effectiveStatus || "unknown"}). Please try again.`,
+          );
+          return;
+        }
+      } catch (err: unknown) {
+        console.error("Full error:", err);
+        console.error("Error errors array:", (err as { errors?: unknown })?.errors);
+        const first = (err as { errors?: Array<unknown> })?.errors?.[0] as
+          | {
+              code?: string;
+              message?: string;
+              longMessage?: string;
+            }
+          | undefined;
+        console.error("First error:", first);
+        console.error("Error code:", first?.code);
+        console.error("Error message:", first?.message);
+        console.error("Error long message:", first?.longMessage);
+
+        const code = first?.code;
+        if (code === "form_identifier_exists") {
+          setPublishError(
+            "An account with this email already exists. Sign in instead?",
+          );
+        } else {
+          setPublishError(
+            first?.longMessage ||
+              first?.message ||
+              (err as Error)?.message ||
+              "Something went wrong",
+          );
+        }
+        return;
       }
     }
-    const credentials = credRowIds
-      .map((id) => credValues[id]?.trim())
-      .filter(Boolean) as string[];
-    const ageNum = age.trim() ? parseInt(age, 10) : NaN;
-    const availableVal =
-      availableFor === EVENT_TYPES[0] ? null : availableFor;
-    const { error } = await supabase.from("profiles").insert({
-      id: String(user.id),
-      display_name: displayName.trim(),
-      handle: handle.replace(/^@/, "").trim(),
-      email: magEmail.trim() || user.primaryEmailAddress?.emailAddress || "",
-      location: city.trim(),
-      age: Number.isFinite(ageNum) ? ageNum : null,
-      short_bio: shortBio.trim(),
-      full_bio: fullBio.trim(),
-      account_type: "magician",
-      specialty_tags: [...selectedTags],
-      available_for: availableVal,
-      credentials,
-      instagram: instagram.trim(),
-      tiktok: tiktok.trim(),
-      youtube: youtube.trim(),
-      website: website.trim(),
-      showreel_url: showreelUrl.trim(),
-      avatar_url: avatarUrl,
-    });
-    setPublishLoading(false);
-    if (error) {
-      setPublishError("Something went wrong, please try again");
-      return;
+
+    setPublishLoading(true);
+    try {
+      await saveMagicianProfileToSupabase(String(clerkUserId));
+      console.log("Supabase profiles.insert: ok");
+      router.push("/profile");
+    } catch (insertErr: unknown) {
+      const msg =
+        insertErr &&
+        typeof insertErr === "object" &&
+        "message" in insertErr &&
+        typeof (insertErr as { message?: string }).message === "string"
+          ? (insertErr as { message: string }).message
+          : String(insertErr);
+      console.error("Supabase profiles.insert error:", insertErr);
+      setPublishError(
+        msg || "Could not save profile. Please try again.",
+      );
+    } finally {
+      setPublishLoading(false);
     }
-    void fetch("/api/founding-member/welcome", { method: "POST" });
-    router.push("/profile");
   }, [
     isLoaded,
     user,
+    signUpLoaded,
+    signUp,
     displayName,
     magEmail,
+    magPassword,
+    magPasswordConfirm,
     handle,
     city,
     age,
@@ -781,7 +891,9 @@ export default function CreateProfileClient() {
     youtube,
     website,
     magAvatarFile,
+    setActiveSession,
     router,
+    saveMagicianProfileToSupabase,
   ]);
 
   const toggleTag = useCallback((tag: string) => {
@@ -812,6 +924,58 @@ export default function CreateProfileClient() {
   const setCredValue = useCallback((id: number, value: string) => {
     setCredValues((prev) => ({ ...prev, [id]: value }));
   }, []);
+
+  const handleMagicianAvatarFileSelected = useCallback(
+    (file: File | undefined | null) => {
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        setMagAvatarUploadError("Please select an image file");
+        return;
+      }
+      setMagAvatarUploadError("");
+      setMagAvatarFile(file);
+    },
+    [],
+  );
+
+  const handleMediaStep5DragOver = useCallback((e: DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingMedia(true);
+  }, []);
+
+  const handleMediaStep5DragLeave = useCallback((e: DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingMedia(false);
+  }, []);
+
+  const handleMediaStep5Drop = useCallback(
+    (e: DragEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingMedia(false);
+      const file = e.dataTransfer.files[0];
+      if (file) handleMagicianAvatarFileSelected(file);
+    },
+    [handleMagicianAvatarFileSelected],
+  );
+
+  const startWizardSignUpOAuth = useCallback(
+    async (strategy: "oauth_google" | "oauth_facebook") => {
+      if (!signUpLoaded || !signUp) {
+        console.warn("Clerk signUp not ready for OAuth");
+        return;
+      }
+      const { error } = await clerkOAuthSignUp(signUp, {
+        strategy,
+        redirectCallbackUrl: "/sso-callback",
+        redirectUrl: "/create-profile/complete",
+      });
+      if (error) console.error("OAuth sign-up:", error);
+    },
+    [signUp, signUpLoaded],
+  );
 
   const previewName = displayName.trim() || "Your name";
   const previewLoc = city.trim() || "Your location";
@@ -881,6 +1045,8 @@ export default function CreateProfileClient() {
           />
         </div>
       </div>
+
+      <div id="clerk-captcha" data-cl-theme="dark" data-cl-size="invisible" />
 
       <div className="mx-auto w-full max-w-[640px] flex-1 px-5 py-10 sm:px-12">
         {/* STEP 0 */}
@@ -983,90 +1149,113 @@ export default function CreateProfileClient() {
           </div>
         </div>
 
-        {/* MAGICIAN m1 */}
+        {/* MAGICIAN m1 — account (before Step 2 Identity); Clerk signup runs on Publish */}
         <div
           className={`ml-animate-step ${flow === "magician" && mStep === 1 ? "block" : "hidden"}`}
         >
-          <p className="mb-2.5 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--ml-gold)]">
-            Step 1 of 6 — Magician
-          </p>
-          <h2 className="mb-2 ml-font-heading text-[34px] font-semibold leading-tight text-zinc-50">
-            Create your <em className="text-[var(--ml-gold)] italic">account</em>
-          </h2>
-          <p className="mb-8 text-[13px] leading-relaxed text-zinc-500">
-            You&apos;ll use this to manage your profile, post shows, and connect with fans.
-          </p>
-          <div className="mb-[18px]">
-            <label className={labelClass}>Profile photo</label>
-            <input
-              ref={magAvatarInputRef}
-              type="file"
-              accept="image/jpeg,image/png"
-              className="hidden"
-              onChange={(e) => setMagAvatarFile(e.target.files?.[0] ?? null)}
-            />
-            <button
-              type="button"
-              onClick={() => magAvatarInputRef.current?.click()}
-              className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 transition hover:border-[var(--ml-gold)]/35"
-            >
-              <span className="relative inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[var(--ml-gold)]/30 bg-gradient-to-br from-[#2d1f3d] to-[#534AB7] text-base font-semibold text-zinc-100">
-                {magAvatarPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={magAvatarPreview}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  (displayName.trim()[0] || "M").toUpperCase()
-                )}
-              </span>
-              <span className="text-left text-xs text-zinc-400">
-                Click to upload JPG or PNG
-              </span>
-            </button>
-          </div>
-          <div className="mb-[18px]">
-            <label className={labelClass}>Display name</label>
-            <input
-              type="text"
-              className={inputClass}
-              placeholder="The name you perform under"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-            />
-          </div>
-          <div className="mb-[18px]">
-            <label className={labelClass}>Email address</label>
-            <input
-              type="email"
-              className={inputClass}
-              placeholder="your@email.com"
-              value={magEmail}
-              onChange={(e) => setMagEmail(e.target.value)}
-              disabled={magAwaitingVerify}
-            />
-            <span className={signInHintClass}>
-              Already have an account?{" "}
-              <Link href="/sign-in" className={signInLinkClass}>
-                Sign in
-              </Link>
-            </span>
-          </div>
-          {magAwaitingVerify ? (
+          <>
+            <p className="mb-2.5 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--ml-gold)]">
+              Step 1 of 6 — Magician
+            </p>
+            <h2 className="mb-2 ml-font-heading text-[34px] font-semibold leading-tight text-zinc-50">
+              Create your <em className="text-[var(--ml-gold)] italic">account</em>
+            </h2>
+            <p className="mb-8 text-[13px] leading-relaxed text-zinc-500">
+              You&apos;ll use this to manage your profile, post shows, and connect with fans.
+            </p>
             <div className="mb-[18px]">
-              <label className={labelClass}>Verification code</label>
+              <label className={labelClass}>Profile photo</label>
+              <input
+                ref={magAvatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  handleMagicianAvatarFileSelected(f ?? null);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => magAvatarInputRef.current?.click()}
+                className="group flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-[var(--ml-gold)]/35 sm:flex-row"
+              >
+                <span className="relative inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-[var(--ml-gold)]/30 bg-gradient-to-br from-[#2d1f3d] to-[#534AB7] text-xl font-semibold text-zinc-100">
+                  {magAvatarPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={magAvatarPreview}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      style={{ width: 80, height: 80 }}
+                    />
+                  ) : (
+                    (displayName.trim()[0] || "M").toUpperCase()
+                  )}
+                  <span
+                    className="absolute bottom-0.5 right-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--ml-gold)]/40 bg-black/80 text-[var(--ml-gold)] shadow-md backdrop-blur-sm transition group-hover:border-[var(--ml-gold)]"
+                    aria-hidden
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                  </span>
+                </span>
+                <span className="text-center text-xs text-zinc-400 sm:text-left">
+                  Click to upload a profile photo (JPG, PNG, or WebP)
+                </span>
+              </button>
+              {magAvatarUploadError ? (
+                <p className="mt-2 text-sm font-medium text-red-400">{magAvatarUploadError}</p>
+              ) : null}
+            </div>
+            <div className="mb-[18px]">
+              <label className={labelClass}>Display name</label>
               <input
                 type="text"
                 className={inputClass}
-                placeholder="Enter code from email"
-                value={magVerifyCode}
-                onChange={(e) => setMagVerifyCode(e.target.value)}
-                autoComplete="one-time-code"
+                placeholder="The name you perform under"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
               />
             </div>
-          ) : (
+            {!user?.id ? (
+              <>
+                <SocialOAuthButtons
+                  disabled={!signUpLoaded || !signUp}
+                  onGoogle={() => void startWizardSignUpOAuth("oauth_google")}
+                  onFacebook={() => void startWizardSignUpOAuth("oauth_facebook")}
+                />
+                <OAuthEmailDivider />
+              </>
+            ) : null}
+            <div className="mb-[18px]">
+              <label className={labelClass}>Email address</label>
+              <input
+                type="email"
+                className={inputClass}
+                placeholder="your@email.com"
+                value={magEmail}
+                onChange={(e) => setMagEmail(e.target.value)}
+              />
+              <span className={signInHintClass}>
+                Already have an account?{" "}
+                <Link href="/sign-in" className={signInLinkClass}>
+                  Sign in
+                </Link>
+              </span>
+            </div>
             <div className="mb-[18px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
               <div>
                 <label className={labelClass}>Password</label>
@@ -1089,64 +1278,43 @@ export default function CreateProfileClient() {
                 />
               </div>
             </div>
-          )}
-          {magStep1Error === "exists" ? (
-            <p className="mb-3 text-sm font-medium text-red-400">
-              An account with this email already exists.{" "}
-              <Link href="/sign-in" className={signInLinkClass}>
-                Sign in instead?
-              </Link>
-            </p>
-          ) : null}
-          {magStep1Error === "validation" ? (
-            <p className="mb-3 text-sm font-medium text-red-400">
-              Please fill in all fields, use a password of at least 8 characters,
-              and ensure passwords match.
-            </p>
-          ) : null}
-          {magStep1Error === "verify" ? (
-            <p className="mb-3 text-sm font-medium text-red-400">
-              Invalid or expired code. Please try again.
-            </p>
-          ) : null}
-          {magStep1Error === "generic" ? (
-            <p className="mb-3 text-sm font-medium text-red-400">
-              Something went wrong. Please try again.
-            </p>
-          ) : null}
-          {magStep1Error === "terms" ? (
-            <p className="mb-3 text-sm font-medium text-red-400">
-              Please accept the terms to continue
-            </p>
-          ) : null}
-          <label className="mb-3 flex items-start gap-2 text-xs text-zinc-400">
-            <input
-              type="checkbox"
-              checked={magTermsAccepted}
-              onChange={(e) => setMagTermsAccepted(e.target.checked)}
-              className="mt-0.5"
-            />
-            <span>
-              I agree to the Magicalive{" "}
-              <Link
-                href="/terms"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[var(--ml-gold)] hover:underline"
-              >
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link
-                href="/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[var(--ml-gold)] hover:underline"
-              >
-                Privacy Policy
-              </Link>
-            </span>
-          </label>
+            {magStep1Error?.kind === "message" ? (
+              <p className="mb-3 text-sm font-medium text-red-400">{magStep1Error.text}</p>
+            ) : null}
+            {magStep1Error?.kind === "terms" ? (
+              <p className="mb-3 text-sm font-medium text-red-400">
+                Please accept the terms to continue
+              </p>
+            ) : null}
+            <label className="mb-3 flex items-start gap-2 text-xs text-zinc-400">
+              <input
+                type="checkbox"
+                checked={magTermsAccepted}
+                onChange={(e) => setMagTermsAccepted(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                I agree to the Magicalive{" "}
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--ml-gold)] hover:underline"
+                >
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--ml-gold)] hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+              </span>
+            </label>
+          </>
         </div>
 
         {/* m2 */}
@@ -1335,14 +1503,60 @@ export default function CreateProfileClient() {
           <p className="mb-8 text-[13px] leading-relaxed text-zinc-500">
             Upload your best shots and a showreel. Profiles with media get 3× more views.
           </p>
-          <div className="mb-[18px] cursor-pointer rounded-md border border-dashed border-[var(--ml-gold)]/30 px-8 py-8 text-center transition hover:border-[var(--ml-gold)] hover:bg-[var(--ml-gold)]/5">
-            <div className="mb-2.5 text-[26px]">🎞</div>
-            <div className="text-[13px] text-zinc-500">
-              Drop photos or videos here, or click to browse
-            </div>
-            <div className="mt-1 text-[11px] text-zinc-500/70">
-              JPG, PNG, MP4 · Max 50MB · Up to 12 files
-            </div>
+          <input
+            ref={magMediaStep5InputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              handleMagicianAvatarFileSelected(f ?? null);
+              e.target.value = "";
+            }}
+          />
+          <div className="mb-[18px]">
+            <label className={labelClass}>Profile photo (directory avatar)</label>
+            <button
+              type="button"
+              className={`w-full cursor-pointer rounded-md border border-dashed px-8 py-8 text-center transition ${
+                isDraggingMedia
+                  ? "border-[var(--ml-gold)] bg-[var(--ml-gold)]/15"
+                  : "border-[var(--ml-gold)]/30 hover:border-[var(--ml-gold)] hover:bg-[var(--ml-gold)]/5"
+              }`}
+              onClick={() => magMediaStep5InputRef.current?.click()}
+              onDragOver={handleMediaStep5DragOver}
+              onDragLeave={handleMediaStep5DragLeave}
+              onDrop={handleMediaStep5Drop}
+            >
+              {magAvatarPreview ? (
+                <div className="flex flex-col items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={magAvatarPreview}
+                    alt=""
+                    className="object-cover"
+                    style={{ width: 80, height: 80, borderRadius: "50%" }}
+                  />
+                  <p className="text-[13px] text-zinc-400">
+                    Click or drag a new image to replace
+                  </p>
+                  <p className="text-[11px] text-zinc-500/80">JPG, PNG, or WebP</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-2.5 text-[26px]">🎞</div>
+                  <div className="text-[13px] text-zinc-500">
+                    Drop a profile photo here, or click to browse
+                  </div>
+                  <div className="mt-1 text-[11px] text-zinc-500/70">
+                    JPG, PNG, or WebP — same image as Step 1
+                  </div>
+                </>
+              )}
+            </button>
+            {magAvatarUploadError ? (
+              <p className="mt-2 text-sm font-medium text-red-400">{magAvatarUploadError}</p>
+            ) : null}
           </div>
           <div className="mb-[18px]">
             <label className={labelClass}>
@@ -1465,7 +1679,18 @@ export default function CreateProfileClient() {
             .
           </p>
           {publishError ? (
-            <p className="mt-4 text-sm font-medium text-red-400">{publishError}</p>
+            <p className="mt-4 text-sm font-medium text-red-400">
+              {publishError.includes("Sign in instead") ? (
+                <>
+                  An account with this email already exists.{" "}
+                  <Link href="/sign-in" className={signInLinkClass}>
+                    Sign in instead?
+                  </Link>
+                </>
+              ) : (
+                publishError
+              )}
+            </p>
           ) : null}
         </div>
 
@@ -1494,6 +1719,16 @@ export default function CreateProfileClient() {
                   onChange={(e) => setFanName(e.target.value)}
                 />
               </div>
+              {!user?.id ? (
+                <>
+                  <SocialOAuthButtons
+                    disabled={!signUpLoaded || !signUp}
+                    onGoogle={() => void startWizardSignUpOAuth("oauth_google")}
+                    onFacebook={() => void startWizardSignUpOAuth("oauth_facebook")}
+                  />
+                  <OAuthEmailDivider />
+                </>
+              ) : null}
               <div className="mb-[18px]">
                 <label className={labelClass}>Email address</label>
                 <input
@@ -1502,7 +1737,6 @@ export default function CreateProfileClient() {
                   placeholder="your@email.com"
                   value={fanEmail}
                   onChange={(e) => setFanEmail(e.target.value)}
-                  disabled={fanAwaitingVerify}
                 />
                 <span className={signInHintClass}>
                   Already have an account?{" "}
@@ -1511,42 +1745,28 @@ export default function CreateProfileClient() {
                   </Link>
                 </span>
               </div>
-              {fanAwaitingVerify ? (
-                <div className="mb-[18px]">
-                  <label className={labelClass}>Verification code</label>
+              <div className="mb-[18px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                <div>
+                  <label className={labelClass}>Password</label>
                   <input
-                    type="text"
+                    type="password"
                     className={inputClass}
-                    placeholder="Enter code from email"
-                    value={fanVerifyCode}
-                    onChange={(e) => setFanVerifyCode(e.target.value)}
-                    autoComplete="one-time-code"
+                    placeholder="Min. 8 characters"
+                    value={fanPassword}
+                    onChange={(e) => setFanPassword(e.target.value)}
                   />
                 </div>
-              ) : (
-                <div className="mb-[18px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                  <div>
-                    <label className={labelClass}>Password</label>
-                    <input
-                      type="password"
-                      className={inputClass}
-                      placeholder="Min. 8 characters"
-                      value={fanPassword}
-                      onChange={(e) => setFanPassword(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Confirm password</label>
-                    <input
-                      type="password"
-                      className={inputClass}
-                      placeholder="Repeat password"
-                      value={fanPasswordConfirm}
-                      onChange={(e) => setFanPasswordConfirm(e.target.value)}
-                    />
-                  </div>
+                <div>
+                  <label className={labelClass}>Confirm password</label>
+                  <input
+                    type="password"
+                    className={inputClass}
+                    placeholder="Repeat password"
+                    value={fanPasswordConfirm}
+                    onChange={(e) => setFanPasswordConfirm(e.target.value)}
+                  />
                 </div>
-              )}
+              </div>
               {fanError === "exists" ? (
                 <p className="mb-3 text-sm font-medium text-red-400">
                   An account with this email already exists.{" "}
@@ -1593,11 +1813,7 @@ export default function CreateProfileClient() {
                 disabled={fanSubmitting || !fanTermsAccepted}
                 className={`${CLASSES.btnPrimary} mt-1 text-xs uppercase tracking-wider disabled:opacity-60`}
               >
-                {fanSubmitting
-                  ? "Saving…"
-                  : fanAwaitingVerify
-                    ? "Verify & create account →"
-                    : "Create fan account →"}
+                {fanSubmitting ? "Saving…" : "Create fan account →"}
               </button>
             </div>
           ) : (
@@ -1690,7 +1906,6 @@ export default function CreateProfileClient() {
               placeholder="your@venue.com"
               value={venueEmail}
               onChange={(e) => setVenueEmail(e.target.value)}
-              disabled={venueAwaitingVerify}
             />
             <span className={signInHintClass}>
               Already have an account?{" "}
@@ -1699,42 +1914,28 @@ export default function CreateProfileClient() {
               </Link>
             </span>
           </div>
-          {venueAwaitingVerify ? (
-            <div className="mb-[18px]">
-              <label className={labelClass}>Verification code</label>
+          <div className="mb-[18px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>Password</label>
               <input
-                type="text"
+                type="password"
                 className={inputClass}
-                placeholder="Enter code from email"
-                value={venueVerifyCode}
-                onChange={(e) => setVenueVerifyCode(e.target.value)}
-                autoComplete="one-time-code"
+                placeholder="Min. 8 characters"
+                value={venuePassword}
+                onChange={(e) => setVenuePassword(e.target.value)}
               />
             </div>
-          ) : (
-            <div className="mb-[18px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-              <div>
-                <label className={labelClass}>Password</label>
-                <input
-                  type="password"
-                  className={inputClass}
-                  placeholder="Min. 8 characters"
-                  value={venuePassword}
-                  onChange={(e) => setVenuePassword(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Confirm password</label>
-                <input
-                  type="password"
-                  className={inputClass}
-                  placeholder="Repeat password"
-                  value={venuePasswordConfirm}
-                  onChange={(e) => setVenuePasswordConfirm(e.target.value)}
-                />
-              </div>
+            <div>
+              <label className={labelClass}>Confirm password</label>
+              <input
+                type="password"
+                className={inputClass}
+                placeholder="Repeat password"
+                value={venuePasswordConfirm}
+                onChange={(e) => setVenuePasswordConfirm(e.target.value)}
+              />
             </div>
-          )}
+          </div>
           <div className="mb-[18px]">
             <label className={labelClass}>Brief description</label>
             <textarea
@@ -1789,11 +1990,7 @@ export default function CreateProfileClient() {
             disabled={venueSubmitting || !venueTermsAccepted}
             className={`${CLASSES.btnPrimary} mt-1 text-xs uppercase tracking-wider disabled:opacity-60`}
           >
-            {venueSubmitting
-              ? "Submitting…"
-              : venueAwaitingVerify
-                ? "Verify & submit venue →"
-                : "Submit venue →"}
+            {venueSubmitting ? "Submitting…" : "Submit venue →"}
           </button>
         </div>
       </div>
@@ -1841,20 +2038,10 @@ export default function CreateProfileClient() {
                     nextStep();
                   }
                 }}
-                disabled={flow === "magician" && mStep === 1 && (magStep1Loading || !magTermsAccepted)}
+                disabled={flow === "magician" && mStep === 1 && !magTermsAccepted}
                 className={`${CLASSES.btnPrimary} px-7 py-2.5 text-xs uppercase tracking-wider disabled:opacity-60`}
               >
-                {flow === "magician" && mStep === 1 && magStep1Loading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span
-                      className="inline-block size-4 shrink-0 animate-spin rounded-full border-2 border-black/25 border-t-black"
-                      aria-hidden
-                    />
-                    Please wait…
-                  </span>
-                ) : (
-                  "Continue →"
-                )}
+                Continue →
               </button>
             ) : null}
           </div>

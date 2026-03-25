@@ -31,11 +31,35 @@ type MagicianAdminRow = {
   display_name: string | null;
   location: string | null;
   is_verified: boolean | null;
+  is_unclaimed?: boolean | null;
   updated_at: string | null;
   created_at: string | null;
   review_count: number | null;
   show_count: number;
 };
+
+const ADMIN_SPEC_TAGS = [
+  "Close-up magic",
+  "Stage illusions",
+  "Mentalism",
+  "Card magic",
+  "Coin magic",
+  "Escape artistry",
+  "Comedy magic",
+  "Children's magic",
+  "Corporate events",
+  "Parlor magic",
+  "Strolling magic",
+  "Street magic",
+  "Virtual shows",
+] as const;
+
+const VENUE_SELECT_PLACEHOLDER = "";
+const VENUE_OTHER = "__other__";
+const SKILL_LEVELS = ["Beginner", "Intermediate", "Advanced", "All levels"] as const;
+type PostEventKind = "show" | "lecture";
+
+type AdminVenueOpt = { id: string; name: string | null; city: string | null; state: string | null };
 
 type VenueAdminRow = {
   id: string;
@@ -99,6 +123,40 @@ export default function AdminClient() {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectArticleId, setRejectArticleId] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+
+  const [addMagicianOpen, setAddMagicianOpen] = useState(false);
+  const [amDisplayName, setAmDisplayName] = useState("");
+  const [amLocation, setAmLocation] = useState("");
+  const [amTags, setAmTags] = useState<Set<string>>(() => new Set());
+  const [amBio, setAmBio] = useState("");
+  const [amInstagram, setAmInstagram] = useState("");
+  const [amYoutube, setAmYoutube] = useState("");
+  const [amTiktok, setAmTiktok] = useState("");
+  const [amWebsite, setAmWebsite] = useState("");
+  const [amBusy, setAmBusy] = useState(false);
+  const [amMsg, setAmMsg] = useState("");
+
+  const [postForMagicianId, setPostForMagicianId] = useState<string | null>(null);
+  const [postVenues, setPostVenues] = useState<AdminVenueOpt[]>([]);
+  const [postShowName, setPostShowName] = useState("");
+  const [postShowDate, setPostShowDate] = useState("");
+  const [postShowTime, setPostShowTime] = useState("");
+  const [postVenueSelect, setPostVenueSelect] = useState(VENUE_SELECT_PLACEHOLDER);
+  const [postVenueName, setPostVenueName] = useState("");
+  const [postCity, setPostCity] = useState("");
+  const [postState, setPostState] = useState("");
+  const [postTicketUrl, setPostTicketUrl] = useState("");
+  const [postIsPublic, setPostIsPublic] = useState(true);
+  const [postEventType, setPostEventType] = useState<PostEventKind>("show");
+  const [postLectureOnline, setPostLectureOnline] = useState(false);
+  const [postMeetingLink, setPostMeetingLink] = useState("");
+  const [postSkillLevel, setPostSkillLevel] = useState<(typeof SKILL_LEVELS)[number]>("All levels");
+  const [postMaxAttendees, setPostMaxAttendees] = useState("");
+  const [postWorkbook, setPostWorkbook] = useState(false);
+  const [postProps, setPostProps] = useState(false);
+  const [postBusy, setPostBusy] = useState(false);
+  const [postErr, setPostErr] = useState("");
+  const [postSuccess, setPostSuccess] = useState("");
 
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -261,6 +319,217 @@ export default function AdminClient() {
       return;
     }
     void fetchTab();
+  };
+
+  const openAddMagicianModal = () => {
+    setAmDisplayName("");
+    setAmLocation("");
+    setAmTags(new Set());
+    setAmBio("");
+    setAmInstagram("");
+    setAmYoutube("");
+    setAmTiktok("");
+    setAmWebsite("");
+    setAmMsg("");
+    setAddMagicianOpen(true);
+  };
+
+  const toggleAmTag = (t: string) => {
+    setAmTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+  };
+
+  const submitAddMagician = async () => {
+    const name = amDisplayName.trim();
+    if (!name) {
+      setAmMsg("Display name is required");
+      return;
+    }
+    setAmBusy(true);
+    setAmMsg("");
+    try {
+      const res = await fetch("/api/admin/magicians/create-unclaimed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          display_name: name,
+          location: amLocation.trim(),
+          specialty_tags: Array.from(amTags),
+          short_bio: amBio.trim(),
+          instagram: amInstagram.trim(),
+          youtube: amYoutube.trim(),
+          tiktok: amTiktok.trim(),
+          website: amWebsite.trim(),
+        }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        setAmMsg(json.error || "Create failed");
+        setAmBusy(false);
+        return;
+      }
+      setAmMsg("Profile created successfully");
+      setAmBusy(false);
+      void fetchTab();
+    } catch {
+      setAmMsg("Request failed");
+      setAmBusy(false);
+    }
+  };
+
+  const resetPostShowForm = () => {
+    setPostShowName("");
+    setPostShowDate("");
+    setPostShowTime("");
+    setPostVenueSelect(VENUE_SELECT_PLACEHOLDER);
+    setPostVenueName("");
+    setPostCity("");
+    setPostState("");
+    setPostTicketUrl("");
+    setPostIsPublic(true);
+    setPostEventType("show");
+    setPostLectureOnline(false);
+    setPostMeetingLink("");
+    setPostSkillLevel("All levels");
+    setPostMaxAttendees("");
+    setPostWorkbook(false);
+    setPostProps(false);
+    setPostErr("");
+    setPostSuccess("");
+  };
+
+  const openPostShowModal = async (magicianId: string) => {
+    setPostForMagicianId(magicianId);
+    resetPostShowForm();
+    const res = await fetch("/api/admin/venues");
+    const json = (await res.json()) as {
+      ok?: boolean;
+      venues?: Array<{ id: string; name: string | null; city: string | null; state: string | null }>;
+    };
+    if (res.ok && json.ok && json.venues) {
+      setPostVenues(
+        json.venues.map((v) => ({
+          id: v.id,
+          name: v.name,
+          city: v.city,
+          state: v.state ?? null,
+        })),
+      );
+    } else {
+      setPostVenues([]);
+    }
+  };
+
+  const submitAdminPostShow = async () => {
+    if (!postForMagicianId) return;
+    setPostErr("");
+    setPostSuccess("");
+    if (!postShowName.trim() || !postShowDate || !postShowTime) {
+      setPostErr("Show name, date, and time are required.");
+      return;
+    }
+
+    if (postEventType === "lecture") {
+      if (postLectureOnline) {
+        if (!postMeetingLink.trim()) {
+          setPostErr("Meeting or registration link required for online lectures.");
+          return;
+        }
+      } else {
+        if (!postCity.trim()) {
+          setPostErr("City is required for in-person lectures.");
+          return;
+        }
+        if (postVenueSelect === VENUE_SELECT_PLACEHOLDER) {
+          setPostErr('Select a venue or choose "Other / not listed".');
+          return;
+        }
+        if (!postVenueName.trim()) {
+          setPostErr("Venue name is required.");
+          return;
+        }
+      }
+    } else {
+      if (!postCity.trim()) {
+        setPostErr("City is required.");
+        return;
+      }
+      if (postVenueSelect === VENUE_SELECT_PLACEHOLDER) {
+        setPostErr('Select a venue or choose "Other / not listed".');
+        return;
+      }
+      if (!postVenueName.trim()) {
+        setPostErr("Venue name is required.");
+        return;
+      }
+    }
+
+    const maxParsed =
+      postEventType === "lecture" && postMaxAttendees.trim()
+        ? Number.parseInt(postMaxAttendees.trim(), 10)
+        : null;
+    if (
+      postEventType === "lecture" &&
+      postMaxAttendees.trim() &&
+      (!Number.isFinite(maxParsed) || (maxParsed != null && maxParsed < 1))
+    ) {
+      setPostErr("Max attendees must be a positive number.");
+      return;
+    }
+
+    const normalizedDate = /^\d{4}-\d{2}-\d{2}$/.test(postShowDate)
+      ? postShowDate
+      : new Date(postShowDate).toISOString().slice(0, 10);
+
+    const online = postEventType === "lecture" && postLectureOnline;
+    const venueIdForInsert = online
+      ? null
+      : postVenueSelect !== VENUE_OTHER && postVenueSelect !== VENUE_SELECT_PLACEHOLDER
+        ? postVenueSelect
+        : null;
+
+    setPostBusy(true);
+    try {
+      const res = await fetch("/api/admin/shows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          magician_id: postForMagicianId,
+          name: postShowName.trim(),
+          date: normalizedDate,
+          time: postShowTime,
+          venue_name: online ? "Online" : postVenueName.trim(),
+          city: online ? "" : postCity.trim(),
+          state: online ? "" : postState.trim(),
+          venue_id: venueIdForInsert,
+          ticket_url: online ? postMeetingLink.trim() : postTicketUrl.trim(),
+          is_public: postIsPublic,
+          event_type: postEventType,
+          skill_level: postEventType === "lecture" ? postSkillLevel : undefined,
+          includes_workbook: postWorkbook,
+          includes_props: postProps,
+          max_attendees:
+            postEventType === "lecture" && maxParsed != null && Number.isFinite(maxParsed) ? maxParsed : null,
+          is_online: postEventType === "lecture" ? postLectureOnline : false,
+        }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        setPostErr(json.error || "Failed to create show");
+        setPostBusy(false);
+        return;
+      }
+      setPostSuccess(postEventType === "lecture" ? "Lecture posted." : "Show posted.");
+      setPostBusy(false);
+      void fetchTab();
+    } catch {
+      setPostErr("Request failed");
+      setPostBusy(false);
+    }
   };
 
   const venueDecision = async (venueId: string, decision: "approve" | "reject") => {
@@ -659,10 +928,19 @@ export default function AdminClient() {
 
         {tab === "magicians" ? (
           <section className="mt-8 overflow-x-auto">
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={openAddMagicianModal}
+                className="rounded-lg border border-[var(--ml-gold)]/45 bg-[var(--ml-gold)]/15 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--ml-gold)] transition hover:bg-[var(--ml-gold)]/25"
+              >
+                Add magician
+              </button>
+            </div>
             {dataLoading ? (
               <p className="text-sm text-zinc-500">Loading…</p>
             ) : (
-              <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-white/10 text-[10px] uppercase tracking-wider text-zinc-500">
                     <th className="py-3 pr-4">Name</th>
@@ -671,13 +949,21 @@ export default function AdminClient() {
                     <th className="py-3 pr-4">Shows</th>
                     <th className="py-3 pr-4">Reviews</th>
                     <th className="py-3 pr-4">Verified</th>
+                    <th className="py-3 pr-4">Actions</th>
                     <th className="py-3">Profile</th>
                   </tr>
                 </thead>
                 <tbody>
                   {magicians.map((m) => (
                     <tr key={m.id} className="border-b border-white/5">
-                      <td className="py-3 pr-4 font-medium text-zinc-200">{m.display_name || "—"}</td>
+                      <td className="py-3 pr-4 font-medium text-zinc-200">
+                        {m.display_name || "—"}
+                        {m.is_unclaimed ? (
+                          <span className="ml-2 rounded border border-amber-500/35 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-200/90">
+                            Unclaimed
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="py-3 pr-4 text-zinc-400">{m.location || "—"}</td>
                       <td className="py-3 pr-4 text-zinc-500">{fmtShort(m.created_at || m.updated_at)}</td>
                       <td className="py-3 pr-4 text-zinc-400">{m.show_count}</td>
@@ -689,6 +975,15 @@ export default function AdminClient() {
                           className="text-xs font-semibold text-[var(--ml-gold)] hover:underline"
                         >
                           {m.is_verified ? "On" : "Off"}
+                        </button>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <button
+                          type="button"
+                          onClick={() => void openPostShowModal(m.id)}
+                          className="text-xs font-semibold text-zinc-300 underline decoration-white/20 hover:text-[var(--ml-gold)]"
+                        >
+                          Post event
                         </button>
                       </td>
                       <td className="py-3">
@@ -816,6 +1111,397 @@ export default function AdminClient() {
           </section>
         ) : null}
       </div>
+
+      {addMagicianOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-xl">
+            <h3 className="ml-font-heading text-lg font-semibold text-zinc-100">Add magician</h3>
+            <p className="mt-2 text-sm text-zinc-500">
+              This creates an unclaimed profile. The magician can claim it when they join Magicalive.
+            </p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                  Display name *
+                </label>
+                <input
+                  value={amDisplayName}
+                  onChange={(e) => setAmDisplayName(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                  Location (city, state)
+                </label>
+                <input
+                  value={amLocation}
+                  onChange={(e) => setAmLocation(e.target.value)}
+                  placeholder="e.g. Austin, TX"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-[var(--ml-gold)]/40"
+                />
+              </div>
+              <div>
+                <p className="mb-2 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                  Specialty tags
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {ADMIN_SPEC_TAGS.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => toggleAmTag(t)}
+                      className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                        amTags.has(t)
+                          ? "border-[var(--ml-gold)]/50 bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]"
+                          : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                  Short bio
+                </label>
+                <textarea
+                  value={amBio}
+                  onChange={(e) => setAmBio(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                    Instagram
+                  </label>
+                  <input
+                    value={amInstagram}
+                    onChange={(e) => setAmInstagram(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                    YouTube
+                  </label>
+                  <input
+                    value={amYoutube}
+                    onChange={(e) => setAmYoutube(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                    TikTok
+                  </label>
+                  <input
+                    value={amTiktok}
+                    onChange={(e) => setAmTiktok(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                    Website
+                  </label>
+                  <input
+                    value={amWebsite}
+                    onChange={(e) => setAmWebsite(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                  />
+                </div>
+              </div>
+            </div>
+            {amMsg ? (
+              <p
+                className={`mt-3 text-sm font-medium ${amMsg === "Profile created successfully" ? "text-emerald-400" : "text-red-400"}`}
+              >
+                {amMsg}
+              </p>
+            ) : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddMagicianOpen(false);
+                  setAmMsg("");
+                }}
+                className={CLASSES.btnSecondarySm}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={amBusy || !amDisplayName.trim()}
+                onClick={() => void submitAddMagician()}
+                className="rounded-lg border border-[var(--ml-gold)]/40 bg-[var(--ml-gold)] px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-40"
+              >
+                {amBusy ? "Creating…" : "Create profile"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {postForMagicianId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-xl">
+            <h3 className="ml-font-heading text-lg font-semibold text-zinc-100">Post event</h3>
+            <p className="mt-1 text-xs text-zinc-500">Magician ID: {postForMagicianId}</p>
+            <div className="mt-4 mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setPostEventType("show")}
+                className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                  postEventType === "show"
+                    ? "border-[var(--ml-gold)] bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]"
+                    : "border-white/10 bg-white/5 text-zinc-400"
+                }`}
+              >
+                Show
+              </button>
+              <button
+                type="button"
+                onClick={() => setPostEventType("lecture")}
+                className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                  postEventType === "lecture"
+                    ? "border-[var(--ml-gold)] bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]"
+                    : "border-white/10 bg-white/5 text-zinc-400"
+                }`}
+              >
+                Lecture
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                  {postEventType === "lecture" ? "Lecture title *" : "Show name *"}
+                </label>
+                <input
+                  value={postShowName}
+                  onChange={(e) => setPostShowName(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                  Date *
+                </label>
+                <input
+                  type="date"
+                  value={postShowDate}
+                  onChange={(e) => setPostShowDate(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                  Time *
+                </label>
+                <input
+                  type="time"
+                  value={postShowTime}
+                  onChange={(e) => setPostShowTime(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                />
+              </div>
+              {postEventType === "lecture" ? (
+                <>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                      Skill level
+                    </label>
+                    <select
+                      value={postSkillLevel}
+                      onChange={(e) => setPostSkillLevel(e.target.value as (typeof SKILL_LEVELS)[number])}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                    >
+                      {SKILL_LEVELS.map((lvl) => (
+                        <option key={lvl} value={lvl} className="bg-zinc-900">
+                          {lvl}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                      Max attendees
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={postMaxAttendees}
+                      onChange={(e) => setPostMaxAttendees(e.target.value)}
+                      placeholder="Optional"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                    />
+                  </div>
+                  <div className="flex flex-col justify-end gap-2 sm:col-span-1">
+                    <label className="inline-flex items-center gap-2 text-xs text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={postWorkbook}
+                        onChange={(e) => setPostWorkbook(e.target.checked)}
+                      />
+                      Includes workbook
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-xs text-zinc-300">
+                      <input type="checkbox" checked={postProps} onChange={(e) => setPostProps(e.target.checked)} />
+                      Includes props
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-xs text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={postLectureOnline}
+                        onChange={(e) => setPostLectureOnline(e.target.checked)}
+                      />
+                      Online lecture
+                    </label>
+                  </div>
+                  {postLectureOnline ? (
+                    <div className="sm:col-span-2">
+                      <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                        Meeting / registration link *
+                      </label>
+                      <input
+                        type="url"
+                        value={postMeetingLink}
+                        onChange={(e) => setPostMeetingLink(e.target.value)}
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                      />
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+              {postEventType === "show" || (postEventType === "lecture" && !postLectureOnline) ? (
+                <>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                      Venue *
+                    </label>
+                    <select
+                      value={postVenueSelect}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setPostVenueSelect(v);
+                        if (v === VENUE_OTHER) {
+                          setPostVenueName("");
+                          setPostCity("");
+                          setPostState("");
+                        } else if (v && v !== VENUE_SELECT_PLACEHOLDER) {
+                          const opt = postVenues.find((x) => x.id === v);
+                          if (opt) {
+                            setPostVenueName(opt.name?.trim() || "");
+                            setPostCity(opt.city?.trim() || "");
+                            setPostState(opt.state?.trim() || "");
+                          }
+                        } else {
+                          setPostVenueName("");
+                          setPostCity("");
+                          setPostState("");
+                        }
+                      }}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                    >
+                      <option value={VENUE_SELECT_PLACEHOLDER} className="bg-zinc-900">
+                        Select a venue…
+                      </option>
+                      {postVenues.map((v) => (
+                        <option key={v.id} value={v.id} className="bg-zinc-900">
+                          {v.name}
+                          {v.city ? ` — ${v.city}` : ""}
+                        </option>
+                      ))}
+                      <option value={VENUE_OTHER} className="bg-zinc-900">
+                        Other / not listed
+                      </option>
+                    </select>
+                  </div>
+                  {postVenueSelect === VENUE_OTHER ? (
+                    <div className="sm:col-span-2">
+                      <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                        Venue name *
+                      </label>
+                      <input
+                        value={postVenueName}
+                        onChange={(e) => setPostVenueName(e.target.value)}
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                      />
+                    </div>
+                  ) : null}
+                  {postVenueSelect !== VENUE_SELECT_PLACEHOLDER && postVenueSelect !== "" ? (
+                    <>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                          City *
+                        </label>
+                        <input
+                          value={postCity}
+                          onChange={(e) => setPostCity(e.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                          State
+                        </label>
+                        <input
+                          value={postState}
+                          onChange={(e) => setPostState(e.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                        />
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+              {postEventType === "show" || (postEventType === "lecture" && !postLectureOnline) ? (
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                    Ticket URL
+                  </label>
+                  <input
+                    type="url"
+                    value={postTicketUrl}
+                    onChange={(e) => setPostTicketUrl(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                  />
+                </div>
+              ) : null}
+            </div>
+            <label className="mt-2 inline-flex items-center gap-2 text-xs text-zinc-300">
+              <input type="checkbox" checked={postIsPublic} onChange={(e) => setPostIsPublic(e.target.checked)} />
+              Make this event public
+            </label>
+            {postErr ? <p className="mt-3 text-sm font-medium text-red-400">{postErr}</p> : null}
+            {postSuccess ? <p className="mt-3 text-sm font-medium text-emerald-400">{postSuccess}</p> : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPostForMagicianId(null);
+                  resetPostShowForm();
+                }}
+                className={CLASSES.btnSecondarySm}
+              >
+                {postSuccess ? "Close" : "Cancel"}
+              </button>
+              <button
+                type="button"
+                disabled={postBusy}
+                onClick={() => void submitAdminPostShow()}
+                className="rounded-lg border border-[var(--ml-gold)]/40 bg-[var(--ml-gold)] px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-40"
+              >
+                {postBusy ? "Posting…" : "Post event"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {rejectOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">

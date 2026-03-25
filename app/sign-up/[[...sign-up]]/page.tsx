@@ -39,6 +39,7 @@ export default function SignUpPage() {
           }}
         >
           {!accepted ? <div className="absolute inset-0 z-10" aria-hidden /> : null}
+          <div id="clerk-captcha" />
           <SignUp
             routing="path"
             path="/sign-up"

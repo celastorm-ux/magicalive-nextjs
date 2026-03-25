@@ -11,7 +11,10 @@ type LayoutChromeProps = {
 
 export function LayoutChrome({ children }: LayoutChromeProps) {
   const pathname = usePathname();
-  const hideChrome = pathname.startsWith("/search") || pathname.startsWith("/notifications");
+  const hideChrome =
+    pathname.startsWith("/search") ||
+    pathname.startsWith("/notifications") ||
+    pathname.startsWith("/claim-profile");
 
   return (
     <>

@@ -24,6 +24,7 @@ type Magician = {
   lastSeenLabel: string;
   gradient: string;
   isFoundingMember: boolean;
+  isUnclaimed: boolean;
 };
 
 const CITIES = [
@@ -105,7 +106,7 @@ export default function MagiciansClient() {
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "id, display_name, location, specialty_tags, available_for, rating, review_count, avatar_url, is_online, last_seen, is_founding_member",
+          "id, display_name, location, specialty_tags, available_for, rating, review_count, avatar_url, is_online, last_seen, is_founding_member, is_unclaimed",
         )
         .eq("account_type", "magician");
       setDirLoading(false);
@@ -140,6 +141,7 @@ export default function MagiciansClient() {
             lastSeenLabel,
             gradient: CARD_GRADIENTS[h % CARD_GRADIENTS.length]!,
             isFoundingMember: Boolean(row.is_founding_member),
+            isUnclaimed: Boolean((row as { is_unclaimed?: boolean | null }).is_unclaimed),
           } satisfies Magician;
         }),
       );
@@ -530,6 +532,11 @@ export default function MagiciansClient() {
                           {firstInitial(m.name)}
                         </span>
                       )}
+                      {m.isUnclaimed ? (
+                        <span className="pointer-events-none absolute bottom-2 right-2 rounded border border-amber-600/35 bg-black/55 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-200/90 backdrop-blur-sm">
+                          Unclaimed
+                        </span>
+                      ) : null}
                       <div className="absolute right-3 top-3">
                         {m.isFoundingMember ? (
                           <span className="absolute -left-8 -top-1 text-[var(--ml-gold)]" title="Founding Member">
