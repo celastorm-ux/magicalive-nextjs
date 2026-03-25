@@ -1,6 +1,11 @@
 import { Suspense } from "react";
 import AdminClient from "./AdminClient";
 
+/**
+ * Magicians tab (table, "+ Add magician", modal) is implemented in `./AdminClient.tsx`
+ * — search for `tab === "magicians"` and state `showAddMagician`.
+ */
+
 export default function AdminPage() {
   return (
     <Suspense

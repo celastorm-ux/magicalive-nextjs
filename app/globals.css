@@ -91,6 +91,10 @@
   /* Legacy / app shell */
   --background: var(--ml-bg);
   --foreground: var(--ml-text);
+
+  /* Aliases for CTA inline styles (admin, legacy snippets) */
+  --gold: var(--ml-gold);
+  --ink: #0a0a0a;
 }
 
 @theme inline {

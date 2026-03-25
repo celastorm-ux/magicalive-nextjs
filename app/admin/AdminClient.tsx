@@ -133,11 +133,11 @@ export default function AdminClient() {
   const [rejectArticleId, setRejectArticleId] = useState("");
   const [rejectReason, setRejectReason] = useState("");
 
-  const [addMagicianOpen, setAddMagicianOpen] = useState(false);
-  const [amDisplayName, setAmDisplayName] = useState("");
-  const [amLocation, setAmLocation] = useState("");
-  const [amTags, setAmTags] = useState<Set<string>>(() => new Set());
-  const [amBio, setAmBio] = useState("");
+  const [showAddMagician, setShowAddMagician] = useState(false);
+  const [newMagName, setNewMagName] = useState("");
+  const [newMagLocation, setNewMagLocation] = useState("");
+  const [newMagTags, setNewMagTags] = useState<string[]>([]);
+  const [newMagBio, setNewMagBio] = useState("");
   const [amInstagram, setAmInstagram] = useState("");
   const [amYoutube, setAmYoutube] = useState("");
   const [amTiktok, setAmTiktok] = useState("");
@@ -325,29 +325,24 @@ export default function AdminClient() {
   };
 
   const openAddMagicianModal = () => {
-    setAmDisplayName("");
-    setAmLocation("");
-    setAmTags(new Set());
-    setAmBio("");
+    setNewMagName("");
+    setNewMagLocation("");
+    setNewMagTags([]);
+    setNewMagBio("");
     setAmInstagram("");
     setAmYoutube("");
     setAmTiktok("");
     setAmWebsite("");
     setAmMsg("");
-    setAddMagicianOpen(true);
+    setShowAddMagician(true);
   };
 
   const toggleAmTag = (t: string) => {
-    setAmTags((prev) => {
-      const next = new Set(prev);
-      if (next.has(t)) next.delete(t);
-      else next.add(t);
-      return next;
-    });
+    setNewMagTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   };
 
   const submitAddMagician = async () => {
-    const name = amDisplayName.trim();
+    const name = newMagName.trim();
     if (!name) {
       setAmMsg("Display name is required");
       return;
@@ -359,9 +354,9 @@ export default function AdminClient() {
     const row = {
       id,
       display_name: name,
-      location: amLocation.trim() || null,
-      specialty_tags: Array.from(amTags),
-      short_bio: amBio.trim() || null,
+      location: newMagLocation.trim() || null,
+      specialty_tags: newMagTags,
+      short_bio: newMagBio.trim() || null,
       account_type: "magician" as const,
       is_unclaimed: true,
       is_verified: false,
@@ -381,7 +376,7 @@ export default function AdminClient() {
     setAmMsg("Profile created successfully");
     void fetchTab();
     window.setTimeout(() => {
-      setAddMagicianOpen(false);
+      setShowAddMagician(false);
       setAmMsg("");
     }, 1100);
   };
@@ -884,13 +879,26 @@ export default function AdminClient() {
 
         {tab === "magicians" ? (
           <section className="mt-8 overflow-x-auto">
-            <div className="mb-4 flex flex-wrap items-center gap-3">
+            <div style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end" }}>
               <button
                 type="button"
-                onClick={openAddMagicianModal}
-                className="rounded-lg border border-[var(--ml-gold)]/50 bg-[var(--ml-gold)] px-4 py-2 text-xs font-semibold uppercase tracking-wider text-black shadow-[0_0_24px_-4px_rgba(212,175,55,0.45)] transition hover:brightness-110"
+                onClick={() => {
+                  openAddMagicianModal();
+                }}
+                style={{
+                  background: "var(--gold)",
+                  color: "var(--ink)",
+                  border: "none",
+                  padding: "10px 20px",
+                  borderRadius: 2,
+                  cursor: "pointer",
+                  fontFamily: "DM Sans, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: 12,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
               >
-                Add magician
+                + Add magician
               </button>
             </div>
             {dataLoading ? (
@@ -1068,7 +1076,7 @@ export default function AdminClient() {
         ) : null}
       </div>
 
-      {addMagicianOpen ? (
+      {showAddMagician ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-xl">
             <h3 className="ml-font-heading text-lg font-semibold text-zinc-100">Add magician</h3>
@@ -1078,8 +1086,8 @@ export default function AdminClient() {
                   Display name *
                 </label>
                 <input
-                  value={amDisplayName}
-                  onChange={(e) => setAmDisplayName(e.target.value)}
+                  value={newMagName}
+                  onChange={(e) => setNewMagName(e.target.value)}
                   className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
                 />
               </div>
@@ -1088,8 +1096,8 @@ export default function AdminClient() {
                   Location (city, state)
                 </label>
                 <input
-                  value={amLocation}
-                  onChange={(e) => setAmLocation(e.target.value)}
+                  value={newMagLocation}
+                  onChange={(e) => setNewMagLocation(e.target.value)}
                   placeholder="e.g. Austin, TX"
                   className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-[var(--ml-gold)]/40"
                 />
@@ -1105,7 +1113,7 @@ export default function AdminClient() {
                       type="button"
                       onClick={() => toggleAmTag(t)}
                       className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                        amTags.has(t)
+                        newMagTags.includes(t)
                           ? "border-[var(--ml-gold)]/50 bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]"
                           : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20"
                       }`}
@@ -1120,8 +1128,8 @@ export default function AdminClient() {
                   Short bio
                 </label>
                 <textarea
-                  value={amBio}
-                  onChange={(e) => setAmBio(e.target.value)}
+                  value={newMagBio}
+                  onChange={(e) => setNewMagBio(e.target.value)}
                   rows={3}
                   className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
                 />
@@ -1183,7 +1191,7 @@ export default function AdminClient() {
               <button
                 type="button"
                 onClick={() => {
-                  setAddMagicianOpen(false);
+                  setShowAddMagician(false);
                   setAmMsg("");
                 }}
                 className={CLASSES.btnSecondarySm}
@@ -1192,7 +1200,7 @@ export default function AdminClient() {
               </button>
               <button
                 type="button"
-                disabled={amBusy || !amDisplayName.trim()}
+                disabled={amBusy || !newMagName.trim()}
                 onClick={() => void submitAddMagician()}
                 className="rounded-lg border border-[var(--ml-gold)]/40 bg-[var(--ml-gold)] px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-40"
               >
