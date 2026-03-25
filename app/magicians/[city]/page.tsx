@@ -95,7 +95,7 @@ export default async function CityMagiciansPage({ params }: { params: PageParams
       avatarUrl: (row.avatar_url as string | null) ?? null,
       tags: tags.length ? tags.slice(0, 6) : ["Performer"],
       styleKeys: tags,
-      bookings: avail ? [avail] : ["Corporate", "Private", "Theater", "Wedding"],
+      bookings: avail ? [avail] : [],
       rating: Number(row.rating ?? 0),
       reviews: Number(row.review_count ?? 0),
       onlineNow: isOnline,

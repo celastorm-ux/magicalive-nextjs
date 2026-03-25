@@ -18,12 +18,12 @@ const EVENT_TYPE_CARDS: Array<{
   label: string;
   href: string;
 }> = [
-  { emoji: "🏢", label: "Corporate events", href: "/magicians?available_for=Corporate%20events" },
-  { emoji: "💒", label: "Weddings", href: "/magicians?available_for=Weddings" },
-  { emoji: "🎂", label: "Private parties", href: "/magicians?available_for=Private%20parties" },
-  { emoji: "🎪", label: "Festivals", href: "/magicians?available_for=Festivals" },
-  { emoji: "🎭", label: "Theater shows", href: "/magicians?available_for=Theater%20%2F%20stage" },
-  { emoji: "🎓", label: "Lectures and workshops", href: "/magicians?style=Mentalism" },
+  { emoji: "🏢", label: "Corporate events", href: "/magicians?available_for=Corporate" },
+  { emoji: "💒", label: "Weddings", href: "/magicians?available_for=Wedding" },
+  { emoji: "🎂", label: "Private parties", href: "/magicians?available_for=Private" },
+  { emoji: "🎪", label: "Festivals", href: "/magicians?available_for=Festival" },
+  { emoji: "🎭", label: "Theater shows", href: "/magicians?available_for=Theater" },
+  { emoji: "🎓", label: "Lectures and workshops", href: "/magicians?available_for=Lecture" },
 ];
 
 const FAQ_ITEMS: Array<{ q: string; a: string }> = [

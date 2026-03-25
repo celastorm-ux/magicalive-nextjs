@@ -12,6 +12,7 @@ import {
   type DragEvent,
 } from "react";
 import { LocationPicker } from "@/components/LocationPicker";
+import { MAGICIAN_AVAILABLE_FOR_OPTIONS } from "@/lib/available-for-booking";
 import { CLASSES } from "@/lib/constants";
 import { FoundingMemberSpots } from "@/components/FoundingMemberSpots";
 import { formatLocation } from "@/lib/locations";
@@ -59,15 +60,7 @@ const SPECIALTY_TAGS = [
   "Virtual shows",
 ] as const;
 
-const EVENT_TYPES = [
-  "Select event types…",
-  "Corporate events",
-  "Private parties",
-  "Theater / stage",
-  "Weddings",
-  "Festivals",
-  "All of the above",
-] as const;
+const EVENT_TYPES = MAGICIAN_AVAILABLE_FOR_OPTIONS;
 
 const VENUE_TYPES = [
   "Select type…",

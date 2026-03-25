@@ -11,9 +11,18 @@ import {
   getCitiesForCountry,
   profileLocationMatchesFilter,
 } from "@/lib/locations";
+import {
+  BOOKING_DIRECTORY_OPTIONS,
+  bookingDirectoryLabelForToken,
+  MAGICIAN_AVAILABLE_FOR_ALL_LABEL,
+} from "@/lib/available-for-booking";
 import { createNotification } from "@/lib/notifications";
 import { formatLastSeen } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+
+const KNOWN_BOOKING_TOKENS = new Set<string>(
+  BOOKING_DIRECTORY_OPTIONS.map((o) => o.token).filter((t) => t.length > 0),
+);
 
 type Magician = {
   id: string;
@@ -56,10 +65,6 @@ const CORE_SPECIALTY_TAGS = [
   "Virtual shows",
 ] as const;
 
-const BOOKINGS = [
-  "Any booking",
-] as const;
-
 const selectClass =
   "w-full min-w-0 cursor-pointer rounded-2xl border border-white/10 bg-white/5 py-2.5 pl-3 pr-8 text-sm text-zinc-100 outline-none transition focus:border-[var(--ml-gold)]/50 sm:min-w-[140px]";
 
@@ -91,7 +96,6 @@ export default function MagiciansClient() {
   const [filterCountry, setFilterCountry] = useState<string>(ALL_COUNTRIES);
   const [filterCity, setFilterCity] = useState<string>(ALL_CITIES);
   const [style, setStyle] = useState<string>(STYLES[0]);
-  const [booking, setBooking] = useState<string>(BOOKINGS[0]);
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [sidebarTag, setSidebarTag] = useState<string | null>(null);
   const [magicians, setMagicians] = useState<Magician[]>([]);
@@ -99,27 +103,39 @@ export default function MagiciansClient() {
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [followBusyId, setFollowBusyId] = useState<string | null>(null);
 
+  const availParam = searchParams.get("available_for")?.trim() ?? "";
+
   useEffect(() => {
     const styleParam = searchParams.get("style")?.trim();
     const cityParam = searchParams.get("city")?.trim();
     const countryParam = searchParams.get("country")?.trim();
-    const availableFor = searchParams.get("available_for")?.trim();
     setStyle(styleParam || STYLES[0]);
     setSidebarTag(styleParam || null);
     setFilterCountry(countryParam || ALL_COUNTRIES);
     setFilterCity(cityParam || ALL_CITIES);
-    if (availableFor) setBooking(availableFor);
   }, [searchParams]);
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
-      const { data, error } = await supabase
+      setDirLoading(true);
+      let query = supabase
         .from("profiles")
         .select(
           "id, display_name, location, specialty_tags, available_for, rating, review_count, avatar_url, is_online, last_seen, is_founding_member, is_unclaimed",
         )
         .eq("account_type", "magician")
         .order("created_at", { ascending: false });
+      if (availParam) {
+        const safe = availParam.replace(/[%_]/g, "").trim();
+        if (safe) {
+          query = query.or(
+            `available_for.ilike.%${safe}%,available_for.ilike.%${MAGICIAN_AVAILABLE_FOR_ALL_LABEL}%`,
+          );
+        }
+      }
+      const { data, error } = await query;
+      if (cancelled) return;
       setDirLoading(false);
       if (error || !data?.length) {
         setMagicians([]);
@@ -145,7 +161,7 @@ export default function MagiciansClient() {
             avatarUrl: (row.avatar_url as string | null) ?? null,
             tags: tags.length ? tags.slice(0, 6) : ["Performer"],
             styleKeys: tags,
-            bookings: avail ? [avail] : ["Corporate", "Private", "Theater", "Wedding"],
+            bookings: avail ? [avail] : [],
             rating: Number(row.rating ?? 0),
             reviews: Number(row.review_count ?? 0),
             onlineNow: isOnline,
@@ -157,7 +173,10 @@ export default function MagiciansClient() {
         }),
       );
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [availParam]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -309,17 +328,28 @@ export default function MagiciansClient() {
     return [STYLES[0], qp, ...styleOptions.filter((s) => s !== STYLES[0])];
   }, [styleOptions, searchParams]);
 
-  const bookingOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const m of magicians) for (const b of m.bookings) if (b.trim()) set.add(b);
-    return [BOOKINGS[0], ...Array.from(set).sort((a, b) => a.localeCompare(b))];
-  }, [magicians]);
+  const bookingSelectOptions = useMemo((): { token: string; label: string }[] => {
+    const base: { token: string; label: string }[] = BOOKING_DIRECTORY_OPTIONS.map((o) => ({
+      token: o.token,
+      label: o.label,
+    }));
+    if (availParam && !KNOWN_BOOKING_TOKENS.has(availParam)) {
+      base.push({ token: availParam, label: availParam });
+    }
+    return base;
+  }, [availParam]);
 
-  const bookingOptionsWithQuery = useMemo(() => {
-    const qp = searchParams.get("available_for")?.trim();
-    if (!qp || bookingOptions.includes(qp)) return bookingOptions;
-    return [BOOKINGS[0], qp, ...bookingOptions.filter((b) => b !== BOOKINGS[0])];
-  }, [bookingOptions, searchParams]);
+  const setAvailableForQuery = (token: string) => {
+    const p = new URLSearchParams(searchParams.toString());
+    if (token) p.set("available_for", token);
+    else p.delete("available_for");
+    const qs = p.toString();
+    router.replace(qs ? `/magicians?${qs}` : "/magicians");
+  };
+
+  const clearBookingFilter = () => {
+    setAvailableForQuery("");
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -343,7 +373,6 @@ export default function MagiciansClient() {
           m.tags.some((t) => t.toLowerCase().includes(st));
         if (!match) return false;
       }
-      if (booking !== "Any booking" && !m.bookings.includes(booking)) return false;
       if (sidebarTag && !m.tags.includes(sidebarTag)) return false;
       if (q) {
         const hay = `${m.name} ${m.location}`.toLowerCase();
@@ -351,7 +380,7 @@ export default function MagiciansClient() {
       }
       return true;
     });
-  }, [search, filterCountry, filterCity, style, booking, onlineOnly, sidebarTag, magicians]);
+  }, [search, filterCountry, filterCity, style, onlineOnly, sidebarTag, magicians]);
 
   const toggleSidebarTag = (tag: string) => {
     setSidebarTag((t) => {
@@ -366,7 +395,7 @@ export default function MagiciansClient() {
     filterCountry !== ALL_COUNTRIES ||
     filterCity !== ALL_CITIES ||
     style !== STYLES[0] ||
-    booking !== BOOKINGS[0] ||
+    Boolean(availParam) ||
     onlineOnly ||
     sidebarTag !== null;
 
@@ -375,9 +404,9 @@ export default function MagiciansClient() {
     setFilterCountry(ALL_COUNTRIES);
     setFilterCity(ALL_CITIES);
     setStyle(STYLES[0]);
-    setBooking(BOOKINGS[0]);
     setOnlineOnly(false);
     setSidebarTag(null);
+    router.replace("/magicians");
   };
 
   return (
@@ -460,20 +489,32 @@ export default function MagiciansClient() {
               ))}
             </select>
             <select
-              className={selectClass}
-              value={booking}
-              onChange={(e) => setBooking(e.target.value)}
+              className={`${selectClass} ${availParam ? "border-[var(--ml-gold)]/40 ring-1 ring-[var(--ml-gold)]/15" : ""}`}
+              value={availParam}
+              onChange={(e) => setAvailableForQuery(e.target.value)}
             >
-              {bookingOptionsWithQuery.map((b) => (
-                <option key={b} value={b} className="bg-zinc-900">
-                  {b}
+              {bookingSelectOptions.map((b) => (
+                <option key={b.token || "all"} value={b.token} className="bg-zinc-900">
+                  {b.label}
                 </option>
               ))}
             </select>
             <div className="flex flex-1 flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3 lg:border-t-0 lg:pt-0">
-              <span className="text-sm text-zinc-400">
-                <span className="font-semibold text-zinc-200">{filtered.length}</span>{" "}
-                results
+              <span className="flex flex-wrap items-center gap-2 text-sm text-zinc-400">
+                <span>
+                  <span className="font-semibold text-zinc-200">{filtered.length}</span>{" "}
+                  results
+                </span>
+                {availParam ? (
+                  <button
+                    type="button"
+                    onClick={() => clearBookingFilter()}
+                    className="inline-flex items-center gap-1 rounded-full border border-[var(--ml-gold)]/35 bg-[var(--ml-gold)]/10 px-2.5 py-1 text-xs font-medium text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/50 hover:bg-[var(--ml-gold)]/15"
+                  >
+                    <span aria-hidden>×</span>
+                    {bookingDirectoryLabelForToken(availParam)}
+                  </button>
+                ) : null}
               </span>
               <button
                 type="button"
@@ -694,6 +735,7 @@ export default function MagiciansClient() {
                       const p = new URLSearchParams();
                       if (filterCountry !== ALL_COUNTRIES) p.set("country", filterCountry);
                       if (filterCity !== ALL_CITIES) p.set("city", filterCity);
+                      if (availParam) p.set("available_for", availParam);
                       if (sidebarTag !== tag) p.set("style", tag);
                       const qs = p.toString();
                       return qs ? `/magicians?${qs}` : "/magicians";

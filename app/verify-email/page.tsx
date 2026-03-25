@@ -4,6 +4,7 @@ import * as Clerk from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ComponentType } from "react";
+import { MAGICIAN_AVAILABLE_FOR_OPTIONS } from "@/lib/available-for-booking";
 import { CLASSES } from "@/lib/constants";
 import {
   PENDING_MAGICIAN_PROFILE_KEY,
@@ -12,7 +13,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import pkg from "../../package.json";
 
-const SELECT_EVENT_TYPES = "Select event types…";
+const SELECT_EVENT_TYPES = MAGICIAN_AVAILABLE_FOR_OPTIONS[0];
 
 const labelClass =
   "mb-2 block text-[10px] font-medium uppercase tracking-widest text-zinc-500";

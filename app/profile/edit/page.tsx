@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LocationPicker } from "@/components/LocationPicker";
+import { MAGICIAN_AVAILABLE_FOR_OPTIONS } from "@/lib/available-for-booking";
 import { CLASSES } from "@/lib/constants";
 import { formatLocation, parseStoredLocation } from "@/lib/locations";
 import { supabase } from "@/lib/supabase";
@@ -25,15 +26,7 @@ const SPECIALTY_TAGS = [
   "Virtual shows",
 ] as const;
 
-const EVENT_TYPES = [
-  "Select event types…",
-  "Corporate events",
-  "Private parties",
-  "Theater / stage",
-  "Weddings",
-  "Festivals",
-  "All of the above",
-] as const;
+const EVENT_TYPES = MAGICIAN_AVAILABLE_FOR_OPTIONS;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm font-normal text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-[var(--ml-gold)]/50 focus:bg-white/10";
