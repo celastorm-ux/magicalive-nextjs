@@ -56,7 +56,6 @@ const ADMIN_SPEC_TAGS = [
 
 const VENUE_SELECT_PLACEHOLDER = "";
 const VENUE_OTHER = "__other__";
-const SKILL_LEVELS = ["Beginner", "Intermediate", "Advanced", "All levels"] as const;
 type PostEventKind = "show" | "lecture";
 
 type AdminVenueOpt = { id: string; name: string | null; city: string | null; state: string | null };
@@ -98,6 +97,16 @@ function fmtShort(iso: string | null | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+/** Stable public handle for unclaimed profiles (required by directory / claim flow). */
+function slugHandleForUnclaimed(displayName: string, idSuffix: string): string {
+  const base = displayName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 24);
+  return `${base || "magician"}-${idSuffix.slice(0, 6)}`;
 }
 
 export default function AdminClient() {
@@ -148,12 +157,6 @@ export default function AdminClient() {
   const [postTicketUrl, setPostTicketUrl] = useState("");
   const [postIsPublic, setPostIsPublic] = useState(true);
   const [postEventType, setPostEventType] = useState<PostEventKind>("show");
-  const [postLectureOnline, setPostLectureOnline] = useState(false);
-  const [postMeetingLink, setPostMeetingLink] = useState("");
-  const [postSkillLevel, setPostSkillLevel] = useState<(typeof SKILL_LEVELS)[number]>("All levels");
-  const [postMaxAttendees, setPostMaxAttendees] = useState("");
-  const [postWorkbook, setPostWorkbook] = useState(false);
-  const [postProps, setPostProps] = useState(false);
   const [postBusy, setPostBusy] = useState(false);
   const [postErr, setPostErr] = useState("");
   const [postSuccess, setPostSuccess] = useState("");
@@ -351,34 +354,36 @@ export default function AdminClient() {
     }
     setAmBusy(true);
     setAmMsg("");
-    try {
-      const res = await fetch("/api/admin/magicians/create-unclaimed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          display_name: name,
-          location: amLocation.trim(),
-          specialty_tags: Array.from(amTags),
-          short_bio: amBio.trim(),
-          instagram: amInstagram.trim(),
-          youtube: amYoutube.trim(),
-          tiktok: amTiktok.trim(),
-          website: amWebsite.trim(),
-        }),
-      });
-      const json = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok || !json.ok) {
-        setAmMsg(json.error || "Create failed");
-        setAmBusy(false);
-        return;
-      }
-      setAmMsg("Profile created successfully");
-      setAmBusy(false);
-      void fetchTab();
-    } catch {
-      setAmMsg("Request failed");
-      setAmBusy(false);
+    const rand = Math.random().toString(36).slice(2, 11);
+    const id = `unclaimed_${Date.now()}_${rand}`;
+    const row = {
+      id,
+      display_name: name,
+      location: amLocation.trim() || null,
+      specialty_tags: Array.from(amTags),
+      short_bio: amBio.trim() || null,
+      account_type: "magician" as const,
+      is_unclaimed: true,
+      is_verified: false,
+      instagram: amInstagram.trim() || null,
+      youtube: amYoutube.trim() || null,
+      tiktok: amTiktok.trim() || null,
+      website: amWebsite.trim() || null,
+      handle: slugHandleForUnclaimed(name, rand),
+      unclaimed_name: name,
+    };
+    const { error } = await supabase.from("profiles").insert(row);
+    setAmBusy(false);
+    if (error) {
+      setAmMsg(error.message || "Create failed");
+      return;
     }
+    setAmMsg("Profile created successfully");
+    void fetchTab();
+    window.setTimeout(() => {
+      setAddMagicianOpen(false);
+      setAmMsg("");
+    }, 1100);
   };
 
   const resetPostShowForm = () => {
@@ -392,12 +397,6 @@ export default function AdminClient() {
     setPostTicketUrl("");
     setPostIsPublic(true);
     setPostEventType("show");
-    setPostLectureOnline(false);
-    setPostMeetingLink("");
-    setPostSkillLevel("All levels");
-    setPostMaxAttendees("");
-    setPostWorkbook(false);
-    setPostProps(false);
     setPostErr("");
     setPostSuccess("");
   };
@@ -405,17 +404,16 @@ export default function AdminClient() {
   const openPostShowModal = async (magicianId: string) => {
     setPostForMagicianId(magicianId);
     resetPostShowForm();
-    const res = await fetch("/api/admin/venues");
-    const json = (await res.json()) as {
-      ok?: boolean;
-      venues?: Array<{ id: string; name: string | null; city: string | null; state: string | null }>;
-    };
-    if (res.ok && json.ok && json.venues) {
+    const { data, error } = await supabase
+      .from("venues")
+      .select("id, name, city, state")
+      .order("name", { ascending: true });
+    if (!error && data) {
       setPostVenues(
-        json.venues.map((v) => ({
-          id: v.id,
-          name: v.name,
-          city: v.city,
+        data.map((v) => ({
+          id: String(v.id),
+          name: v.name ?? null,
+          city: v.city ?? null,
           state: v.state ?? null,
         })),
       );
@@ -428,56 +426,20 @@ export default function AdminClient() {
     if (!postForMagicianId) return;
     setPostErr("");
     setPostSuccess("");
-    if (!postShowName.trim() || !postShowDate || !postShowTime) {
-      setPostErr("Show name, date, and time are required.");
+    if (!postShowName.trim() || !postShowDate) {
+      setPostErr("Show name and date are required.");
       return;
     }
-
-    if (postEventType === "lecture") {
-      if (postLectureOnline) {
-        if (!postMeetingLink.trim()) {
-          setPostErr("Meeting or registration link required for online lectures.");
-          return;
-        }
-      } else {
-        if (!postCity.trim()) {
-          setPostErr("City is required for in-person lectures.");
-          return;
-        }
-        if (postVenueSelect === VENUE_SELECT_PLACEHOLDER) {
-          setPostErr('Select a venue or choose "Other / not listed".');
-          return;
-        }
-        if (!postVenueName.trim()) {
-          setPostErr("Venue name is required.");
-          return;
-        }
-      }
-    } else {
-      if (!postCity.trim()) {
-        setPostErr("City is required.");
-        return;
-      }
-      if (postVenueSelect === VENUE_SELECT_PLACEHOLDER) {
-        setPostErr('Select a venue or choose "Other / not listed".');
-        return;
-      }
-      if (!postVenueName.trim()) {
-        setPostErr("Venue name is required.");
-        return;
-      }
+    if (postVenueSelect === VENUE_SELECT_PLACEHOLDER) {
+      setPostErr('Select a venue or choose "Other".');
+      return;
     }
-
-    const maxParsed =
-      postEventType === "lecture" && postMaxAttendees.trim()
-        ? Number.parseInt(postMaxAttendees.trim(), 10)
-        : null;
-    if (
-      postEventType === "lecture" &&
-      postMaxAttendees.trim() &&
-      (!Number.isFinite(maxParsed) || (maxParsed != null && maxParsed < 1))
-    ) {
-      setPostErr("Max attendees must be a positive number.");
+    if (postVenueSelect === VENUE_OTHER && !postVenueName.trim()) {
+      setPostErr("Venue name is required when you choose Other.");
+      return;
+    }
+    if (!postCity.trim()) {
+      setPostErr("City is required.");
       return;
     }
 
@@ -485,51 +447,45 @@ export default function AdminClient() {
       ? postShowDate
       : new Date(postShowDate).toISOString().slice(0, 10);
 
-    const online = postEventType === "lecture" && postLectureOnline;
-    const venueIdForInsert = online
-      ? null
-      : postVenueSelect !== VENUE_OTHER && postVenueSelect !== VENUE_SELECT_PLACEHOLDER
+    const venueIdForInsert =
+      postVenueSelect !== VENUE_OTHER && postVenueSelect !== VENUE_SELECT_PLACEHOLDER
         ? postVenueSelect
         : null;
 
+    const row = {
+      magician_id: postForMagicianId,
+      name: postShowName.trim(),
+      date: normalizedDate,
+      time: postShowTime.trim() || "",
+      venue_name: postVenueName.trim(),
+      city: postCity.trim(),
+      state: postState.trim() || null,
+      venue_id: venueIdForInsert,
+      ticket_url: postTicketUrl.trim() || null,
+      is_public: postIsPublic,
+      event_type: postEventType,
+      skill_level: postEventType === "lecture" ? "All levels" : null,
+      includes_workbook: false,
+      includes_props: false,
+      max_attendees: null,
+      is_online: false,
+      is_past: false,
+    };
+
     setPostBusy(true);
-    try {
-      const res = await fetch("/api/admin/shows", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          magician_id: postForMagicianId,
-          name: postShowName.trim(),
-          date: normalizedDate,
-          time: postShowTime,
-          venue_name: online ? "Online" : postVenueName.trim(),
-          city: online ? "" : postCity.trim(),
-          state: online ? "" : postState.trim(),
-          venue_id: venueIdForInsert,
-          ticket_url: online ? postMeetingLink.trim() : postTicketUrl.trim(),
-          is_public: postIsPublic,
-          event_type: postEventType,
-          skill_level: postEventType === "lecture" ? postSkillLevel : undefined,
-          includes_workbook: postWorkbook,
-          includes_props: postProps,
-          max_attendees:
-            postEventType === "lecture" && maxParsed != null && Number.isFinite(maxParsed) ? maxParsed : null,
-          is_online: postEventType === "lecture" ? postLectureOnline : false,
-        }),
-      });
-      const json = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok || !json.ok) {
-        setPostErr(json.error || "Failed to create show");
-        setPostBusy(false);
-        return;
-      }
-      setPostSuccess(postEventType === "lecture" ? "Lecture posted." : "Show posted.");
-      setPostBusy(false);
-      void fetchTab();
-    } catch {
-      setPostErr("Request failed");
-      setPostBusy(false);
+    const { error } = await supabase.from("shows").insert(row);
+    setPostBusy(false);
+    if (error) {
+      console.error("Admin post event — Supabase error:", error);
+      setPostErr(error.message || "Failed to create event");
+      return;
     }
+    setPostSuccess(postEventType === "lecture" ? "Lecture posted." : "Show posted.");
+    void fetchTab();
+    window.setTimeout(() => {
+      setPostForMagicianId(null);
+      resetPostShowForm();
+    }, 900);
   };
 
   const venueDecision = async (venueId: string, decision: "approve" | "reject") => {
@@ -932,7 +888,7 @@ export default function AdminClient() {
               <button
                 type="button"
                 onClick={openAddMagicianModal}
-                className="rounded-lg border border-[var(--ml-gold)]/45 bg-[var(--ml-gold)]/15 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-[var(--ml-gold)] transition hover:bg-[var(--ml-gold)]/25"
+                className="rounded-lg border border-[var(--ml-gold)]/50 bg-[var(--ml-gold)] px-4 py-2 text-xs font-semibold uppercase tracking-wider text-black shadow-[0_0_24px_-4px_rgba(212,175,55,0.45)] transition hover:brightness-110"
               >
                 Add magician
               </button>
@@ -1116,9 +1072,6 @@ export default function AdminClient() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-xl">
             <h3 className="ml-font-heading text-lg font-semibold text-zinc-100">Add magician</h3>
-            <p className="mt-2 text-sm text-zinc-500">
-              This creates an unclaimed profile. The magician can claim it when they join Magicalive.
-            </p>
             <div className="mt-4 space-y-3">
               <div>
                 <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
@@ -1223,6 +1176,9 @@ export default function AdminClient() {
                 {amMsg}
               </p>
             ) : null}
+            <p className="mt-4 text-xs text-zinc-500">
+              This creates an unclaimed profile. The magician can claim it when they join Magicalive.
+            </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
@@ -1251,8 +1207,7 @@ export default function AdminClient() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-xl">
             <h3 className="ml-font-heading text-lg font-semibold text-zinc-100">Post event</h3>
-            <p className="mt-1 text-xs text-zinc-500">Magician ID: {postForMagicianId}</p>
-            <div className="mt-4 mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mt-4 mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setPostEventType("show")}
@@ -1279,7 +1234,7 @@ export default function AdminClient() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
-                  {postEventType === "lecture" ? "Lecture title *" : "Show name *"}
+                  Show name *
                 </label>
                 <input
                   value={postShowName}
@@ -1300,7 +1255,7 @@ export default function AdminClient() {
               </div>
               <div>
                 <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
-                  Time *
+                  Time
                 </label>
                 <input
                   type="time"
@@ -1309,169 +1264,95 @@ export default function AdminClient() {
                   className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
                 />
               </div>
-              {postEventType === "lecture" ? (
-                <>
-                  <div className="sm:col-span-2">
-                    <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
-                      Skill level
-                    </label>
-                    <select
-                      value={postSkillLevel}
-                      onChange={(e) => setPostSkillLevel(e.target.value as (typeof SKILL_LEVELS)[number])}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
-                    >
-                      {SKILL_LEVELS.map((lvl) => (
-                        <option key={lvl} value={lvl} className="bg-zinc-900">
-                          {lvl}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
-                      Max attendees
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={postMaxAttendees}
-                      onChange={(e) => setPostMaxAttendees(e.target.value)}
-                      placeholder="Optional"
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
-                    />
-                  </div>
-                  <div className="flex flex-col justify-end gap-2 sm:col-span-1">
-                    <label className="inline-flex items-center gap-2 text-xs text-zinc-300">
-                      <input
-                        type="checkbox"
-                        checked={postWorkbook}
-                        onChange={(e) => setPostWorkbook(e.target.checked)}
-                      />
-                      Includes workbook
-                    </label>
-                    <label className="inline-flex items-center gap-2 text-xs text-zinc-300">
-                      <input type="checkbox" checked={postProps} onChange={(e) => setPostProps(e.target.checked)} />
-                      Includes props
-                    </label>
-                    <label className="inline-flex items-center gap-2 text-xs text-zinc-300">
-                      <input
-                        type="checkbox"
-                        checked={postLectureOnline}
-                        onChange={(e) => setPostLectureOnline(e.target.checked)}
-                      />
-                      Online lecture
-                    </label>
-                  </div>
-                  {postLectureOnline ? (
-                    <div className="sm:col-span-2">
-                      <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
-                        Meeting / registration link *
-                      </label>
-                      <input
-                        type="url"
-                        value={postMeetingLink}
-                        onChange={(e) => setPostMeetingLink(e.target.value)}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
-                      />
-                    </div>
-                  ) : null}
-                </>
-              ) : null}
-              {postEventType === "show" || (postEventType === "lecture" && !postLectureOnline) ? (
-                <>
-                  <div className="sm:col-span-2">
-                    <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
-                      Venue *
-                    </label>
-                    <select
-                      value={postVenueSelect}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setPostVenueSelect(v);
-                        if (v === VENUE_OTHER) {
-                          setPostVenueName("");
-                          setPostCity("");
-                          setPostState("");
-                        } else if (v && v !== VENUE_SELECT_PLACEHOLDER) {
-                          const opt = postVenues.find((x) => x.id === v);
-                          if (opt) {
-                            setPostVenueName(opt.name?.trim() || "");
-                            setPostCity(opt.city?.trim() || "");
-                            setPostState(opt.state?.trim() || "");
-                          }
-                        } else {
-                          setPostVenueName("");
-                          setPostCity("");
-                          setPostState("");
-                        }
-                      }}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
-                    >
-                      <option value={VENUE_SELECT_PLACEHOLDER} className="bg-zinc-900">
-                        Select a venue…
-                      </option>
-                      {postVenues.map((v) => (
-                        <option key={v.id} value={v.id} className="bg-zinc-900">
-                          {v.name}
-                          {v.city ? ` — ${v.city}` : ""}
-                        </option>
-                      ))}
-                      <option value={VENUE_OTHER} className="bg-zinc-900">
-                        Other / not listed
-                      </option>
-                    </select>
-                  </div>
-                  {postVenueSelect === VENUE_OTHER ? (
-                    <div className="sm:col-span-2">
-                      <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
-                        Venue name *
-                      </label>
-                      <input
-                        value={postVenueName}
-                        onChange={(e) => setPostVenueName(e.target.value)}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
-                      />
-                    </div>
-                  ) : null}
-                  {postVenueSelect !== VENUE_SELECT_PLACEHOLDER && postVenueSelect !== "" ? (
-                    <>
-                      <div>
-                        <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
-                          City *
-                        </label>
-                        <input
-                          value={postCity}
-                          onChange={(e) => setPostCity(e.target.value)}
-                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
-                          State
-                        </label>
-                        <input
-                          value={postState}
-                          onChange={(e) => setPostState(e.target.value)}
-                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
-                        />
-                      </div>
-                    </>
-                  ) : null}
-                </>
-              ) : null}
-              {postEventType === "show" || (postEventType === "lecture" && !postLectureOnline) ? (
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                  Venue *
+                </label>
+                <select
+                  value={postVenueSelect}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setPostVenueSelect(v);
+                    if (v === VENUE_OTHER) {
+                      setPostVenueName("");
+                      setPostCity("");
+                      setPostState("");
+                    } else if (v && v !== VENUE_SELECT_PLACEHOLDER) {
+                      const opt = postVenues.find((x) => x.id === v);
+                      if (opt) {
+                        setPostVenueName(opt.name?.trim() || "");
+                        setPostCity(opt.city?.trim() || "");
+                        setPostState(opt.state?.trim() || "");
+                      }
+                    } else {
+                      setPostVenueName("");
+                      setPostCity("");
+                      setPostState("");
+                    }
+                  }}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                >
+                  <option value={VENUE_SELECT_PLACEHOLDER} className="bg-zinc-900">
+                    Select a venue…
+                  </option>
+                  {postVenues.map((v) => (
+                    <option key={v.id} value={v.id} className="bg-zinc-900">
+                      {v.name}
+                      {v.city ? ` — ${v.city}` : ""}
+                    </option>
+                  ))}
+                  <option value={VENUE_OTHER} className="bg-zinc-900">
+                    Other
+                  </option>
+                </select>
+              </div>
+              {postVenueSelect === VENUE_OTHER ? (
                 <div className="sm:col-span-2">
                   <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
-                    Ticket URL
+                    Venue name *
                   </label>
                   <input
-                    type="url"
-                    value={postTicketUrl}
-                    onChange={(e) => setPostTicketUrl(e.target.value)}
+                    value={postVenueName}
+                    onChange={(e) => setPostVenueName(e.target.value)}
                     className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
                   />
                 </div>
               ) : null}
+              {postVenueSelect !== VENUE_SELECT_PLACEHOLDER && postVenueSelect !== "" ? (
+                <>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                      City *
+                    </label>
+                    <input
+                      value={postCity}
+                      onChange={(e) => setPostCity(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                      State
+                    </label>
+                    <input
+                      value={postState}
+                      onChange={(e) => setPostState(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                    />
+                  </div>
+                </>
+              ) : null}
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                  Ticket URL
+                </label>
+                <input
+                  type="url"
+                  value={postTicketUrl}
+                  onChange={(e) => setPostTicketUrl(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                />
+              </div>
             </div>
             <label className="mt-2 inline-flex items-center gap-2 text-xs text-zinc-300">
               <input type="checkbox" checked={postIsPublic} onChange={(e) => setPostIsPublic(e.target.checked)} />
