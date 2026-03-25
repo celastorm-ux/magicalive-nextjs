@@ -82,6 +82,7 @@ export default function HomeClient() {
           "id, display_name, location, specialty_tags, avatar_url, rating, review_count, is_online",
         )
         .eq("account_type", "magician")
+        .order("created_at", { ascending: false })
         .limit(4);
       setFeaturedLoading(false);
       if (!magErr && magRows?.length) {

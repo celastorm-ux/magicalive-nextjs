@@ -65,9 +65,9 @@ export default async function HireAMagicianPage() {
   const db = await getRouteSupabase();
   const { data: featuredRows } = await db
     .from("profiles")
-    .select("id, display_name, location, specialty_tags, avatar_url, review_count")
+    .select("id, display_name, location, specialty_tags, avatar_url")
     .eq("account_type", "magician")
-    .order("review_count", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(4);
 
   const featured = (featuredRows ?? []) as FeaturedRow[];

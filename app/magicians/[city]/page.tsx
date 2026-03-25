@@ -69,7 +69,8 @@ export default async function CityMagiciansPage({ params }: { params: PageParams
       "id, display_name, location, specialty_tags, available_for, rating, review_count, avatar_url, is_online, last_seen, is_founding_member",
     )
     .eq("account_type", "magician")
-    .or(locationOrFilter(def.locationMatch));
+    .or(locationOrFilter(def.locationMatch))
+    .order("created_at", { ascending: false });
 
   if (error) {
     return (

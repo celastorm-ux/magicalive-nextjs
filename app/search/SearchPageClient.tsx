@@ -117,6 +117,7 @@ export default function SearchPageClient() {
         )
         .eq("account_type", "magician")
         .ilike("display_name", `%${q}%`)
+        .order("created_at", { ascending: false })
         .limit(8);
 
       const showsPromise = supabase

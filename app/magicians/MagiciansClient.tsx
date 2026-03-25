@@ -110,7 +110,8 @@ export default function MagiciansClient() {
         .select(
           "id, display_name, location, specialty_tags, available_for, rating, review_count, avatar_url, is_online, last_seen, is_founding_member, is_unclaimed",
         )
-        .eq("account_type", "magician");
+        .eq("account_type", "magician")
+        .order("created_at", { ascending: false });
       setDirLoading(false);
       if (error || !data?.length) {
         setMagicians([]);
