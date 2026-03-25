@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AvailabilityCalendar } from "@/components/AvailabilityCalendar";
+import { LocationPicker } from "@/components/LocationPicker";
 import { CLASSES } from "@/lib/constants";
+import { findCountryForCity } from "@/lib/locations";
 import { createNotification } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 
@@ -153,6 +155,7 @@ export default function DashboardPage() {
   const [editShowTime, setEditShowTime] = useState("");
   const [editVenueName, setEditVenueName] = useState("");
   const [editShowCity, setEditShowCity] = useState("");
+  const [editShowPickCountry, setEditShowPickCountry] = useState("");
   const [editShowState, setEditShowState] = useState("");
   const [editTicketUrl, setEditTicketUrl] = useState("");
   const [editIsPublic, setEditIsPublic] = useState(true);
@@ -163,6 +166,7 @@ export default function DashboardPage() {
   const [venueSelect, setVenueSelect] = useState<string>(VENUE_SELECT_PLACEHOLDER);
   const [venueName, setVenueName] = useState("");
   const [showCity, setShowCity] = useState("");
+  const [showPickCountry, setShowPickCountry] = useState("");
   const [showState, setShowState] = useState("");
   const [ticketUrl, setTicketUrl] = useState("");
   const [isPublic, setIsPublic] = useState(true);
@@ -434,6 +438,7 @@ export default function DashboardPage() {
     setVenueSelect(VENUE_SELECT_PLACEHOLDER);
     setVenueName("");
     setShowCity("");
+    setShowPickCountry("");
     setShowState("");
     setTicketUrl("");
     setIsPublic(true);
@@ -469,7 +474,9 @@ export default function DashboardPage() {
     setEditShowDate(s.date);
     setEditShowTime(s.time ?? "");
     setEditVenueName(s.venue_name ?? "");
-    setEditShowCity(s.city ?? "");
+    const c = s.city ?? "";
+    setEditShowCity(c);
+    setEditShowPickCountry(findCountryForCity(c));
     setEditShowState(s.state ?? "");
     setEditTicketUrl(s.ticket_url ?? "");
     setEditIsPublic(Boolean(s.is_public));
@@ -826,12 +833,15 @@ export default function DashboardPage() {
                       if (v === VENUE_OTHER) {
                         setEditVenueName("");
                         setEditShowCity("");
+                        setEditShowPickCountry("");
                         setEditShowState("");
                       } else if (v && v !== VENUE_SELECT_PLACEHOLDER) {
                         const opt = venueOptions.find((x) => x.id === v);
                         if (opt) {
+                          const ct = opt.city?.trim() || "";
                           setEditVenueName(opt.name);
-                          setEditShowCity(opt.city?.trim() || "");
+                          setEditShowCity(ct);
+                          setEditShowPickCountry(findCountryForCity(ct));
                           setEditShowState(opt.state?.trim() || "");
                         }
                       }
@@ -857,9 +867,14 @@ export default function DashboardPage() {
                     <input className={inputClass} value={editVenueName} onChange={(e) => setEditVenueName(e.target.value)} />
                   </div>
                 ) : null}
-                <div>
-                  <label className={labelClass}>City *</label>
-                  <input className={inputClass} value={editShowCity} onChange={(e) => setEditShowCity(e.target.value)} />
+                <div className="sm:col-span-2">
+                  <LocationPicker
+                    required
+                    selectedCountry={editShowPickCountry}
+                    selectedCity={editShowCity}
+                    onCountryChange={setEditShowPickCountry}
+                    onCityChange={setEditShowCity}
+                  />
                 </div>
                 <div>
                   <label className={labelClass}>State</label>
@@ -1204,17 +1219,21 @@ export default function DashboardPage() {
                         if (v === VENUE_OTHER) {
                           setVenueName("");
                           setShowCity("");
+                          setShowPickCountry("");
                           setShowState("");
                         } else if (v && v !== VENUE_SELECT_PLACEHOLDER) {
                           const opt = venueOptions.find((x) => x.id === v);
                           if (opt) {
+                            const ct = opt.city?.trim() || "";
                             setVenueName(opt.name);
-                            setShowCity(opt.city?.trim() || "");
+                            setShowCity(ct);
+                            setShowPickCountry(findCountryForCity(ct));
                             setShowState(opt.state?.trim() || "");
                           }
                         } else {
                           setVenueName("");
                           setShowCity("");
+                          setShowPickCountry("");
                           setShowState("");
                         }
                       }}
@@ -1246,9 +1265,14 @@ export default function DashboardPage() {
                   ) : null}
                   {venueSelect !== VENUE_SELECT_PLACEHOLDER && venueSelect !== "" ? (
                     <>
-                      <div>
-                        <label className={labelClass}>City *</label>
-                        <input className={inputClass} value={showCity} onChange={(e) => setShowCity(e.target.value)} />
+                      <div className="sm:col-span-2">
+                        <LocationPicker
+                          required
+                          selectedCountry={showPickCountry}
+                          selectedCity={showCity}
+                          onCountryChange={setShowPickCountry}
+                          onCityChange={setShowCity}
+                        />
                       </div>
                       <div>
                         <label className={labelClass}>State</label>

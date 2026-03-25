@@ -4,6 +4,12 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CLASSES } from "@/lib/constants";
+import {
+  countriesForPicker,
+  findCountryForCity,
+  getCitiesForCountry,
+  rowCityMatchesFilter,
+} from "@/lib/locations";
 import { supabase } from "@/lib/supabase";
 
 type EventRow = {
@@ -29,6 +35,9 @@ type EventRow = {
     specialty_tags?: string[] | null;
   } | null;
 };
+
+const ALL_COUNTRIES = "All countries";
+const ALL_CITIES = "All cities";
 
 const DATE_FILTERS = ["Any date", "This week", "This month"] as const;
 const LECTURE_SKILL_FILTERS = ["All levels", "Beginner", "Intermediate", "Advanced"] as const;
@@ -85,7 +94,8 @@ export default function EventsPage() {
   const searchParams = useSearchParams();
   const [catalogTab, setCatalogTab] = useState<"shows" | "lectures">("shows");
   const [search, setSearch] = useState("");
-  const [city, setCity] = useState("All cities");
+  const [filterCountry, setFilterCountry] = useState(ALL_COUNTRIES);
+  const [filterCity, setFilterCity] = useState(ALL_CITIES);
   const [style, setStyle] = useState("Any style");
   const [dateFilter, setDateFilter] = useState<(typeof DATE_FILTERS)[number]>("Any date");
   const [lectureSkillFilter, setLectureSkillFilter] =
@@ -97,7 +107,9 @@ export default function EventsPage() {
 
   useEffect(() => {
     const c = searchParams.get("city")?.trim();
-    if (c) setCity(c);
+    const co = searchParams.get("country")?.trim();
+    if (co) setFilterCountry(co);
+    if (c) setFilterCity(c);
     const s = searchParams.get("style")?.trim();
     if (s) setStyle(s);
   }, [searchParams]);
@@ -129,14 +141,21 @@ export default function EventsPage() {
       if (isLecture(e) && e.is_online) continue;
       if (e.city?.trim()) set.add(e.city.trim());
     }
-    return ["All cities", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+    return [ALL_CITIES, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [events]);
+
+  const countryFilterOptions = useMemo(() => [ALL_COUNTRIES, ...countriesForPicker()], []);
+
+  const cityFilterOptions = useMemo(() => {
+    if (filterCountry === ALL_COUNTRIES) return [ALL_CITIES];
+    return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
+  }, [filterCountry]);
 
   const citiesWithQuery = useMemo(() => {
     const qp = searchParams.get("city")?.trim();
-    if (!qp || cities.includes(qp)) return cities;
-    return ["All cities", qp, ...cities.filter((c) => c !== "All cities")];
-  }, [cities, searchParams]);
+    if (!qp || cityFilterOptions.includes(qp)) return cityFilterOptions;
+    return [ALL_CITIES, qp, ...cityFilterOptions.filter((c) => c !== ALL_CITIES)];
+  }, [cityFilterOptions, searchParams]);
 
   const styles = useMemo(() => {
     const set = new Set<string>(CORE_SPECIALTY_TAGS);
@@ -173,9 +192,19 @@ export default function EventsPage() {
         if (lectureFormat === "online" && !e.is_online) return false;
         if (lectureFormat === "in_person" && e.is_online) return false;
       }
-      if (city !== "All cities") {
+      if (filterCity !== ALL_CITIES || filterCountry !== ALL_COUNTRIES) {
         if (isLecture(e) && e.is_online) return false;
-        if ((e.city || "").toLowerCase() !== city.toLowerCase()) return false;
+        if (
+          !rowCityMatchesFilter(
+            e.city,
+            filterCountry,
+            filterCity,
+            ALL_COUNTRIES,
+            ALL_CITIES,
+          )
+        ) {
+          return false;
+        }
       }
       if (style !== "Any style" && !(e.profiles?.specialty_tags ?? []).some((t) => t.toLowerCase() === style.toLowerCase())) {
         return false;
@@ -189,7 +218,17 @@ export default function EventsPage() {
       }
       return true;
     });
-  }, [events, search, city, style, dateFilter, catalogTab, lectureSkillFilter, lectureFormat]);
+  }, [
+    events,
+    search,
+    filterCountry,
+    filterCity,
+    style,
+    dateFilter,
+    catalogTab,
+    lectureSkillFilter,
+    lectureFormat,
+  ]);
 
   const grouped = useMemo(() => {
     const out: Record<"thisWeek" | "thisMonth" | "future", EventRow[]> = { thisWeek: [], thisMonth: [], future: [] };
@@ -259,7 +298,8 @@ export default function EventsPage() {
             type="button"
             onClick={() => {
               setCatalogTab("shows");
-              setCity("All cities");
+              setFilterCountry(ALL_COUNTRIES);
+              setFilterCity(ALL_CITIES);
             }}
             className={`border-b-2 px-4 py-3 text-sm font-semibold transition ${
               catalogTab === "shows"
@@ -273,7 +313,8 @@ export default function EventsPage() {
             type="button"
             onClick={() => {
               setCatalogTab("lectures");
-              setCity("All cities");
+              setFilterCountry(ALL_COUNTRIES);
+              setFilterCity(ALL_CITIES);
             }}
             className={`border-b-2 px-4 py-3 text-sm font-semibold transition ${
               catalogTab === "lectures"
@@ -297,7 +338,25 @@ export default function EventsPage() {
             />
           </div>
           <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:gap-4">
-            <select className={selectClass} value={city} onChange={(e) => setCity(e.target.value)}>
+            <select
+              className={selectClass}
+              value={filterCountry}
+              onChange={(e) => {
+                setFilterCountry(e.target.value);
+                setFilterCity(ALL_CITIES);
+              }}
+            >
+              {countryFilterOptions.map((c) => (
+                <option key={c} value={c} className="bg-zinc-900">
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              className={selectClass}
+              value={filterCity}
+              onChange={(e) => setFilterCity(e.target.value)}
+            >
               {citiesWithQuery.map((c) => (
                 <option key={c} value={c} className="bg-zinc-900">
                   {c}
@@ -610,12 +669,24 @@ export default function EventsPage() {
             <div>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Browse by city</h3>
               <ul className="rounded-2xl border border-white/10 bg-white/[0.03] p-2">
-                {cities.filter((c) => c !== "All cities").map((c) => (
+                {cities.filter((c) => c !== ALL_CITIES).map((c) => (
                   <li key={c}>
                     <button
                       type="button"
-                      onClick={() => setCity((prev) => (prev === c ? "All cities" : c))}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${city === c ? "bg-[var(--ml-gold)]/10 text-[var(--ml-gold)]" : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"}`}
+                      onClick={() => {
+                        if (filterCity === c) {
+                          setFilterCity(ALL_CITIES);
+                          setFilterCountry(ALL_COUNTRIES);
+                        } else {
+                          setFilterCity(c);
+                          setFilterCountry(findCountryForCity(c) || ALL_COUNTRIES);
+                        }
+                      }}
+                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                        filterCity === c
+                          ? "bg-[var(--ml-gold)]/10 text-[var(--ml-gold)]"
+                          : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                      }`}
                     >
                       <span>{c}</span>
                       <span className="text-xs text-zinc-500">{cityCounts[c] ?? 0}</span>

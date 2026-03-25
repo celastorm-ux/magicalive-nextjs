@@ -4,7 +4,9 @@ import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LocationPicker } from "@/components/LocationPicker";
 import { CLASSES } from "@/lib/constants";
+import { formatLocation, parseStoredLocation } from "@/lib/locations";
 import { supabase } from "@/lib/supabase";
 
 const SPECIALTY_TAGS = [
@@ -82,7 +84,8 @@ export default function EditProfilePage() {
   const [accountType, setAccountType] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [handle, setHandle] = useState("");
-  const [location, setLocation] = useState("");
+  const [locCountry, setLocCountry] = useState("");
+  const [locCity, setLocCity] = useState("");
   const [age, setAge] = useState("");
   const [shortBio, setShortBio] = useState("");
   const [fullBio, setFullBio] = useState("");
@@ -128,7 +131,9 @@ export default function EditProfilePage() {
       setAccountType(p.account_type || "");
       setDisplayName(p.display_name || "");
       setHandle(p.handle || "");
-      setLocation(p.location || "");
+      const parsed = parseStoredLocation(p.location);
+      setLocCountry(parsed.country);
+      setLocCity(parsed.city);
       setAge(p.age != null ? String(p.age) : "");
       setShortBio(p.short_bio || "");
       setFullBio(p.full_bio || "");
@@ -269,7 +274,12 @@ export default function EditProfilePage() {
     const payload = {
       display_name: displayName.trim() || null,
       handle: handle.replace(/^@/, "").trim() || null,
-      location: location.trim() || null,
+      location:
+        locCountry.trim() && locCity.trim()
+          ? formatLocation(locCity, locCountry)
+          : locCity.trim()
+            ? locCity.trim()
+            : null,
       age: Number.isFinite(parsedAge) ? parsedAge : null,
       short_bio: shortBio.trim() || null,
       full_bio: fullBio.trim() || null,
@@ -486,15 +496,19 @@ export default function EditProfilePage() {
               Changing your handle changes your profile URL.
             </p>
           </div>
-          <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>Location</label>
-              <input className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>Age (optional)</label>
-              <input type="number" className={inputClass} value={age} onChange={(e) => setAge(e.target.value)} />
-            </div>
+          <div className="mb-4">
+            <label className={labelClass}>Location</label>
+            <LocationPicker
+              className="mt-2"
+              selectedCountry={locCountry}
+              selectedCity={locCity}
+              onCountryChange={setLocCountry}
+              onCityChange={setLocCity}
+            />
+          </div>
+          <div className="mb-4">
+            <label className={labelClass}>Age (optional)</label>
+            <input type="number" className={inputClass} value={age} onChange={(e) => setAge(e.target.value)} />
           </div>
           <div className="mb-4">
             <label className={labelClass}>Short bio</label>

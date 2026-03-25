@@ -11,8 +11,10 @@ import {
   useState,
   type DragEvent,
 } from "react";
+import { LocationPicker } from "@/components/LocationPicker";
 import { CLASSES } from "@/lib/constants";
 import { FoundingMemberSpots } from "@/components/FoundingMemberSpots";
+import { formatLocation } from "@/lib/locations";
 import { generateFanHandle } from "@/lib/generate-fan-handle";
 import { supabase } from "@/lib/supabase";
 import pkg from "../../package.json";
@@ -116,7 +118,8 @@ export default function CreateProfileClient() {
   const [displayName, setDisplayName] = useState("");
   const [magAvatarFile, setMagAvatarFile] = useState<File | null>(null);
   const [magAvatarPreview, setMagAvatarPreview] = useState<string | null>(null);
-  const [city, setCity] = useState("");
+  const [magLocCountry, setMagLocCountry] = useState("");
+  const [magLocCity, setMagLocCity] = useState("");
   const [handle, setHandle] = useState("");
   const [age, setAge] = useState("");
   const [shortBio, setShortBio] = useState("");
@@ -396,7 +399,7 @@ export default function CreateProfileClient() {
         display_name: displayName.trim(),
         handle: handle.replace(/^@/, "").trim(),
         email: emailForRow,
-        location: city.trim(),
+        location: formatLocation(magLocCity, magLocCountry).trim() || null,
         age: Number.isFinite(ageNum) ? ageNum : null,
         short_bio: shortBio.trim(),
         full_bio: fullBio.trim(),
@@ -426,7 +429,8 @@ export default function CreateProfileClient() {
       user,
       displayName,
       handle,
-      city,
+      magLocCity,
+      magLocCountry,
       shortBio,
       fullBio,
       selectedTags,
@@ -539,7 +543,7 @@ export default function CreateProfileClient() {
   );
 
   const previewName = displayName.trim() || "Your name";
-  const previewLoc = city.trim() || "Your location";
+  const previewLoc = formatLocation(magLocCity, magLocCountry).trim() || "Your location";
   const previewTagList =
     selectedTags.size > 0 ? [...selectedTags].slice(0, 4) : ["Your tags"];
 
@@ -867,31 +871,28 @@ export default function CreateProfileClient() {
               Your profile will live at magicalive.com/@yourhandle
             </p>
           </div>
-          <div className="mb-[18px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>City / Region</label>
-              <input
-                type="text"
-                className={inputClass}
-                placeholder="e.g. Los Angeles, CA"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>
-                Age <span className="ml-1 text-[9px] text-zinc-500/55">optional</span>
-              </label>
-              <input
-                type="number"
-                className={inputClass}
-                placeholder="e.g. 34"
-                min={16}
-                max={99}
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-              />
-            </div>
+          <div className="mb-[18px]">
+            <LocationPicker
+              selectedCountry={magLocCountry}
+              selectedCity={magLocCity}
+              onCountryChange={setMagLocCountry}
+              onCityChange={setMagLocCity}
+              required
+            />
+          </div>
+          <div className="mb-[18px]">
+            <label className={labelClass}>
+              Age <span className="ml-1 text-[9px] text-zinc-500/55">optional</span>
+            </label>
+            <input
+              type="number"
+              className={inputClass}
+              placeholder="e.g. 34"
+              min={16}
+              max={99}
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+            />
           </div>
           <div className="mb-[18px]">
             <label className={labelClass}>Short bio</label>
@@ -1500,7 +1501,12 @@ export default function CreateProfileClient() {
                     nextStep();
                   }
                 }}
-                disabled={flow === "magician" && mStep === 1 && !magTermsAccepted}
+                disabled={
+                  (flow === "magician" && mStep === 1 && !magTermsAccepted) ||
+                  (flow === "magician" &&
+                    mStep === 2 &&
+                    (!magLocCountry.trim() || !magLocCity.trim()))
+                }
                 className={`${CLASSES.btnPrimary} px-7 py-2.5 text-xs uppercase tracking-wider disabled:opacity-60`}
               >
                 Continue →

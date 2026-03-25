@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CLASSES } from "@/lib/constants";
+import {
+  countriesForPicker,
+  findCountryForCity,
+  getCitiesForCountry,
+  rowCityMatchesFilter,
+} from "@/lib/locations";
 import { supabase } from "@/lib/supabase";
 
 type VenueRow = {
@@ -25,6 +31,9 @@ type Venue = VenueRow & {
   mapX: number;
   mapY: number;
 };
+
+const ALL_COUNTRIES = "All countries";
+const ALL_CITIES = "All cities";
 
 const CAPS = ["Any capacity", "Under 300", "300-1000", "1000+"] as const;
 
@@ -86,7 +95,8 @@ const selectClass =
 
 export default function VenuesPage() {
   const [search, setSearch] = useState("");
-  const [city, setCity] = useState("All cities");
+  const [filterCountry, setFilterCountry] = useState(ALL_COUNTRIES);
+  const [filterCity, setFilterCity] = useState(ALL_CITIES);
   const [vtype, setVtype] = useState("Any type");
   const [cap, setCap] = useState<(typeof CAPS)[number]>("Any capacity");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -154,8 +164,15 @@ export default function VenuesPage() {
       const c = v.city?.trim();
       if (c) set.add(c);
     }
-    return ["All cities", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+    return [ALL_CITIES, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [venues]);
+
+  const countryFilterOptions = useMemo(() => [ALL_COUNTRIES, ...countriesForPicker()], []);
+
+  const cityFilterOptions = useMemo(() => {
+    if (filterCountry === ALL_COUNTRIES) return [ALL_CITIES];
+    return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
+  }, [filterCountry]);
 
   const typeOptions = useMemo(() => {
     const set = new Set<string>();
@@ -167,8 +184,10 @@ export default function VenuesPage() {
   }, [venues]);
 
   useEffect(() => {
-    if (city !== "All cities" && !cityOptions.includes(city)) setCity("All cities");
-  }, [city, cityOptions]);
+    if (filterCity !== ALL_CITIES && !cityFilterOptions.includes(filterCity)) {
+      setFilterCity(ALL_CITIES);
+    }
+  }, [filterCity, cityFilterOptions]);
 
   useEffect(() => {
     if (vtype !== "Any type" && !typeOptions.includes(vtype)) setVtype("Any type");
@@ -188,7 +207,22 @@ export default function VenuesPage() {
     const q = search.trim().toLowerCase();
     return venues.filter((v) => {
       const cityStr = v.city?.trim() || "";
-      if (city !== "All cities" && cityStr.toLowerCase() !== city.toLowerCase()) return false;
+      if (
+        filterCity !== ALL_CITIES ||
+        filterCountry !== ALL_COUNTRIES
+      ) {
+        if (
+          !rowCityMatchesFilter(
+            cityStr || null,
+            filterCountry,
+            filterCity,
+            ALL_COUNTRIES,
+            ALL_CITIES,
+          )
+        ) {
+          return false;
+        }
+      }
       if (vtype !== "Any type" && (v.venue_type || "").trim() !== vtype) return false;
       if (!capacityMatches(v.capacity, cap)) return false;
       if (q) {
@@ -197,7 +231,7 @@ export default function VenuesPage() {
       }
       return true;
     });
-  }, [search, city, vtype, cap, venues]);
+  }, [search, filterCountry, filterCity, vtype, cap, venues]);
 
   const filteredIds = useMemo(() => new Set(filtered.map((v) => v.id)), [filtered]);
 
@@ -250,10 +284,24 @@ export default function VenuesPage() {
           <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
             <select
               className={selectClass}
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
+              value={filterCountry}
+              onChange={(e) => {
+                setFilterCountry(e.target.value);
+                setFilterCity(ALL_CITIES);
+              }}
             >
-              {cityOptions.map((c) => (
+              {countryFilterOptions.map((c) => (
+                <option key={c} value={c} className="bg-zinc-900">
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              className={selectClass}
+              value={filterCity}
+              onChange={(e) => setFilterCity(e.target.value)}
+            >
+              {cityFilterOptions.map((c) => (
                 <option key={c} value={c} className="bg-zinc-900">
                   {c}
                 </option>
@@ -424,7 +472,8 @@ export default function VenuesPage() {
                       type="button"
                       onClick={() => {
                         setSearch("");
-                        setCity("All cities");
+                        setFilterCountry(ALL_COUNTRIES);
+                        setFilterCity(ALL_CITIES);
                         setVtype("Any type");
                         setCap("Any capacity");
                       }}
@@ -509,14 +558,22 @@ export default function VenuesPage() {
                 </h3>
                 <ul className="rounded-2xl border border-white/10 bg-white/[0.03] p-2">
                   {cityOptions
-                    .filter((c) => c !== "All cities")
+                    .filter((c) => c !== ALL_CITIES)
                     .map((c) => (
                       <li key={c}>
                         <button
                           type="button"
-                          onClick={() => setCity((prev) => (prev === c ? "All cities" : c))}
+                          onClick={() => {
+                            if (filterCity === c) {
+                              setFilterCity(ALL_CITIES);
+                              setFilterCountry(ALL_COUNTRIES);
+                            } else {
+                              setFilterCity(c);
+                              setFilterCountry(findCountryForCity(c) || ALL_COUNTRIES);
+                            }
+                          }}
                           className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                            city === c
+                            filterCity === c
                               ? "bg-[var(--ml-gold)]/10 text-[var(--ml-gold)]"
                               : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
                           }`}

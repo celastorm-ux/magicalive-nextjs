@@ -5,6 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { CLASSES } from "@/lib/constants";
+import {
+  countriesForPicker,
+  findCountryForCity,
+  getCitiesForCountry,
+  profileLocationMatchesFilter,
+} from "@/lib/locations";
 import { createNotification } from "@/lib/notifications";
 import { formatLastSeen } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -27,9 +33,8 @@ type Magician = {
   isUnclaimed: boolean;
 };
 
-const CITIES = [
-  "All cities",
-] as const;
+const ALL_COUNTRIES = "All countries";
+const ALL_CITIES = "All cities";
 
 const STYLES = [
   "Any style",
@@ -83,7 +88,8 @@ export default function MagiciansClient() {
   const { user } = useUser();
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [city, setCity] = useState<string>(CITIES[0]);
+  const [filterCountry, setFilterCountry] = useState<string>(ALL_COUNTRIES);
+  const [filterCity, setFilterCity] = useState<string>(ALL_CITIES);
   const [style, setStyle] = useState<string>(STYLES[0]);
   const [booking, setBooking] = useState<string>(BOOKINGS[0]);
   const [onlineOnly, setOnlineOnly] = useState(false);
@@ -96,10 +102,12 @@ export default function MagiciansClient() {
   useEffect(() => {
     const styleParam = searchParams.get("style")?.trim();
     const cityParam = searchParams.get("city")?.trim();
+    const countryParam = searchParams.get("country")?.trim();
     const availableFor = searchParams.get("available_for")?.trim();
     setStyle(styleParam || STYLES[0]);
     setSidebarTag(styleParam || null);
-    setCity(cityParam || CITIES[0]);
+    setFilterCountry(countryParam || ALL_COUNTRIES);
+    setFilterCity(cityParam || ALL_CITIES);
     if (availableFor) setBooking(availableFor);
   }, [searchParams]);
 
@@ -270,14 +278,22 @@ export default function MagiciansClient() {
       const loc = m.location.split(",")[0]?.trim() || m.location.trim();
       if (loc) set.add(loc);
     }
-    return [CITIES[0], ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+    return [ALL_CITIES, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [magicians]);
+
+  const countryFilterOptions = useMemo(() => [ALL_COUNTRIES, ...countriesForPicker()], []);
+
+  const cityFilterOptions = useMemo(() => {
+    if (filterCountry === ALL_COUNTRIES) return [ALL_CITIES];
+    const list = getCitiesForCountry(filterCountry);
+    return [ALL_CITIES, ...list];
+  }, [filterCountry]);
 
   const cityOptionsWithQuery = useMemo(() => {
     const qp = searchParams.get("city")?.trim();
-    if (!qp || cityOptions.includes(qp)) return cityOptions;
-    return [CITIES[0], qp, ...cityOptions.filter((c) => c !== CITIES[0])];
-  }, [cityOptions, searchParams]);
+    if (!qp || cityFilterOptions.includes(qp)) return cityFilterOptions;
+    return [ALL_CITIES, qp, ...cityFilterOptions.filter((c) => c !== ALL_CITIES)];
+  }, [cityFilterOptions, searchParams]);
 
   const styleOptions = useMemo(() => {
     const set = new Set<string>(CORE_SPECIALTY_TAGS);
@@ -309,9 +325,16 @@ export default function MagiciansClient() {
     const q = search.trim().toLowerCase();
     return magicians.filter((m) => {
       if (onlineOnly && !m.onlineNow) return false;
-      if (city !== "All cities") {
-        const inCity = m.location.toLowerCase().includes(city.toLowerCase());
-        if (!inCity) return false;
+      if (
+        !profileLocationMatchesFilter(
+          m.location,
+          filterCountry,
+          filterCity,
+          ALL_COUNTRIES,
+          ALL_CITIES,
+        )
+      ) {
+        return false;
       }
       if (style !== "Any style") {
         const st = style.toLowerCase();
@@ -328,7 +351,7 @@ export default function MagiciansClient() {
       }
       return true;
     });
-  }, [search, city, style, booking, onlineOnly, sidebarTag, magicians]);
+  }, [search, filterCountry, filterCity, style, booking, onlineOnly, sidebarTag, magicians]);
 
   const toggleSidebarTag = (tag: string) => {
     setSidebarTag((t) => {
@@ -340,7 +363,8 @@ export default function MagiciansClient() {
 
   const hasActiveFilters =
     search.trim().length > 0 ||
-    city !== CITIES[0] ||
+    filterCountry !== ALL_COUNTRIES ||
+    filterCity !== ALL_CITIES ||
     style !== STYLES[0] ||
     booking !== BOOKINGS[0] ||
     onlineOnly ||
@@ -348,7 +372,8 @@ export default function MagiciansClient() {
 
   const clearAllFilters = () => {
     setSearch("");
-    setCity(CITIES[0]);
+    setFilterCountry(ALL_COUNTRIES);
+    setFilterCity(ALL_CITIES);
     setStyle(STYLES[0]);
     setBooking(BOOKINGS[0]);
     setOnlineOnly(false);
@@ -396,8 +421,22 @@ export default function MagiciansClient() {
           <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:gap-4">
             <select
               className={selectClass}
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
+              value={filterCountry}
+              onChange={(e) => {
+                setFilterCountry(e.target.value);
+                setFilterCity(ALL_CITIES);
+              }}
+            >
+              {countryFilterOptions.map((c) => (
+                <option key={c} value={c} className="bg-zinc-900">
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              className={selectClass}
+              value={filterCity}
+              onChange={(e) => setFilterCity(e.target.value)}
             >
               {cityOptionsWithQuery.map((c) => (
                 <option key={c} value={c} className="bg-zinc-900">
@@ -651,11 +690,14 @@ export default function MagiciansClient() {
                 {styleOptions.filter((t) => t !== STYLES[0]).map((tag) => (
                   <Link
                     key={tag}
-                    href={
-                      sidebarTag === tag
-                        ? `/magicians${city !== CITIES[0] ? `?city=${encodeURIComponent(city)}` : ""}`
-                        : `/magicians?style=${encodeURIComponent(tag)}${city !== CITIES[0] ? `&city=${encodeURIComponent(city)}` : ""}`
-                    }
+                    href={(() => {
+                      const p = new URLSearchParams();
+                      if (filterCountry !== ALL_COUNTRIES) p.set("country", filterCountry);
+                      if (filterCity !== ALL_CITIES) p.set("city", filterCity);
+                      if (sidebarTag !== tag) p.set("style", tag);
+                      const qs = p.toString();
+                      return qs ? `/magicians?${qs}` : "/magicians";
+                    })()}
                     className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                       sidebarTag === tag
                         ? "border-[var(--ml-gold)] bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]"
@@ -673,13 +715,21 @@ export default function MagiciansClient() {
                 By city
               </h3>
               <ul className="space-y-1 rounded-2xl border border-white/10 bg-white/[0.03] p-2">
-                {cityOptions.filter((c) => c !== CITIES[0]).map((c) => (
+                {cityOptions.filter((c) => c !== ALL_CITIES).map((c) => (
                   <li key={c}>
                     <button
                       type="button"
-                      onClick={() => setCity(city === c ? CITIES[0] : c)}
+                      onClick={() => {
+                        if (filterCity === c) {
+                          setFilterCity(ALL_CITIES);
+                          setFilterCountry(ALL_COUNTRIES);
+                        } else {
+                          setFilterCity(c);
+                          setFilterCountry(findCountryForCity(c) || ALL_COUNTRIES);
+                        }
+                      }}
                       className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                        city === c
+                        filterCity === c
                           ? "bg-[var(--ml-gold)]/10 text-[var(--ml-gold)]"
                           : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
                       }`}

@@ -5,6 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { SearchBar } from "@/components/SearchBar";
 import { CLASSES } from "@/lib/constants";
+import {
+  countriesForPicker,
+  getCitiesForCountry,
+  profileLocationMatchesFilter,
+  rowCityMatchesFilter,
+} from "@/lib/locations";
 import { formatLastSeen } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
@@ -59,6 +65,12 @@ type VenueResult = {
   tags: string[] | null;
 };
 
+const ALL_COUNTRIES = "All countries";
+const ALL_CITIES = "All cities";
+
+const searchSelectClass =
+  "min-w-0 cursor-pointer rounded-2xl border border-white/10 bg-white/5 py-2.5 pl-3 pr-8 text-sm text-zinc-100 outline-none transition focus:border-[var(--ml-gold)]/50 sm:min-w-[140px]";
+
 function escRegExp(text: string) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -92,6 +104,14 @@ export default function SearchPageClient() {
   const [magicians, setMagicians] = useState<MagicianResult[]>([]);
   const [shows, setShows] = useState<ShowResult[]>([]);
   const [venues, setVenues] = useState<VenueResult[]>([]);
+  const [filterCountry, setFilterCountry] = useState(ALL_COUNTRIES);
+  const [filterCity, setFilterCity] = useState(ALL_CITIES);
+
+  const countryFilterOptions = useMemo(() => [ALL_COUNTRIES, ...countriesForPicker()], []);
+  const cityFilterOptions = useMemo(() => {
+    if (filterCountry === ALL_COUNTRIES) return [ALL_CITIES];
+    return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
+  }, [filterCountry]);
 
   useEffect(() => {
     console.log("URL query param:", query);
@@ -164,9 +184,39 @@ export default function SearchPageClient() {
     void runSearch();
   }, [query, searchQuery]);
 
+  const filteredMagicians = useMemo(
+    () =>
+      magicians.filter((m) =>
+        profileLocationMatchesFilter(
+          m.location || "",
+          filterCountry,
+          filterCity,
+          ALL_COUNTRIES,
+          ALL_CITIES,
+        ),
+      ),
+    [magicians, filterCountry, filterCity],
+  );
+
+  const filteredShows = useMemo(
+    () =>
+      shows.filter((s) =>
+        rowCityMatchesFilter(s.city, filterCountry, filterCity, ALL_COUNTRIES, ALL_CITIES),
+      ),
+    [shows, filterCountry, filterCity],
+  );
+
+  const filteredVenues = useMemo(
+    () =>
+      venues.filter((v) =>
+        rowCityMatchesFilter(v.city, filterCountry, filterCity, ALL_COUNTRIES, ALL_CITIES),
+      ),
+    [venues, filterCountry, filterCity],
+  );
+
   const total = useMemo(
-    () => magicians.length + shows.length + venues.length,
-    [magicians.length, shows.length, venues.length],
+    () => filteredMagicians.length + filteredShows.length + filteredVenues.length,
+    [filteredMagicians.length, filteredShows.length, filteredVenues.length],
   );
 
   const allEmpty = !loading && total === 0 && searchQuery.length > 0;
@@ -182,6 +232,34 @@ export default function SearchPageClient() {
         </h1>
         <div className="mt-5 max-w-2xl">
           <SearchBar defaultValue={query} />
+        </div>
+
+        <div className="mt-6 flex max-w-2xl flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <select
+            className={searchSelectClass}
+            value={filterCountry}
+            onChange={(e) => {
+              setFilterCountry(e.target.value);
+              setFilterCity(ALL_CITIES);
+            }}
+          >
+            {countryFilterOptions.map((c) => (
+              <option key={c} value={c} className="bg-zinc-900">
+                {c}
+              </option>
+            ))}
+          </select>
+          <select
+            className={searchSelectClass}
+            value={filterCity}
+            onChange={(e) => setFilterCity(e.target.value)}
+          >
+            {cityFilterOptions.map((c) => (
+              <option key={c} value={c} className="bg-zinc-900">
+                {c}
+              </option>
+            ))}
+          </select>
         </div>
 
         {searchQuery ? (
@@ -205,12 +283,12 @@ export default function SearchPageClient() {
               <div className="mb-4 flex items-center gap-3">
                 <h2 className="ml-font-heading text-2xl text-zinc-100">Magicians</h2>
                 <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-400">
-                  {magicians.length}
+                  {filteredMagicians.length}
                 </span>
               </div>
-              {magicians.length ? (
+              {filteredMagicians.length ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {magicians.map((m) => (
+                  {filteredMagicians.map((m) => (
                     <article
                       key={m.id}
                       className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-[var(--ml-gold)]/35"
@@ -264,12 +342,12 @@ export default function SearchPageClient() {
               <div className="mb-4 flex items-center gap-3">
                 <h2 className="ml-font-heading text-2xl text-zinc-100">Events</h2>
                 <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-400">
-                  {shows.length}
+                  {filteredShows.length}
                 </span>
               </div>
-              {shows.length ? (
+              {filteredShows.length ? (
                 <div className="space-y-3">
-                  {shows.map((s) => (
+                  {filteredShows.map((s) => (
                     <Link
                       key={s.id}
                       href={`/events/${encodeURIComponent(s.id)}`}
@@ -299,12 +377,12 @@ export default function SearchPageClient() {
               <div className="mb-4 flex items-center gap-3">
                 <h2 className="ml-font-heading text-2xl text-zinc-100">Venues</h2>
                 <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-400">
-                  {venues.length}
+                  {filteredVenues.length}
                 </span>
               </div>
-              {venues.length ? (
+              {filteredVenues.length ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {venues.map((v) => (
+                  {filteredVenues.map((v) => (
                     <Link
                       key={v.id}
                       href={`/venues/${encodeURIComponent(v.id)}`}
