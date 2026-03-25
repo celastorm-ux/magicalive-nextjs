@@ -1,8 +1,8 @@
 'use client';
 
-import { useClerk, useSignUp, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -12,72 +12,26 @@ import {
   type DragEvent,
 } from "react";
 import { CLASSES } from "@/lib/constants";
-import { OAuthEmailDivider, SocialOAuthButtons } from "@/components/SocialOAuthButtons";
-import { clerkOAuthSignUp } from "@/lib/clerk-oauth";
 import { FoundingMemberSpots } from "@/components/FoundingMemberSpots";
 import { generateFanHandle } from "@/lib/generate-fan-handle";
-import {
-  PENDING_MAGICIAN_PROFILE_KEY,
-  type PendingMagicianProfileV1,
-} from "@/lib/pending-magician-profile";
 import { supabase } from "@/lib/supabase";
 import pkg from "../../package.json";
 
-function clerkEmailAlreadyExists(err: unknown): boolean {
-  const errors = (err as { errors?: Array<{ code?: string }> })?.errors;
-  return errors?.some((e) => e.code === "form_identifier_exists") ?? false;
-}
-
-function isValidEmailFormat(email: string): boolean {
-  const t = email.trim();
-  if (!t) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
-}
-
 type MagStep1UiError = null | { kind: "terms" } | { kind: "message"; text: string };
 
-/** Narrow typing for `signUp.create` from `useSignUp()`. */
-type ClerkSignUpClient = {
-  create: (params: {
-    emailAddress: string;
-    password: string;
-    firstName?: string;
-    lastName?: string;
-    unsafeMetadata?: { display_name?: string };
-  }) => Promise<unknown>;
-};
-
-function resolveSignUpSessionAndUserId(
-  result: unknown,
-  signUpResource: unknown,
-): { sessionId: string | null; userId: string | null; status: string | undefined } {
-  const res = result as {
-    status?: string;
-    createdSessionId?: string | null;
-    createdUserId?: string | null;
-  };
-  const su = signUpResource as {
-    status?: string | null;
-    createdSessionId?: string | null;
-    createdUserId?: string | null;
-  };
-  const status = res.status ?? su.status ?? undefined;
-  const sessionId = res.createdSessionId ?? su.createdSessionId ?? null;
-  const userId = res.createdUserId ?? su.createdUserId ?? null;
-  return { sessionId, userId, status };
-}
-
-function unverifiedFieldsIncludeEmailAddress(fields: unknown): boolean {
-  if (!fields || !Array.isArray(fields)) return false;
-  return fields.some((item) => {
-    if (item === "email_address" || item === "emailAddress") return true;
-    if (typeof item === "string") return item.toLowerCase().includes("email");
-    if (item && typeof item === "object" && "name" in item) {
-      const n = String((item as { name?: string }).name ?? "");
-      return n.includes("email");
-    }
-    return false;
-  });
+function clerkPrimaryEmail(
+  user:
+    | {
+        primaryEmailAddress?: { emailAddress?: string | null } | null;
+        emailAddresses?: Array<{ emailAddress?: string | null }>;
+      }
+    | null
+    | undefined,
+): string {
+  const primary = user?.primaryEmailAddress?.emailAddress?.trim();
+  if (primary) return primary;
+  const first = user?.emailAddresses?.[0]?.emailAddress?.trim();
+  return first ?? "";
 }
 
 const signInHintClass = "mt-2 block text-[11px] text-zinc-500";
@@ -140,32 +94,14 @@ const labelClass =
 
 export default function CreateProfileClient() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
-  const clerk = useClerk();
-  const { loaded: clerkLoaded } = clerk;
-  const { signUp, setActive: setActiveFromSignUp, isLoaded: isSignUpLoaded } =
-    useSignUp() as unknown as {
-      signUp: ReturnType<typeof useSignUp>["signUp"];
-      setActive?: (opts: { session: string }) => Promise<void>;
-      isLoaded?: boolean;
-    };
-  const setActiveSession = setActiveFromSignUp ?? ((opts) => clerk.setActive(opts));
-  const signUpLoaded =
-    typeof isSignUpLoaded === "boolean" ? isSignUpLoaded : clerkLoaded;
   const typeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [magPassword, setMagPassword] = useState("");
-  const [magPasswordConfirm, setMagPasswordConfirm] = useState("");
   const [magStep1Error, setMagStep1Error] = useState<MagStep1UiError>(null);
   const [magTermsAccepted, setMagTermsAccepted] = useState(false);
 
-  const [fanPassword, setFanPassword] = useState("");
-  const [fanPasswordConfirm, setFanPasswordConfirm] = useState("");
   const [fanTermsAccepted, setFanTermsAccepted] = useState(false);
 
-  const [venuePassword, setVenuePassword] = useState("");
-  const [venuePasswordConfirm, setVenuePasswordConfirm] = useState("");
   const [venueTermsAccepted, setVenueTermsAccepted] = useState(false);
 
   type Flow = "pick" | "magician" | "fan" | "venue";
@@ -180,7 +116,6 @@ export default function CreateProfileClient() {
   const [displayName, setDisplayName] = useState("");
   const [magAvatarFile, setMagAvatarFile] = useState<File | null>(null);
   const [magAvatarPreview, setMagAvatarPreview] = useState<string | null>(null);
-  const [magEmail, setMagEmail] = useState("");
   const [city, setCity] = useState("");
   const [handle, setHandle] = useState("");
   const [age, setAge] = useState("");
@@ -201,7 +136,6 @@ export default function CreateProfileClient() {
   const [website, setWebsite] = useState("");
 
   const [fanName, setFanName] = useState("");
-  const [fanEmail, setFanEmail] = useState("");
   const [fanSubmitting, setFanSubmitting] = useState(false);
   const [fanError, setFanError] = useState("");
 
@@ -253,11 +187,6 @@ export default function CreateProfileClient() {
       }
     }, 200);
   }, []);
-
-  useEffect(() => {
-    const invitedEmail = searchParams.get("email")?.trim();
-    if (invitedEmail && !magEmail) setMagEmail(invitedEmail);
-  }, [searchParams, magEmail]);
 
   useEffect(() => {
     return () => {
@@ -316,49 +245,27 @@ export default function CreateProfileClient() {
       return;
     }
     if (!isLoaded) return;
-    if (user?.id) {
-      goToM(2);
+    if (!user?.id) {
+      setMagStep1Error({
+        kind: "message",
+        text: "Please sign in to continue.",
+      });
       return;
     }
-
     const name = displayName.trim();
-    const email = magEmail.trim();
     if (!name) {
       setMagStep1Error({ kind: "message", text: "Please enter your display name" });
       return;
     }
-    if (!email) {
-      setMagStep1Error({ kind: "message", text: "Please enter your email" });
+    if (!clerkPrimaryEmail(user)) {
+      setMagStep1Error({
+        kind: "message",
+        text: "Your account needs an email address. Add one in your account settings.",
+      });
       return;
     }
-    if (!isValidEmailFormat(email)) {
-      setMagStep1Error({ kind: "message", text: "Please enter a valid email address" });
-      return;
-    }
-    if (!magPassword.trim()) {
-      setMagStep1Error({ kind: "message", text: "Please enter a password" });
-      return;
-    }
-    if (magPassword !== magPasswordConfirm) {
-      setMagStep1Error({ kind: "message", text: "Passwords do not match" });
-      return;
-    }
-    if (magPassword.length < 8) {
-      setMagStep1Error({ kind: "message", text: "Password must be at least 8 characters" });
-      return;
-    }
-
     goToM(2);
-  }, [
-    isLoaded,
-    user?.id,
-    magTermsAccepted,
-    magEmail,
-    displayName,
-    magPassword,
-    magPasswordConfirm,
-    goToM,
-  ]);
+  }, [isLoaded, user, magTermsAccepted, displayName, goToM]);
 
   const completeFan = useCallback(async () => {
     setFanError("");
@@ -366,102 +273,34 @@ export default function CreateProfileClient() {
       setFanError("Please accept the terms to continue");
       return;
     }
-    if (!isLoaded) return;
-    const email = fanEmail.trim();
-    const display_name = fanName.trim() || "Fan";
+    if (!isLoaded || !user?.id) {
+      setFanError("Please sign in to continue.");
+      return;
+    }
+    const email = clerkPrimaryEmail(user);
     if (!email) {
-      setFanError("Please enter your email.");
+      setFanError(
+        "Your account does not have an email on file. Add one in your account settings.",
+      );
       return;
     }
-    if (user?.id) {
-      setFanSubmitting(true);
-      const handle = generateFanHandle(display_name);
-      const { error } = await supabase.from("profiles").insert({
-        id: String(user.id),
-        account_type: "fan",
-        display_name,
-        email,
-        handle,
-      });
-      setFanSubmitting(false);
-      if (error) {
-        setFanError("Something went wrong, please try again");
-        return;
-      }
-      router.push("/onboarding/fan");
-      return;
-    }
-    if (!signUpLoaded || !signUp) {
+    const display_name = fanName.trim() || "Fan";
+    setFanSubmitting(true);
+    const handle = generateFanHandle(display_name);
+    const { error } = await supabase.from("profiles").insert({
+      id: String(user.id),
+      account_type: "fan",
+      display_name,
+      email,
+      handle,
+    });
+    setFanSubmitting(false);
+    if (error) {
       setFanError("Something went wrong, please try again");
       return;
     }
-    if (fanPassword.length < 8) {
-      setFanError("Password must be at least 8 characters.");
-      return;
-    }
-    if (fanPassword !== fanPasswordConfirm) {
-      setFanError("Passwords do not match.");
-      return;
-    }
-    const nameParts = display_name.split(/\s+/).filter(Boolean);
-    const firstName = nameParts[0] ?? "Fan";
-    const lastName =
-      nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
-    setFanSubmitting(true);
-    try {
-      const result = await (signUp as unknown as ClerkSignUpClient).create({
-        emailAddress: email,
-        password: fanPassword,
-        firstName,
-        ...(lastName ? { lastName } : {}),
-      });
-      console.log("Signup result:", result);
-      const { sessionId, userId, status } = resolveSignUpSessionAndUserId(
-        result,
-        signUp,
-      );
-      if (status !== "complete" || !sessionId || !userId) {
-        setFanSubmitting(false);
-        setFanError("Something went wrong, please try again");
-        return;
-      }
-      await setActiveSession({ session: sessionId });
-      await router.refresh();
-      const handle = generateFanHandle(display_name);
-      const { error } = await supabase.from("profiles").insert({
-        id: String(userId),
-        account_type: "fan",
-        display_name,
-        email,
-        handle,
-      });
-      setFanSubmitting(false);
-      if (error) {
-        setFanError("Something went wrong, please try again");
-        return;
-      }
-      router.push("/onboarding/fan");
-    } catch (err: unknown) {
-      setFanSubmitting(false);
-      if (clerkEmailAlreadyExists(err)) {
-        setFanError("exists");
-      } else {
-        setFanError("Something went wrong, please try again");
-      }
-    }
-  }, [
-    isLoaded,
-    user?.id,
-    signUpLoaded,
-    signUp,
-    fanTermsAccepted,
-    fanName,
-    fanEmail,
-    fanPassword,
-    fanPasswordConfirm,
-    setActiveSession,
-    router,
-  ]);
+    router.push("/onboarding/fan");
+  }, [isLoaded, user, fanTermsAccepted, fanName, router]);
 
   const completeVenue = useCallback(async () => {
     setVenueError("");
@@ -469,7 +308,10 @@ export default function CreateProfileClient() {
       setVenueError("Please accept the terms to continue");
       return;
     }
-    if (!isLoaded) return;
+    if (!isLoaded || !user?.id) {
+      setVenueError("Please sign in to continue.");
+      return;
+    }
     const cap = parseInt(venueCapacity, 10);
     const typeVal =
       venueType === VENUE_TYPES[0] ? null : venueType;
@@ -494,84 +336,21 @@ export default function CreateProfileClient() {
       setVenueError("Please fill in venue name and contact email.");
       return;
     }
-    if (user?.id) {
-      setVenueSubmitting(true);
-      const { data, error } = await supabase
-        .from("venues")
-        .insert(venuePayload)
-        .select("id")
-        .single();
-      setVenueSubmitting(false);
-      if (error || !data?.id) {
-        setVenueError("Something went wrong, please try again");
-        return;
-      }
-      router.push(
-        `/onboarding/venue?venueId=${encodeURIComponent(data.id)}`,
-      );
-      return;
-    }
-    if (!signUpLoaded || !signUp) {
+    setVenueSubmitting(true);
+    const { data, error } = await supabase
+      .from("venues")
+      .insert(venuePayload)
+      .select("id")
+      .single();
+    setVenueSubmitting(false);
+    if (error || !data?.id) {
       setVenueError("Something went wrong, please try again");
       return;
     }
-    if (venuePassword.length < 8) {
-      setVenueError("Password must be at least 8 characters.");
-      return;
-    }
-    if (venuePassword !== venuePasswordConfirm) {
-      setVenueError("Passwords do not match.");
-      return;
-    }
-    const vn = venueName.trim();
-    const nameParts = vn.split(/\s+/).filter(Boolean);
-    const firstName = nameParts[0] ?? "Venue";
-    const lastName =
-      nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
-    setVenueSubmitting(true);
-    try {
-      const result = await (signUp as unknown as ClerkSignUpClient).create({
-        emailAddress: venuePayload.contact_email,
-        password: venuePassword,
-        firstName,
-        ...(lastName ? { lastName } : {}),
-      });
-      console.log("Signup result:", result);
-      const { sessionId, userId, status } = resolveSignUpSessionAndUserId(
-        result,
-        signUp,
-      );
-      if (status !== "complete" || !sessionId || !userId) {
-        setVenueSubmitting(false);
-        setVenueError("Something went wrong, please try again");
-        return;
-      }
-      await setActiveSession({ session: sessionId });
-      await router.refresh();
-      const { data, error } = await supabase
-        .from("venues")
-        .insert(venuePayload)
-        .select("id")
-        .single();
-      setVenueSubmitting(false);
-      if (error || !data?.id) {
-        setVenueError("Something went wrong, please try again");
-        return;
-      }
-      router.push(`/onboarding/venue?venueId=${encodeURIComponent(data.id)}`);
-    } catch (err: unknown) {
-      setVenueSubmitting(false);
-      if (clerkEmailAlreadyExists(err)) {
-        setVenueError("exists");
-      } else {
-        setVenueError("Something went wrong, please try again");
-      }
-    }
+    router.push(`/onboarding/venue?venueId=${encodeURIComponent(data.id)}`);
   }, [
     isLoaded,
     user?.id,
-    signUpLoaded,
-    signUp,
     venueTermsAccepted,
     venueName,
     venueCity,
@@ -579,9 +358,6 @@ export default function CreateProfileClient() {
     venueType,
     venueEmail,
     venueDesc,
-    venuePassword,
-    venuePasswordConfirm,
-    setActiveSession,
     router,
   ]);
 
@@ -614,10 +390,7 @@ export default function CreateProfileClient() {
       const ageNum = age.trim() ? parseInt(age, 10) : NaN;
       const availableVal =
         availableFor === EVENT_TYPES[0] ? null : availableFor;
-      const emailForRow =
-        magEmail.trim() ||
-        user?.primaryEmailAddress?.emailAddress ||
-        "";
+      const emailForRow = clerkPrimaryEmail(user);
       const { error } = await supabase.from("profiles").insert({
         id: String(ClerkUserId),
         display_name: displayName.trim(),
@@ -650,8 +423,7 @@ export default function CreateProfileClient() {
       credValues,
       age,
       availableFor,
-      magEmail,
-      user?.primaryEmailAddress?.emailAddress,
+      user,
       displayName,
       handle,
       city,
@@ -668,189 +440,21 @@ export default function CreateProfileClient() {
 
   const publishMagician = useCallback(async () => {
     setPublishError("");
-    if (!isLoaded) return;
-
-    let clerkUserId: string | null = user?.id ?? null;
-
-    if (!clerkUserId) {
-      if (!signUpLoaded || !signUp) {
-        setPublishError(
-          "Account signup is not ready. Please refresh and try again.",
-        );
-        return;
-      }
-      const name = displayName.trim();
-      const email = magEmail.trim();
-      if (!name || !email || !isValidEmailFormat(email)) {
-        setPublishError(
-          "Please go back to step 1 and enter a valid display name and email.",
-        );
-        return;
-      }
-      if (
-        !magPassword.trim() ||
-        magPassword.length < 8 ||
-        magPassword !== magPasswordConfirm
-      ) {
-        setPublishError(
-          "Please go back to step 1 and enter matching passwords (min. 8 characters).",
-        );
-        return;
-      }
-      try {
-        console.log("Starting publish...");
-        console.log("Email:", email);
-        console.log("Display name:", name);
-        console.log("signUp object:", signUp);
-        console.log("isLoaded (useUser):", isLoaded);
-        console.log("signUpLoaded:", signUpLoaded);
-
-        const result = await (signUp as unknown as ClerkSignUpClient).create({
-          emailAddress: email,
-          password: magPassword,
-          firstName: name,
-          unsafeMetadata: { display_name: name },
-        });
-
-        type SignUpShape = {
-          status?: string | null;
-          createdUserId?: string | null;
-          createdSessionId?: string | null;
-          missingFields?: unknown;
-          unverifiedFields?: unknown;
-        };
-        const res = result as SignUpShape;
-        const su = signUp as SignUpShape;
-        console.log("Signup result:", result);
-        console.log("Signup status (result):", res.status);
-        console.log("Created user id (result):", res.createdUserId);
-        console.log("Created session id (result):", res.createdSessionId);
-        console.log("signUp after create — status:", su.status);
-        console.log("signUp after create — createdUserId:", su.createdUserId);
-        console.log("signUp after create — createdSessionId:", su.createdSessionId);
-
-        const suLog = signUp as unknown as Record<string, unknown>;
-        console.log("Verifications:", suLog.verifications);
-        console.log("Unverified fields:", suLog.unverifiedFields);
-        console.log("Required fields:", suLog.requiredFields);
-        console.log("Missing fields:", suLog.missingFields);
-
-        const effectiveStatus =
-          (res.status ?? su.status)?.toString() ?? "";
-
-        if (effectiveStatus === "complete") {
-          const resolved = resolveSignUpSessionAndUserId(result, signUp);
-          console.log("resolveSignUpSessionAndUserId:", resolved);
-          const { sessionId, userId } = resolved;
-          if (!sessionId || !userId) {
-            console.warn(
-              "Status complete but missing sessionId or userId after resolve",
-              { sessionId, userId },
-            );
-            setPublishError(
-              "Signup completed but session details were missing. Please try signing in.",
-            );
-            return;
-          }
-          console.log("Setting active session...");
-          await setActiveSession({ session: sessionId });
-          console.log("Session set — continuing to profile save…");
-          await router.refresh();
-          clerkUserId = userId;
-        } else if (effectiveStatus === "missing_requirements") {
-          const missing =
-            res.missingFields ??
-            (signUp as { missingFields?: unknown }).missingFields;
-          const unverified =
-            res.unverifiedFields ??
-            (signUp as { unverifiedFields?: unknown }).unverifiedFields;
-          console.log("Missing requirements:", missing);
-          console.log("Unverified fields:", unverified);
-          if (unverifiedFieldsIncludeEmailAddress(unverified)) {
-            try {
-              const credentialsForPending = credRowIds
-                .map((id) => credValues[id]?.trim())
-                .filter(Boolean) as string[];
-              const pending: PendingMagicianProfileV1 = {
-                displayName: displayName.trim(),
-                handle: handle.trim(),
-                email,
-                location: city.trim(),
-                age: age.trim(),
-                shortBio: shortBio.trim(),
-                fullBio: fullBio.trim(),
-                selectedTags: [...selectedTags],
-                availableFor: availableFor,
-                credentials: credentialsForPending,
-                instagram: instagram.trim(),
-                tiktok: tiktok.trim(),
-                youtube: youtube.trim(),
-                website: website.trim(),
-                showreelUrl: showreelUrl.trim(),
-                accountType: "magician",
-                v: 1,
-              };
-              localStorage.setItem(
-                PENDING_MAGICIAN_PROFILE_KEY,
-                JSON.stringify(pending),
-              );
-              console.log(
-                "Stored pending_profile in localStorage; redirecting to /verify-email",
-              );
-              router.push("/verify-email");
-            } catch (storeErr: unknown) {
-              console.error("pending_profile localStorage error:", storeErr);
-              setPublishError(
-                "Could not save your profile draft. Check browser storage or try again.",
-              );
-            }
-            return;
-          }
-          setPublishError("Please verify your email to continue");
-          return;
-        } else {
-          console.log("Unexpected status:", effectiveStatus || "(empty)");
-          setPublishError(
-            `Unexpected error (${effectiveStatus || "unknown"}). Please try again.`,
-          );
-          return;
-        }
-      } catch (err: unknown) {
-        console.error("Full error:", err);
-        console.error("Error errors array:", (err as { errors?: unknown })?.errors);
-        const first = (err as { errors?: Array<unknown> })?.errors?.[0] as
-          | {
-              code?: string;
-              message?: string;
-              longMessage?: string;
-            }
-          | undefined;
-        console.error("First error:", first);
-        console.error("Error code:", first?.code);
-        console.error("Error message:", first?.message);
-        console.error("Error long message:", first?.longMessage);
-
-        const code = first?.code;
-        if (code === "form_identifier_exists") {
-          setPublishError(
-            "An account with this email already exists. Sign in instead?",
-          );
-        } else {
-          setPublishError(
-            first?.longMessage ||
-              first?.message ||
-              (err as Error)?.message ||
-              "Something went wrong",
-          );
-        }
-        return;
-      }
+    if (!isLoaded || !user?.id) {
+      setPublishError(
+        "You need to be signed in to publish. Refresh the page or sign in again.",
+      );
+      return;
     }
-
+    if (!clerkPrimaryEmail(user)) {
+      setPublishError(
+        "Your account needs an email address before we can publish your profile.",
+      );
+      return;
+    }
     setPublishLoading(true);
     try {
-      await saveMagicianProfileToSupabase(String(clerkUserId));
-      console.log("Supabase profiles.insert: ok");
+      await saveMagicianProfileToSupabase(String(user.id));
       router.push("/profile");
     } catch (insertErr: unknown) {
       const msg =
@@ -867,34 +471,7 @@ export default function CreateProfileClient() {
     } finally {
       setPublishLoading(false);
     }
-  }, [
-    isLoaded,
-    user,
-    signUpLoaded,
-    signUp,
-    displayName,
-    magEmail,
-    magPassword,
-    magPasswordConfirm,
-    handle,
-    city,
-    age,
-    shortBio,
-    fullBio,
-    selectedTags,
-    availableFor,
-    credRowIds,
-    credValues,
-    showreelUrl,
-    instagram,
-    tiktok,
-    youtube,
-    website,
-    magAvatarFile,
-    setActiveSession,
-    router,
-    saveMagicianProfileToSupabase,
-  ]);
+  }, [isLoaded, user, saveMagicianProfileToSupabase, router]);
 
   const toggleTag = useCallback((tag: string) => {
     setSelectedTags((prev) => {
@@ -959,22 +536,6 @@ export default function CreateProfileClient() {
       if (file) handleMagicianAvatarFileSelected(file);
     },
     [handleMagicianAvatarFileSelected],
-  );
-
-  const startWizardSignUpOAuth = useCallback(
-    async (strategy: "oauth_google" | "oauth_facebook") => {
-      if (!signUpLoaded || !signUp) {
-        console.warn("Clerk signUp not ready for OAuth");
-        return;
-      }
-      const { error } = await clerkOAuthSignUp(signUp, {
-        strategy,
-        redirectCallbackUrl: "/sso-callback",
-        redirectUrl: "/create-profile/complete",
-      });
-      if (error) console.error("OAuth sign-up:", error);
-    },
-    [signUp, signUpLoaded],
   );
 
   const previewName = displayName.trim() || "Your name";
@@ -1158,10 +719,21 @@ export default function CreateProfileClient() {
               Step 1 of 6 — Magician
             </p>
             <h2 className="mb-2 ml-font-heading text-[34px] font-semibold leading-tight text-zinc-50">
-              Create your <em className="text-[var(--ml-gold)] italic">account</em>
+              Welcome!{" "}
+              <em className="text-[var(--ml-gold)] italic">Let&apos;s set up your profile.</em>
             </h2>
-            <p className="mb-8 text-[13px] leading-relaxed text-zinc-500">
-              You&apos;ll use this to manage your profile, post shows, and connect with fans.
+            <p className="mb-4 text-[13px] leading-relaxed text-zinc-500">
+              You&apos;re signed in — add how you&apos;d like to appear on Magicalive. Your
+              login email is already on file from your account.
+            </p>
+            <p className="mb-8 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-[13px] text-zinc-300">
+              <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                Signed in as
+              </span>
+              <br />
+              <span className="font-medium text-zinc-100">
+                {clerkPrimaryEmail(user) || "—"}
+              </span>
             </p>
             <div className="mb-[18px]">
               <label className={labelClass}>Profile photo</label>
@@ -1229,54 +801,6 @@ export default function CreateProfileClient() {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
               />
-            </div>
-            {!user?.id ? (
-              <>
-                <SocialOAuthButtons
-                  disabled={!signUpLoaded || !signUp}
-                  onGoogle={() => void startWizardSignUpOAuth("oauth_google")}
-                  onFacebook={() => void startWizardSignUpOAuth("oauth_facebook")}
-                />
-                <OAuthEmailDivider />
-              </>
-            ) : null}
-            <div className="mb-[18px]">
-              <label className={labelClass}>Email address</label>
-              <input
-                type="email"
-                className={inputClass}
-                placeholder="your@email.com"
-                value={magEmail}
-                onChange={(e) => setMagEmail(e.target.value)}
-              />
-              <span className={signInHintClass}>
-                Already have an account?{" "}
-                <Link href="/sign-in" className={signInLinkClass}>
-                  Sign in
-                </Link>
-              </span>
-            </div>
-            <div className="mb-[18px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-              <div>
-                <label className={labelClass}>Password</label>
-                <input
-                  type="password"
-                  className={inputClass}
-                  placeholder="Min. 8 characters"
-                  value={magPassword}
-                  onChange={(e) => setMagPassword(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Confirm password</label>
-                <input
-                  type="password"
-                  className={inputClass}
-                  placeholder="Repeat password"
-                  value={magPasswordConfirm}
-                  onChange={(e) => setMagPasswordConfirm(e.target.value)}
-                />
-              </div>
             </div>
             {magStep1Error?.kind === "message" ? (
               <p className="mb-3 text-sm font-medium text-red-400">{magStep1Error.text}</p>
@@ -1705,7 +1229,8 @@ export default function CreateProfileClient() {
             Join the <em className="text-[var(--ml-gold)] italic">community</em>
           </h2>
           <p className="mb-8 text-[13px] leading-relaxed text-zinc-500">
-            Create your free account to follow magicians, save events, and leave reviews.
+            You&apos;re signed in — choose how you&apos;d like to appear. Your email comes
+            from your Magicalive account.
           </p>
           {fanPhase === "form" ? (
             <div id="fan-form">
@@ -1719,54 +1244,15 @@ export default function CreateProfileClient() {
                   onChange={(e) => setFanName(e.target.value)}
                 />
               </div>
-              {!user?.id ? (
-                <>
-                  <SocialOAuthButtons
-                    disabled={!signUpLoaded || !signUp}
-                    onGoogle={() => void startWizardSignUpOAuth("oauth_google")}
-                    onFacebook={() => void startWizardSignUpOAuth("oauth_facebook")}
-                  />
-                  <OAuthEmailDivider />
-                </>
-              ) : null}
-              <div className="mb-[18px]">
-                <label className={labelClass}>Email address</label>
-                <input
-                  type="email"
-                  className={inputClass}
-                  placeholder="your@email.com"
-                  value={fanEmail}
-                  onChange={(e) => setFanEmail(e.target.value)}
-                />
-                <span className={signInHintClass}>
-                  Already have an account?{" "}
-                  <Link href="/sign-in" className={signInLinkClass}>
-                    Sign in
-                  </Link>
+              <p className="mb-[18px] rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-[13px] text-zinc-300">
+                <span className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                  Signed in as
                 </span>
-              </div>
-              <div className="mb-[18px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass}>Password</label>
-                  <input
-                    type="password"
-                    className={inputClass}
-                    placeholder="Min. 8 characters"
-                    value={fanPassword}
-                    onChange={(e) => setFanPassword(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Confirm password</label>
-                  <input
-                    type="password"
-                    className={inputClass}
-                    placeholder="Repeat password"
-                    value={fanPasswordConfirm}
-                    onChange={(e) => setFanPasswordConfirm(e.target.value)}
-                  />
-                </div>
-              </div>
+                <br />
+                <span className="font-medium text-zinc-100">
+                  {clerkPrimaryEmail(user) || "—"}
+                </span>
+              </p>
               {fanError === "exists" ? (
                 <p className="mb-3 text-sm font-medium text-red-400">
                   An account with this email already exists.{" "}
@@ -1908,33 +1394,9 @@ export default function CreateProfileClient() {
               onChange={(e) => setVenueEmail(e.target.value)}
             />
             <span className={signInHintClass}>
-              Already have an account?{" "}
-              <Link href="/sign-in" className={signInLinkClass}>
-                Sign in
-              </Link>
+              Public-facing contact for bookings and listings (can differ from your login
+              email).
             </span>
-          </div>
-          <div className="mb-[18px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>Password</label>
-              <input
-                type="password"
-                className={inputClass}
-                placeholder="Min. 8 characters"
-                value={venuePassword}
-                onChange={(e) => setVenuePassword(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Confirm password</label>
-              <input
-                type="password"
-                className={inputClass}
-                placeholder="Repeat password"
-                value={venuePasswordConfirm}
-                onChange={(e) => setVenuePasswordConfirm(e.target.value)}
-              />
-            </div>
           </div>
           <div className="mb-[18px]">
             <label className={labelClass}>Brief description</label>

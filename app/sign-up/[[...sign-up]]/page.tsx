@@ -1,12 +1,45 @@
 "use client";
 
-import { SignUp } from "@clerk/nextjs";
+import { SignUp, useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function SignUpPage() {
+  const router = useRouter();
+  const { user, isLoaded: userLoaded } = useUser();
   const [accepted, setAccepted] = useState(false);
   const [tried, setTried] = useState(false);
+
+  useEffect(() => {
+    if (!userLoaded || !user?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      router.replace(data ? "/profile" : "/create-profile");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userLoaded, user?.id, router]);
+
+  if (userLoaded && user) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center bg-black px-4 py-12 text-zinc-400">
+        <span
+          className="inline-block size-10 animate-spin rounded-full border-2 border-[var(--ml-gold)]/30 border-t-[var(--ml-gold)]"
+          aria-hidden
+        />
+        <p className="mt-4 text-sm">Redirecting…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-black px-4 py-12">
@@ -40,10 +73,11 @@ export default function SignUpPage() {
         >
           {!accepted ? <div className="absolute inset-0 z-10" aria-hidden /> : null}
           <div id="clerk-captcha" />
-          <SignUp
+            <SignUp
             routing="path"
             path="/sign-up"
             signInUrl="/sign-in"
+            fallbackRedirectUrl="/create-profile"
             appearance={{
               variables: { colorPrimary: "#f5cc71" },
               elements: {

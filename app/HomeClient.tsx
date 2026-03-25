@@ -1,10 +1,13 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HomeOurStoryTeaser } from "@/components/HomeOurStoryTeaser";
 import { CLASSES } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
+
+const SIGN_UP_CREATE_PROFILE = `/sign-up?redirect_url=${encodeURIComponent("/create-profile")}`;
 
 type FeaturedMagician = {
   id: string;
@@ -37,12 +40,38 @@ function initials(name: string) {
 }
 
 export default function HomeClient() {
+  const { user, isSignedIn, isLoaded: userLoaded } = useUser();
+  const [homeUserHasProfile, setHomeUserHasProfile] = useState(false);
   const [featuredMagicians, setFeaturedMagicians] = useState<FeaturedMagician[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [foundingRemaining, setFoundingRemaining] = useState<number | null>(null);
   const [foundingBannerDismissed, setFoundingBannerDismissed] = useState(false);
   const [passwordResetBanner, setPasswordResetBanner] = useState(false);
+
+  useEffect(() => {
+    if (!userLoaded || !isSignedIn || !user?.id) {
+      setHomeUserHasProfile(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!cancelled) setHomeUserHasProfile(Boolean(data));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userLoaded, isSignedIn, user?.id]);
+
+  const createProfileHref = useMemo(() => {
+    if (!userLoaded || !isSignedIn) return SIGN_UP_CREATE_PROFILE;
+    return homeUserHasProfile ? "/profile" : "/create-profile";
+  }, [userLoaded, isSignedIn, homeUserHasProfile]);
 
   useEffect(() => {
     void (async () => {
@@ -173,7 +202,7 @@ export default function HomeClient() {
                 {foundingRemaining} of 100 remaining
               </span>{" "}
               ·{" "}
-              <Link href="/create-profile" className="font-semibold text-[var(--ml-gold)] hover:underline">
+              <Link href={createProfileHref} className="font-semibold text-[var(--ml-gold)] hover:underline">
                 Join free →
               </Link>
             </p>
@@ -320,7 +349,7 @@ export default function HomeClient() {
                       </div>
                     ) : null}
                   </div>
-                  <Link href="/create-profile" className={CLASSES.btnPrimarySm}>
+                  <Link href={createProfileHref} className={CLASSES.btnPrimarySm}>
                     Create profile
                   </Link>
                 </div>
@@ -349,7 +378,7 @@ export default function HomeClient() {
                 <div>♣ Be part of the founding community</div>
               </div>
               <div className="mt-6">
-                <Link href="/create-profile" className={CLASSES.btnPrimary}>
+                <Link href={createProfileHref} className={CLASSES.btnPrimary}>
                   Claim your spot →
                 </Link>
               </div>
@@ -618,7 +647,7 @@ export default function HomeClient() {
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-                  <Link href="/create-profile" className={CLASSES.btnPrimary}>
+                  <Link href={createProfileHref} className={CLASSES.btnPrimary}>
                     Create your profile
                   </Link>
                   <Link href="/for-magicians" className={CLASSES.btnSecondary}>

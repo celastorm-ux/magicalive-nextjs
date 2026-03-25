@@ -72,25 +72,26 @@ export default function VenueOnboardingClient() {
         logo_url = data.publicUrl;
       }
     }
+    const onboardingData = {
+      full_address: fullAddress.trim() || null,
+      website: website.trim() || null,
+      opening_hours: openingHours.trim() || null,
+      magic_show_description: magicDesc.trim() || null,
+      social_instagram: socialIg.trim() || null,
+      social_facebook: socialFb.trim() || null,
+      social_tiktok: socialTt.trim() || null,
+      social_youtube: socialYt.trim() || null,
+      ...(logo_url ? { logo_url } : {}),
+    };
+    console.log("Saving onboarding data:", onboardingData);
     const { error: dbErr } = await supabase
       .from("venues")
-      .update({
-        full_address: fullAddress.trim() || null,
-        website: website.trim() || null,
-        opening_hours: openingHours.trim() || null,
-        magic_show_description: magicDesc.trim() || null,
-        social_instagram: socialIg.trim() || null,
-        social_facebook: socialFb.trim() || null,
-        social_tiktok: socialTt.trim() || null,
-        social_youtube: socialYt.trim() || null,
-        ...(logo_url ? { logo_url } : {}),
-      })
+      .update(onboardingData)
       .eq("id", venueId);
     setSaving(false);
     if (dbErr) {
-      setError(
-        "Could not save. Run supabase/onboarding_columns.sql in your project, create the avatars storage bucket, or try again.",
-      );
+      console.log("Supabase error:", dbErr);
+      setError("Something went wrong saving your profile. Please try again.");
       return;
     }
     router.push("/venues");

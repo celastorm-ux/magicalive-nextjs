@@ -1,13 +1,47 @@
 "use client";
 
-import { SignIn, useClerk, useSignIn } from "@clerk/nextjs";
+import { SignIn, useClerk, useSignIn, useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { OAuthEmailDivider, SocialOAuthButtons } from "@/components/SocialOAuthButtons";
 import { clerkOAuthSignIn } from "@/lib/clerk-oauth";
+import { supabase } from "@/lib/supabase";
 
 export default function SignInPage() {
+  const router = useRouter();
+  const { user, isLoaded: userLoaded } = useUser();
   const { loaded } = useClerk();
   const { signIn } = useSignIn();
+
+  useEffect(() => {
+    if (!userLoaded || !user?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      router.replace(data ? "/profile" : "/create-profile");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userLoaded, user?.id, router]);
+
+  if (userLoaded && user) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center bg-black px-4 py-12 text-zinc-400">
+        <span
+          className="inline-block size-10 animate-spin rounded-full border-2 border-[var(--ml-gold)]/30 border-t-[var(--ml-gold)]"
+          aria-hidden
+        />
+        <p className="mt-4 text-sm">Redirecting…</p>
+      </div>
+    );
+  }
 
   const startOAuth = async (strategy: "oauth_google" | "oauth_facebook") => {
     if (!signIn) return;
@@ -33,6 +67,7 @@ export default function SignInPage() {
           routing="path"
           path="/sign-in"
           signUpUrl="/sign-up"
+          fallbackRedirectUrl="/create-profile"
           appearance={{
             variables: { colorPrimary: "#f5cc71" },
             elements: {

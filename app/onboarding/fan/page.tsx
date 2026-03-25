@@ -96,20 +96,26 @@ export default function FanOnboardingPage() {
         avatar_url = data.publicUrl;
       }
     }
+    const onboardingPayload: Record<string, unknown> = {
+      location: city.trim() || null,
+      specialty_tags: [...styles],
+      onboarding_completed: true,
+      onboarding_step: null,
+      ...(avatar_url ? { avatar_url } : {}),
+      ...(heardAbout !== HEAR_ABOUT[0]
+        ? { bio: `How I found Magicalive: ${heardAbout}` }
+        : {}),
+    };
+    console.log("Saving onboarding data:", onboardingPayload);
     const { error: dbErr } = await supabase
       .from("profiles")
-      .update({
-        location: city.trim() || null,
-        fan_favourite_styles: [...styles],
-        heard_about:
-          heardAbout === HEAR_ABOUT[0] ? null : heardAbout,
-        ...(avatar_url ? { avatar_url } : {}),
-      })
+      .update(onboardingPayload)
       .eq("id", String(user.id))
       .eq("account_type", "fan");
     setSaving(false);
     if (dbErr) {
-      setError("Could not save. Add onboarding columns in Supabase (see supabase/onboarding_columns.sql) or try again.");
+      console.log("Supabase error:", dbErr);
+      setError("Something went wrong saving your profile. Please try again.");
       return;
     }
     router.push("/magicians");

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SignOutButton, useUser } from "@clerk/nextjs";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { CLASSES } from "@/lib/constants";
@@ -241,6 +241,13 @@ export function Nav() {
     }
   };
 
+  const createProfileHref = useMemo(() => {
+    if (!isSignedIn) {
+      return `/sign-up?redirect_url=${encodeURIComponent("/create-profile")}`;
+    }
+    return navProfile ? "/profile" : "/create-profile";
+  }, [isSignedIn, navProfile]);
+
   return (
     <header className={`relative ${CLASSES.headerSticky}`}>
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-[18px] sm:px-6 lg:px-12">
@@ -473,7 +480,7 @@ export function Nav() {
                   Sign in
                 </Link>
                 <Link
-                  href="/create-profile"
+                  href={createProfileHref}
                   className="inline-flex items-center justify-center rounded-xl bg-[var(--ml-gold)] px-5 py-2.5 text-[13px] font-semibold text-black transition hover:bg-[var(--ml-gold-hover)]"
                 >
                   <span className="hidden min-[900px]:inline">Create profile</span>
@@ -666,7 +673,7 @@ export function Nav() {
                     Sign in
                   </Link>
                   <Link
-                    href="/create-profile"
+                    href={createProfileHref}
                     className="block py-4 text-base font-medium text-zinc-300"
                   >
                     Create profile

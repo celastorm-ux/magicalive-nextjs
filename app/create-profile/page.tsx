@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import CreateProfileClient from "./CreateProfileClient";
+import CreateProfileGate from "./CreateProfileGate";
 
 export default function CreateProfilePage() {
   return (
@@ -13,7 +14,9 @@ export default function CreateProfilePage() {
         </div>
       }
     >
-      <CreateProfileClient />
+      <CreateProfileGate>
+        <CreateProfileClient />
+      </CreateProfileGate>
     </Suspense>
   );
 }
