@@ -101,7 +101,7 @@ export default function VenuesPage() {
       setLoading(true);
       const { data: venueRows, error: vErr } = await supabase
         .from("venues")
-        .select("*")
+        .select("*, latitude, longitude")
         .order("name", { ascending: true });
 
       if (vErr) {
@@ -399,9 +399,15 @@ export default function VenuesPage() {
                           }}
                           role="button"
                           tabIndex={0}
-                          onClick={() => setSelectedId(v.id)}
+                          onClick={() => {
+                            setSelectedId(v.id);
+                            scrollToCard(v.id);
+                          }}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") setSelectedId(v.id);
+                            if (e.key === "Enter" || e.key === " ") {
+                              setSelectedId(v.id);
+                              scrollToCard(v.id);
+                            }
                           }}
                           className={`cursor-pointer overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
                             selectedId === v.id
