@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CLASSES } from "@/lib/constants";
@@ -11,6 +12,24 @@ import {
 } from "@/lib/locations";
 import { supabase } from "@/lib/supabase";
 
+const VenueMap = dynamic(() => import("@/components/VenueMap"), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        height: "100%",
+        background: "#0d0b0e",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#c9a84c",
+      }}
+    >
+      Loading map...
+    </div>
+  ),
+});
+
 type VenueRow = {
   id: string;
   name: string;
@@ -21,6 +40,8 @@ type VenueRow = {
   established_year: number | null;
   description: string | null;
   tags: string[] | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 type Venue = VenueRow & {
@@ -28,30 +49,12 @@ type Venue = VenueRow & {
   upcomingShows: number;
   gradient: string;
   emoji: string;
-  mapX: number;
-  mapY: number;
 };
 
 const ALL_COUNTRIES = "All countries";
 const ALL_CITIES = "All cities";
 
 const CAPS = ["Any capacity", "Under 300", "300-1000", "1000+"] as const;
-
-/** Approximate map pin anchor per city (same spirit as before). */
-const CITY_MAP: Record<string, { x: number; y: number }> = {
-  seattle: { x: 12, y: 22 },
-  "los angeles": { x: 24, y: 64 },
-  hollywood: { x: 16, y: 58 },
-  "new york": { x: 76, y: 38 },
-  nyc: { x: 80, y: 48 },
-  chicago: { x: 58, y: 46 },
-  london: { x: 44, y: 28 },
-  austin: { x: 42, y: 72 },
-  miami: { x: 82, y: 82 },
-  nashville: { x: 62, y: 58 },
-  denver: { x: 38, y: 44 },
-  default: { x: 50, y: 50 },
-};
 
 const CARD_GRADIENTS = [
   "from-amber-950 via-yellow-900/50 to-stone-950",
@@ -68,18 +71,6 @@ function hashId(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
   return Math.abs(h);
-}
-
-function mapPositionForCity(city: string, id: string): { x: number; y: number } {
-  const key = city.toLowerCase().trim();
-  const base = CITY_MAP[key] ?? CITY_MAP.default;
-  const h = hashId(id);
-  const jx = (h % 9) - 4;
-  const jy = ((h >> 4) % 9) - 4;
-  return {
-    x: Math.min(92, Math.max(8, base.x + jx)),
-    y: Math.min(88, Math.max(12, base.y + jy)),
-  };
 }
 
 function capacityMatches(capacity: number | null, cap: (typeof CAPS)[number]) {
@@ -140,7 +131,6 @@ export default function VenuesPage() {
 
       const mapped: Venue[] = rows.map((row) => {
         const cityStr = row.city?.trim() || "—";
-        const pos = mapPositionForCity(cityStr, row.id);
         const h = hashId(row.id);
         return {
           ...row,
@@ -148,8 +138,6 @@ export default function VenuesPage() {
           upcomingShows: countByVenueId[row.id] ?? 0,
           gradient: CARD_GRADIENTS[h % CARD_GRADIENTS.length]!,
           emoji: EMOJIS[h % EMOJIS.length]!,
-          mapX: pos.x,
-          mapY: pos.y,
         };
       });
 
@@ -243,7 +231,7 @@ export default function VenuesPage() {
     if (selectedId && !filteredIds.has(selectedId)) setSelectedId(null);
   }, [filteredIds, selectedId]);
 
-  const handlePinClick = (id: string) => {
+  const handleVenueFromMapClick = (id: string) => {
     if (!filteredIds.has(id)) return;
     setSelectedId(id);
     scrollToCard(id);
@@ -369,92 +357,11 @@ export default function VenuesPage() {
           <div className="mt-10 flex flex-col gap-8 xl:flex-row xl:items-stretch">
             {/* Map */}
             <div className="relative h-[320px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#0a090c] xl:h-auto xl:min-h-[560px] xl:w-[48%]">
-              <div
-                className="pointer-events-none absolute inset-0 opacity-[0.07]"
-                style={{
-                  backgroundImage: `
-                  linear-gradient(rgba(245,204,113,0.4) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(245,204,113,0.4) 1px, transparent 1px)
-                `,
-                  backgroundSize: "40px 40px",
-                }}
+              <VenueMap
+                venues={filtered}
+                activeVenueId={selectedId}
+                onVenueClick={handleVenueFromMapClick}
               />
-              <svg
-                className="pointer-events-none absolute inset-0 h-full w-full text-white/[0.06]"
-                preserveAspectRatio="none"
-              >
-                <path
-                  d="M 0 35% Q 25% 30%, 45% 50% T 100% 45%"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                />
-                <path
-                  d="M 15% 0 Q 20% 40%, 10% 100%"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-                <path
-                  d="M 100% 20% Q 70% 35%, 55% 55% T 40% 100%"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-                <path
-                  d="M 50% 0 L 52% 100%"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeDasharray="6 8"
-                />
-              </svg>
-
-              <span className="pointer-events-none absolute left-[8%] top-[18%] text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-                Seattle
-              </span>
-              <span className="pointer-events-none absolute left-[14%] top-[52%] text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-                LA
-              </span>
-              <span className="pointer-events-none absolute left-[52%] top-[42%] text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-                Chicago
-              </span>
-              <span className="pointer-events-none absolute right-[12%] top-[32%] text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-                NYC
-              </span>
-
-              {venues.map((v) => {
-                const visible = filteredIds.has(v.id);
-                const active = selectedId === v.id;
-                return (
-                  <button
-                    key={v.id}
-                    type="button"
-                    disabled={!visible}
-                    onClick={() => handlePinClick(v.id)}
-                    className="absolute flex flex-col items-center gap-1 transition duration-300"
-                    style={{
-                      left: `${v.mapX}%`,
-                      top: `${v.mapY}%`,
-                      opacity: visible ? 1 : 0.18,
-                      pointerEvents: visible ? "auto" : "none",
-                      zIndex: active ? 20 : 10,
-                      transform: `translate(-50%, -50%) scale(${active ? 1.12 : 1})`,
-                    }}
-                    aria-label={`${v.name} on map`}
-                  >
-                    <div
-                      className={`flex h-11 w-11 rotate-45 items-center justify-center border-2 shadow-lg transition ${
-                        active
-                          ? "border-[var(--ml-gold)] bg-[var(--ml-gold)]/25 shadow-[var(--ml-gold)]/20"
-                          : "border-[var(--ml-gold)]/70 bg-black/80"
-                      }`}
-                    >
-                      <span className="-rotate-45 text-lg">{v.emoji}</span>
-                    </div>
-                  </button>
-                );
-              })}
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-8 lg:flex-row">
