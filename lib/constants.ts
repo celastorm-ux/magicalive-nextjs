@@ -74,6 +74,8 @@ export const CLASSES = {
     "inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:border-white/25 hover:bg-white/10",
   btnSecondarySm:
     "rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/20 hover:bg-white/10",
+  btnGhostGold:
+    "inline-flex items-center justify-center rounded-2xl border border-[var(--ml-gold)]/40 bg-transparent px-4 py-2.5 text-sm font-semibold text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/60 hover:bg-[var(--ml-gold)]/10",
   btnOutlineLight:
     "inline-flex items-center justify-center rounded-2xl border border-white/20 bg-[var(--ml-surface-cta)] px-5 py-3 text-sm font-semibold text-zinc-50 transition hover:bg-black/30",
   btnSignIn:

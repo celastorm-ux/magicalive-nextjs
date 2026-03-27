@@ -285,22 +285,22 @@ export default function VenuesPage() {
   return (
     <div className="min-h-0 flex-1 bg-black pb-20 pt-8 text-zinc-100 sm:pt-12">
       <div className={`${CLASSES.section} max-w-7xl`}>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">
-              Where magic happens
-            </p>
+        <div>
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">
+            Where magic happens
+          </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <h1 className="ml-font-heading text-4xl font-semibold tracking-tight text-zinc-50 sm:text-5xl">
               Active <span className="text-[var(--ml-gold)] italic">venues</span>
             </h1>
-            <p className="mt-3 text-sm text-zinc-400 sm:text-base">{headerSubtitle}</p>
+            <Link
+              href="/submit-venue"
+              className={`${CLASSES.btnGhostGold} shrink-0 self-start sm:self-auto`}
+            >
+              Submit a venue
+            </Link>
           </div>
-          <Link
-            href="/submit-venue"
-            className={`${CLASSES.btnSecondarySm} shrink-0 self-start sm:self-auto`}
-          >
-            Submit a venue
-          </Link>
+          <p className="mt-3 text-sm text-zinc-400 sm:text-base">{headerSubtitle}</p>
         </div>
 
         <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">

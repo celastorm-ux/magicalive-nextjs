@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { LocationPicker } from "@/components/LocationPicker";
+import { useState, type ReactNode } from "react";
 import { CLASSES } from "@/lib/constants";
-import { formatLocation } from "@/lib/locations";
 
 const VENUE_TYPES = [
   "Theater",
@@ -17,65 +15,29 @@ const VENUE_TYPES = [
   "Other",
 ] as const;
 
-const GUIDELINES = [
-  "What makes a good submission: be specific about the space and the kinds of magic hosted there.",
-  "We only list venues that regularly host magic performances.",
-  "Include as much detail as possible so our team can verify quickly.",
-  "Include your website when you have one — it helps us confirm the venue exists and matches your description.",
-] as const;
-
-const inputClass =
-  "w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-[var(--ml-gold)]/50 focus:bg-white/10";
-
-const labelClass =
-  "mb-2 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500";
-
 export default function SubmitVenuePage() {
-  const [venueName, setVenueName] = useState("");
-  const [venueType, setVenueType] = useState<(typeof VENUE_TYPES)[number]>(VENUE_TYPES[0]);
-  const [locCountry, setLocCountry] = useState("");
-  const [locState, setLocState] = useState("");
-  const [locCity, setLocCity] = useState("");
-  const [fullAddress, setFullAddress] = useState("");
+  const [name, setName] = useState("");
+  const [venueType, setVenueType] =
+    useState<(typeof VENUE_TYPES)[number]>("Theater");
+  const [city, setCity] = useState("");
+  const [stateVal, setStateVal] = useState("");
+  const [country, setCountry] = useState("United States");
+  const [address, setAddress] = useState("");
   const [capacity, setCapacity] = useState("");
-  const [establishedYear, setEstablishedYear] = useState("");
   const [website, setWebsite] = useState("");
-  const [phone, setPhone] = useState("");
   const [description, setDescription] = useState("");
   const [submitterName, setSubmitterName] = useState("");
   const [submitterEmail, setSubmitterEmail] = useState("");
-  const [submissionNotes, setSubmissionNotes] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [successEmail, setSuccessEmail] = useState("");
-  const [successVenue, setSuccessVenue] = useState("");
 
-  const resetForm = () => {
-    setVenueName("");
-    setVenueType(VENUE_TYPES[0]);
-    setLocCountry("");
-    setLocState("");
-    setLocCity("");
-    setFullAddress("");
-    setCapacity("");
-    setEstablishedYear("");
-    setWebsite("");
-    setPhone("");
-    setDescription("");
-    setSubmitterName("");
-    setSubmitterEmail("");
-    setSubmissionNotes("");
-  };
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    if (!venueName.trim() || !locCountry.trim() || !locCity.trim() || !submitterName.trim() || !submitterEmail.trim()) {
-      setError("Please complete all required fields.");
-      return;
-    }
-    if (!submitterEmail.includes("@")) {
-      setError("Please enter a valid email address.");
+    setError(null);
+    if (!name.trim() || !city.trim() || !submitterName.trim() || !submitterEmail.trim()) {
+      setError("Please fill in all required fields.");
       return;
     }
     setSubmitting(true);
@@ -84,258 +46,279 @@ export default function SubmitVenuePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: venueName.trim(),
+          name: name.trim(),
           venueType,
-          country: locCountry.trim(),
-          state: locState.trim(),
-          city: locCity.trim(),
-          fullAddress: fullAddress.trim(),
+          country: country.trim() || "United States",
+          state: stateVal.trim(),
+          city: city.trim(),
+          fullAddress: address.trim(),
           capacity: capacity.trim(),
-          establishedYear: establishedYear.trim(),
           website: website.trim(),
-          phone: phone.trim(),
           description: description.trim(),
           submitterName: submitterName.trim(),
           submitterEmail: submitterEmail.trim(),
-          submissionNotes: submissionNotes.trim(),
         }),
       });
-      const json = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok || !json.ok) {
-        setError(json.error || "Something went wrong. Please try again.");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        setError(typeof data?.error === "string" ? data.error : "Something went wrong.");
         return;
       }
-      setSuccessVenue(venueName.trim());
-      setSuccessEmail(submitterEmail.trim());
-      resetForm();
+      setSubmitted(true);
     } catch {
-      setError("Network error. Please try again.");
+      setError("Couldn't reach the server — try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div className="min-h-0 flex-1 bg-black pb-24 pt-8 text-zinc-100 sm:pt-12">
-      <div className={`${CLASSES.section} max-w-6xl`}>
-        <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">
-          Add your venue
-        </p>
-        <h1 className="ml-font-heading text-4xl font-semibold tracking-tight text-zinc-50 sm:text-5xl">
-          Submit a <span className="text-[var(--ml-gold)] italic">venue</span>
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400 sm:text-base">
-          Know a great magic venue that&apos;s not listed? Submit it and we&apos;ll review it within 5 business
-          days.
-        </p>
+  if (submitted) {
+    return (
+      <main className="min-h-0 flex-1 bg-black pb-20 pt-8 text-zinc-100 sm:pt-12 min-h-[60vh] flex flex-col">
+        <header className="mb-8">
+          <div className={`${CLASSES.section} flex flex-wrap items-center gap-3`}>
+            <Link href="/venues" className={CLASSES.navLink}>
+              ← Venues
+            </Link>
+          </div>
+        </header>
 
-        {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
-
-        {successVenue && successEmail ? (
-          <div className="mt-8 rounded-2xl border border-[var(--ml-gold)]/30 bg-[var(--ml-gold)]/10 p-6 sm:p-8">
-            <p className="ml-font-heading text-lg font-semibold text-[var(--ml-gold)]">Thank you!</p>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-zinc-300">
-              We will review <span className="font-medium text-zinc-100">{successVenue}</span> and add it to the
-              directory within 5 business days. We will email you at{" "}
-              <span className="font-medium text-zinc-100">{successEmail}</span> when it goes live.
+        <div className={CLASSES.section}>
+          <div className="rounded-3xl border border-[var(--ml-gold)]/25 bg-[var(--ml-panel)]/40 p-8">
+            <p className="ml-font-heading text-xs tracking-[0.22em] uppercase text-zinc-400">
+              Thank you
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/venues" className={CLASSES.btnPrimarySm}>
+            <h1 className="mt-2 ml-font-heading text-3xl font-semibold text-white sm:text-4xl">
+              Your venue was submitted
+            </h1>
+            <p className="mt-4 max-w-prose text-zinc-300">
+              We&apos;ll review it shortly and publish it on Magicalive.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-4">
+              <Link href="/venues" className={CLASSES.btnPrimary}>
                 Browse venues
               </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setSuccessVenue("");
-                  setSuccessEmail("");
-                }}
-                className={CLASSES.btnSecondarySm}
-              >
-                Submit another
-              </button>
+              <Link href="/" className={CLASSES.btnSecondary}>
+                Home
+              </Link>
             </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-0 flex-1 bg-black pb-20 pt-8 text-zinc-100 sm:pt-12 flex flex-col">
+      <header className="mb-10">
+        <div className={`${CLASSES.section} flex flex-wrap items-center gap-3`}>
+          <Link href="/venues" className={CLASSES.navLink}>
+            ← Venues
+          </Link>
+        </div>
+        <div className={`${CLASSES.section} mt-6`}>
+          <p className="ml-font-heading text-xs tracking-[0.22em] uppercase text-zinc-400">
+            Add your venue
+          </p>
+          <h1 className="mt-3 ml-font-heading text-4xl font-semibold text-white sm:text-5xl">
+            Submit a{" "}
+            <span className="text-[var(--ml-gold)] italic">venue</span>
+          </h1>
+          <p className="mt-4 max-w-2xl text-zinc-300">
+            Tell us about a stage, showroom, or venue where magic is hosted. We review every submission before it goes live.
+          </p>
+        </div>
+      </header>
+
+      <div className={CLASSES.section}>
+        {error ? (
+          <div className="mb-6 rounded-2xl border border-red-400/20 bg-red-400/10 px-5 py-4 text-sm text-red-100">
+            {error}
           </div>
         ) : null}
 
-        <div className={`mt-10 flex flex-col gap-12 lg:flex-row lg:items-start ${successVenue ? "hidden" : ""}`}>
-          <form onSubmit={handleSubmit} className="min-w-0 flex-1 space-y-10 lg:max-w-3xl">
-            <section className="space-y-4">
-              <h2 className="ml-font-heading text-xl font-semibold text-zinc-100">Venue details</h2>
-              <div>
-                <label className={labelClass}>Venue name *</label>
+        <form
+          onSubmit={handleSubmit}
+          className="mx-auto max-w-3xl space-y-8 rounded-3xl border border-white/10 bg-[var(--ml-panel)]/35 p-6 shadow-[var(--ml-shadow)] sm:p-10"
+        >
+          <section className="space-y-5">
+            <Field label="Venue name" required htmlFor="sv-name">
+              <input
+                id="sv-name"
+                className={CLASSES.input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoComplete="organization"
+                required
+                maxLength={200}
+              />
+            </Field>
+            <Field label="Venue type" required htmlFor="sv-type">
+              <select
+                id="sv-type"
+                className={`${CLASSES.input} appearance-none`}
+                value={venueType}
+                onChange={(e) =>
+                  setVenueType(
+                    e.target.value as (typeof VENUE_TYPES)[number],
+                  )
+                }
+              >
+                {VENUE_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="City" required htmlFor="sv-city">
                 <input
-                  className={inputClass}
+                  id="sv-city"
+                  className={CLASSES.input}
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  autoComplete="address-level2"
                   required
-                  value={venueName}
-                  onChange={(e) => setVenueName(e.target.value)}
-                  placeholder="e.g. The Magic Castle"
+                  maxLength={120}
                 />
-              </div>
-              <div>
-                <label className={labelClass}>Venue type *</label>
-                <select
-                  className={inputClass}
-                  required
-                  value={venueType}
-                  onChange={(e) => setVenueType(e.target.value as (typeof VENUE_TYPES)[number])}
-                >
-                  {VENUE_TYPES.map((t) => (
-                    <option key={t} value={t} className="bg-zinc-900">
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Location *</label>
-                <LocationPicker
-                  className="mt-2"
-                  selectedCountry={locCountry}
-                  selectedState={locState}
-                  selectedCity={locCity}
-                  onCountryChange={setLocCountry}
-                  onStateChange={setLocState}
-                  onCityChange={setLocCity}
-                  required
-                />
-                <p className="mt-2 text-[11px] text-zinc-600">
-                  Saved as:{" "}
-                  <span className="text-zinc-500">
-                    {formatLocation(locCity, locState, locCountry).trim() || "—"}
-                  </span>
-                </p>
-              </div>
-              <div>
-                <label className={labelClass}>Full address</label>
+              </Field>
+              <Field label="State / region" htmlFor="sv-state">
                 <input
-                  className={inputClass}
-                  value={fullAddress}
-                  onChange={(e) => setFullAddress(e.target.value)}
-                  placeholder="Street, postal code…"
+                  id="sv-state"
+                  className={CLASSES.input}
+                  value={stateVal}
+                  onChange={(e) => setStateVal(e.target.value)}
+                  autoComplete="address-level1"
+                  maxLength={120}
                 />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass}>Capacity</label>
-                  <input
-                    type="number"
-                    min={0}
-                    className={inputClass}
-                    value={capacity}
-                    onChange={(e) => setCapacity(e.target.value)}
-                    placeholder="e.g. 250"
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Established year</label>
-                  <input
-                    type="number"
-                    min={1600}
-                    max={2100}
-                    className={inputClass}
-                    value={establishedYear}
-                    onChange={(e) => setEstablishedYear(e.target.value)}
-                    placeholder="e.g. 1998"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className={labelClass}>Website URL</label>
+              </Field>
+              <Field label="Country" required htmlFor="sv-country">
                 <input
+                  id="sv-country"
+                  className={CLASSES.input}
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  autoComplete="country-name"
+                  required
+                  maxLength={120}
+                />
+              </Field>
+            </div>
+            <Field label="Address" hint="Optional" htmlFor="sv-address">
+              <input
+                id="sv-address"
+                className={CLASSES.input}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                autoComplete="street-address"
+                maxLength={500}
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Capacity" hint="Optional" htmlFor="sv-cap">
+                <input
+                  id="sv-cap"
+                  className={CLASSES.input}
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                  placeholder="e.g. 250"
+                />
+              </Field>
+              <Field label="Website" hint="Optional" htmlFor="sv-web">
+                <input
+                  id="sv-web"
+                  className={CLASSES.input}
                   type="url"
-                  className={inputClass}
+                  inputMode="url"
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
-                  placeholder="https://…"
+                  placeholder="https://"
+                  maxLength={300}
                 />
-              </div>
-              <div>
-                <label className={labelClass}>Phone</label>
-                <input
-                  type="tel"
-                  className={inputClass}
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Optional"
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Description</label>
-                <textarea
-                  className={`${inputClass} min-h-[120px] resize-y`}
-                  rows={4}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="What makes this venue special for magic audiences?"
-                />
-              </div>
-            </section>
+              </Field>
+            </div>
+            <Field label="Description" hint="Optional" htmlFor="sv-desc">
+              <textarea
+                id="sv-desc"
+                className={`${CLASSES.input} min-h-[120px] resize-y`}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={4000}
+                placeholder="What makes this venue special for live magic?"
+              />
+            </Field>
+          </section>
 
-            <section className="space-y-4">
-              <h2 className="ml-font-heading text-xl font-semibold text-zinc-100">Your contact</h2>
-              <div>
-                <label className={labelClass}>Your name *</label>
+          <div className="border-t border-white/10 pt-8">
+            <p className="ml-font-heading text-xs tracking-[0.22em] uppercase text-zinc-400">
+              Your contact
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Field label="Your name" required htmlFor="sv-sn">
                 <input
-                  className={inputClass}
-                  required
+                  id="sv-sn"
+                  className={CLASSES.input}
                   value={submitterName}
                   onChange={(e) => setSubmitterName(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Your email *</label>
-                <input
-                  type="email"
-                  className={inputClass}
+                  autoComplete="name"
                   required
+                  maxLength={120}
+                />
+              </Field>
+              <Field label="Your email" required htmlFor="sv-se">
+                <input
+                  id="sv-se"
+                  className={CLASSES.input}
+                  type="email"
                   value={submitterEmail}
                   onChange={(e) => setSubmitterEmail(e.target.value)}
-                  placeholder="For follow-up about this submission"
+                  autoComplete="email"
+                  required
+                  maxLength={200}
                 />
-              </div>
-              <div>
-                <label className={labelClass}>Any additional notes</label>
-                <textarea
-                  className={`${inputClass} min-h-[88px] resize-y`}
-                  rows={3}
-                  value={submissionNotes}
-                  onChange={(e) => setSubmissionNotes(e.target.value)}
-                  placeholder="Anything else we should know?"
-                />
-              </div>
-            </section>
+              </Field>
+            </div>
+          </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button type="submit" disabled={submitting} className={CLASSES.btnPrimary}>
-                {submitting ? "Submitting…" : "Submit venue"}
-              </button>
-              <Link href="/venues" className={CLASSES.btnSecondary}>
-                Cancel
-              </Link>
-            </div>
-          </form>
-
-          <aside className="w-full shrink-0 space-y-8 lg:w-72">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Already listed?</h3>
-              <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-                If your venue is already listed you can claim it and manage your profile.
-              </p>
-              <Link href="/venues" className={`${CLASSES.btnSecondarySm} mt-4 inline-flex`}>
-                Browse venues
-              </Link>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Guidelines</h3>
-              <ul className="mt-4 list-disc space-y-3 pl-4 text-sm leading-relaxed text-zinc-400 marker:text-[var(--ml-gold)]">
-                {GUIDELINES.map((g, i) => (
-                  <li key={i}>{g}</li>
-                ))}
-              </ul>
-            </div>
-          </aside>
-        </div>
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <button type="submit" className={CLASSES.btnPrimary} disabled={submitting}>
+              {submitting ? "Submitting…" : "Submit venue"}
+            </button>
+            <Link href="/venues" className={CLASSES.btnSecondary}>
+              Cancel
+            </Link>
+          </div>
+        </form>
       </div>
-    </div>
+    </main>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  required,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  required?: boolean;
+  htmlFor: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block space-y-2" htmlFor={htmlFor}>
+      <span className="text-sm font-semibold text-zinc-100">
+        {label}
+        {required ? <span className="text-red-300"> *</span> : null}
+        {hint ? <span className="ml-2 font-normal text-zinc-500">({hint})</span> : null}
+      </span>
+      {children}
+    </label>
   );
 }

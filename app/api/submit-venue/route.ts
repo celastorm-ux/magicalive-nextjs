@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { emailVenueSubmitted, sendWithResend, siteBaseUrl } from "@/lib/magicalive-resend";
-import { countryUsesStatePicker, stateValueForDatabase } from "@/lib/locations";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
 export const dynamic = "force-dynamic";
@@ -45,9 +44,6 @@ export async function POST(request: Request) {
   if (!submitterEmail.includes("@")) {
     return NextResponse.json({ ok: false, error: "Invalid email" }, { status: 400 });
   }
-  if (countryUsesStatePicker(country) && !stateRaw) {
-    return NextResponse.json({ ok: false, error: "State is required for this country" }, { status: 400 });
-  }
 
   const db = await getRouteSupabase();
   const capacity =
@@ -64,7 +60,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Invalid capacity or year" }, { status: 400 });
   }
 
-  const stateForDb = stateRaw ? stateValueForDatabase(country, stateRaw) : null;
+  const stateForDb = stateRaw || null;
 
   let websiteNorm = website;
   if (websiteNorm && !websiteNorm.startsWith("http")) {
@@ -74,7 +70,7 @@ export async function POST(request: Request) {
   const baseRow: Record<string, unknown> = {
     name,
     city,
-    state: stateForDb || null,
+    state: stateForDb,
     venue_type: venueType,
     full_address: fullAddress || null,
     capacity,
