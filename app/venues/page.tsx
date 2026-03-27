@@ -55,6 +55,15 @@ type Venue = VenueRow & {
 
 const ALL_COUNTRIES = "All countries";
 const ALL_CITIES = "All cities";
+const ALL_STATES = "All states";
+
+function sameState(rowState: string | null | undefined, selected: string): boolean {
+  const a = (rowState || "").trim();
+  const b = selected.trim();
+  if (!a || !b) return false;
+  if (a.length === 2 && b.length === 2) return a.toUpperCase() === b.toUpperCase();
+  return a === b;
+}
 
 const CAPS = ["Any capacity", "Under 300", "300-1000", "1000+"] as const;
 
@@ -89,6 +98,7 @@ const selectClass =
 export default function VenuesPage() {
   const [search, setSearch] = useState("");
   const [filterCountry, setFilterCountry] = useState(ALL_COUNTRIES);
+  const [filterState, setFilterState] = useState(ALL_STATES);
   const [filterCity, setFilterCity] = useState(ALL_CITIES);
   const [vtype, setVtype] = useState("Any type");
   const [cap, setCap] = useState<(typeof CAPS)[number]>("Any capacity");
@@ -150,10 +160,24 @@ export default function VenuesPage() {
 
   const countryFilterOptions = useMemo(() => [ALL_COUNTRIES, ...countriesForPicker()], []);
 
+  const stateFilterOptions = useMemo(() => {
+    const states = [...new Set(venues.map((v) => v.state?.trim()).filter(Boolean))] as string[];
+    return [ALL_STATES, ...states.sort((a, b) => a.localeCompare(b))];
+  }, [venues]);
+
   const cityFilterOptions = useMemo(() => {
+    if (filterState !== ALL_STATES) {
+      const cities = new Set<string>();
+      for (const v of venues) {
+        if (!sameState(v.state, filterState)) continue;
+        const c = v.city?.trim();
+        if (c) cities.add(c);
+      }
+      return [ALL_CITIES, ...Array.from(cities).sort((a, b) => a.localeCompare(b))];
+    }
     if (filterCountry === ALL_COUNTRIES) return [ALL_CITIES];
     return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
-  }, [filterCountry]);
+  }, [venues, filterState, filterCountry]);
 
   const typeOptions = useMemo(() => {
     const set = new Set<string>();
@@ -165,6 +189,13 @@ export default function VenuesPage() {
   }, [venues]);
 
   useEffect(() => {
+    if (filterState !== ALL_STATES && !stateFilterOptions.includes(filterState)) {
+      setFilterState(ALL_STATES);
+      setFilterCity(ALL_CITIES);
+    }
+  }, [filterState, stateFilterOptions]);
+
+  useEffect(() => {
     if (filterCity !== ALL_CITIES && !cityFilterOptions.includes(filterCity)) {
       setFilterCity(ALL_CITIES);
     }
@@ -174,10 +205,31 @@ export default function VenuesPage() {
     if (vtype !== "Any type" && !typeOptions.includes(vtype)) setVtype("Any type");
   }, [vtype, typeOptions]);
 
+  const hasActiveFilters = useMemo(() => {
+    return (
+      search.trim() !== "" ||
+      filterState !== ALL_STATES ||
+      filterCountry !== ALL_COUNTRIES ||
+      filterCity !== ALL_CITIES ||
+      vtype !== "Any type" ||
+      cap !== "Any capacity"
+    );
+  }, [search, filterState, filterCountry, filterCity, vtype, cap]);
+
+  const resetAllFilters = useCallback(() => {
+    setSearch("");
+    setFilterState(ALL_STATES);
+    setFilterCountry(ALL_COUNTRIES);
+    setFilterCity(ALL_CITIES);
+    setVtype("Any type");
+    setCap("Any capacity");
+  }, []);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return venues.filter((v) => {
       const cityStr = v.city?.trim() || "";
+      if (filterState !== ALL_STATES && !sameState(v.state, filterState)) return false;
       if (
         filterCity !== ALL_CITIES ||
         filterCountry !== ALL_COUNTRIES
@@ -196,13 +248,21 @@ export default function VenuesPage() {
       }
       if (vtype !== "Any type" && (v.venue_type || "").trim() !== vtype) return false;
       if (!capacityMatches(v.capacity, cap)) return false;
-      if (q) {
-        const hay = `${v.name} ${cityStr} ${v.venue_type || ""} ${(v.tags ?? []).join(" ")}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
+      if (q && !v.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [search, filterCountry, filterCity, vtype, cap, venues]);
+  }, [search, filterState, filterCountry, filterCity, vtype, cap, venues]);
+
+  const filterBarResultsLabel = useMemo(() => {
+    const n = filtered.length;
+    const word = n === 1 ? "venue" : "venues";
+    if (filterState !== ALL_STATES) {
+      const st =
+        filterState.length === 2 ? filterState.toUpperCase() : filterState;
+      return `${n} ${word} in ${st}`;
+    }
+    return `${n} ${word}`;
+  }, [filtered.length, filterState]);
 
   const filteredIds = useMemo(() => new Set(filtered.map((v) => v.id)), [filtered]);
 
@@ -240,17 +300,33 @@ export default function VenuesPage() {
         <p className="mt-3 text-sm text-zinc-400 sm:text-base">{headerSubtitle}</p>
 
         <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
-              ⌕
-            </span>
-            <input
-              type="search"
-              placeholder="Search venues, cities, types…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className={`${CLASSES.inputSearch} pl-9`}
-            />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-3">
+            <div className="relative min-w-0 flex-1">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
+                ⌕
+              </span>
+              <input
+                type="search"
+                placeholder="Search venues, cities, types…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className={`${CLASSES.inputSearch} w-full pl-9`}
+              />
+            </div>
+            <select
+              className={`${selectClass} w-full sm:w-auto sm:min-w-[140px] sm:flex-initial sm:shrink-0`}
+              value={filterState}
+              onChange={(e) => {
+                setFilterState(e.target.value);
+                setFilterCity(ALL_CITIES);
+              }}
+            >
+              {stateFilterOptions.map((s) => (
+                <option key={s} value={s} className="bg-zinc-900">
+                  {s === ALL_STATES ? s : s.length === 2 ? s.toUpperCase() : s}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
             <select
@@ -300,10 +376,20 @@ export default function VenuesPage() {
                 </option>
               ))}
             </select>
-            <span className="text-sm text-zinc-500 lg:ml-auto">
-              <span className="font-semibold text-zinc-300">{filtered.length}</span>{" "}
-              results
-            </span>
+            <div className="flex flex-wrap items-center gap-3 lg:ml-auto">
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={resetAllFilters}
+                  className={CLASSES.btnSecondarySm}
+                >
+                  Clear filters
+                </button>
+              ) : null}
+              <span className="text-sm text-zinc-500">
+                <span className="font-semibold text-zinc-300">{filterBarResultsLabel}</span>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -360,13 +446,7 @@ export default function VenuesPage() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => {
-                      setSearch("");
-                      setFilterCountry(ALL_COUNTRIES);
-                      setFilterCity(ALL_CITIES);
-                      setVtype("Any type");
-                      setCap("Any capacity");
-                    }}
+                    onClick={resetAllFilters}
                     className={`${CLASSES.btnPrimary} mt-6`}
                   >
                     Reset filters
