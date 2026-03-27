@@ -141,15 +141,15 @@ export default function VenuesPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase
+      const { data: venueRows, error: fetchError } = await supabase
         .from("venues")
         .select("*")
         .eq("is_verified", true)
         .order("name", { ascending: true });
 
-      console.log("Venues fetched:", data?.length, error);
+      console.log("Venues fetched:", venueRows?.length, fetchError);
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
 
       const today = new Date().toISOString().split("T")[0];
       const { data: showRows, error: sErr } = await supabase
@@ -169,7 +169,7 @@ export default function VenuesPage() {
         countByVenueId[vid] = (countByVenueId[vid] ?? 0) + 1;
       }
 
-      const rows = (data ?? []) as VenueRow[];
+      const rows = (venueRows ?? []) as VenueRow[];
       const mapped: Venue[] = [];
       for (const row of rows) {
         if (row == null) continue;

@@ -189,6 +189,8 @@ export default function AdminClient() {
 
   const [geocodeBusy, setGeocodeBusy] = useState(false);
   const [geocodeMsg, setGeocodeMsg] = useState("");
+  const [venueApprovedBanner, setVenueApprovedBanner] = useState<string | null>(null);
+  const [pendingVenueBusyId, setPendingVenueBusyId] = useState<string | null>(null);
   const [editingVenueId, setEditingVenueId] = useState<string | null>(null);
   const [manualLat, setManualLat] = useState("");
   const [manualLng, setManualLng] = useState("");
@@ -527,27 +529,97 @@ export default function AdminClient() {
     }, 900);
   };
 
-  const venueDecision = async (venueId: string, decision: "approve" | "reject") => {
+  const approveVenue = async (venue: VenueAdminRow) => {
     setActionErr("");
-    if (
-      decision === "reject" &&
-      !window.confirm(
-        "Reject this submission? The venue row will be permanently deleted. This cannot be undone.",
-      )
-    ) {
-      return;
+    setVenueApprovedBanner(null);
+    setPendingVenueBusyId(venue.id);
+    try {
+      const { error } = await supabase
+        .from("venues")
+        .update({ is_verified: true })
+        .eq("id", venue.id);
+      if (error) {
+        setActionErr(error.message || "Could not approve venue");
+        return;
+      }
+
+      let nextLat: number | string | null = venue.latitude;
+      let nextLng: number | string | null = venue.longitude;
+      let geoSuffix = "";
+
+      const needsGeocode = venue.latitude == null || venue.longitude == null;
+      if (needsGeocode) {
+        try {
+          const geoRes = await fetch("/api/admin/geocode-venue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: venue.name ?? "",
+              city: venue.city ?? "",
+              state: venue.state ?? "",
+              country: venue.country ?? "",
+              full_address: venue.full_address ?? "",
+            }),
+          });
+          const geoJson = (await geoRes.json()) as {
+            ok?: boolean;
+            lat?: number;
+            lon?: number;
+            error?: string;
+          };
+          if (geoRes.ok && geoJson.ok && geoJson.lat != null && geoJson.lon != null) {
+            const { error: coordErr } = await supabase
+              .from("venues")
+              .update({
+                latitude: geoJson.lat,
+                longitude: geoJson.lon,
+              })
+              .eq("id", venue.id);
+            if (!coordErr) {
+              nextLat = geoJson.lat;
+              nextLng = geoJson.lon;
+              geoSuffix = " Coordinates added from OpenStreetMap.";
+            }
+          }
+        } catch {
+          // Geocode is best-effort; venue stays approved without coords
+        }
+      }
+
+      setVenues((prev) =>
+        prev.map((v) =>
+          v.id === venue.id
+            ? {
+                ...v,
+                is_verified: true,
+                latitude: nextLat,
+                longitude: nextLng,
+              }
+            : v,
+        ),
+      );
+
+      setVenueApprovedBanner(`Approved.${geoSuffix}`);
+      window.setTimeout(() => setVenueApprovedBanner(null), 8000);
+    } finally {
+      setPendingVenueBusyId(null);
     }
-    const res = await fetch("/api/admin/venues", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ venueId, decision }),
-    });
-    const json = (await res.json()) as { ok?: boolean; error?: string };
-    if (!res.ok || !json.ok) {
-      setActionErr(json.error || "Update failed");
-      return;
+  };
+
+  const rejectVenue = async (venueId: string) => {
+    if (!window.confirm("Are you sure you want to reject and delete this venue?")) return;
+    setActionErr("");
+    setPendingVenueBusyId(venueId);
+    try {
+      const { error } = await supabase.from("venues").delete().eq("id", venueId);
+      if (error) {
+        setActionErr(error.message || "Could not delete venue");
+        return;
+      }
+      setVenues((prev) => prev.filter((v) => v.id !== venueId));
+    } finally {
+      setPendingVenueBusyId(null);
     }
-    void fetchTab();
   };
 
   const runGeocodeVenues = async () => {
@@ -1095,6 +1167,14 @@ export default function AdminClient() {
                   </p>
                 </div>
               </div>
+              {venueApprovedBanner ? (
+                <div
+                  className="mt-4 rounded-xl border border-emerald-400/45 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-200"
+                  role="status"
+                >
+                  {venueApprovedBanner}
+                </div>
+              ) : null}
               {pendingVenues.length === 0 ? (
                 <p className="mt-4 text-sm text-zinc-500">No pending venue submissions.</p>
               ) : (
@@ -1118,15 +1198,17 @@ export default function AdminClient() {
                         <div className="flex shrink-0 flex-wrap gap-2">
                           <button
                             type="button"
-                            onClick={() => void venueDecision(v.id, "approve")}
-                            className={CLASSES.btnPrimarySm}
+                            disabled={pendingVenueBusyId !== null}
+                            onClick={() => void approveVenue(v)}
+                            className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-45"
                           >
                             Approve
                           </button>
                           <button
                             type="button"
-                            onClick={() => void venueDecision(v.id, "reject")}
-                            className={`${CLASSES.btnSecondarySm} border-red-400/30 text-red-300 hover:border-red-400/50 hover:bg-red-400/10`}
+                            disabled={pendingVenueBusyId !== null}
+                            onClick={() => void rejectVenue(v.id)}
+                            className={`${CLASSES.btnSecondarySm} border-red-400/35 text-red-200 hover:border-red-400/55 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-45`}
                           >
                             Reject
                           </button>
