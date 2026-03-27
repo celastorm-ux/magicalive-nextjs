@@ -218,6 +218,7 @@ export default function DashboardPage() {
     const { data: vens } = await supabase
       .from("venues")
       .select("id, name, city, state")
+      .or("is_verified.is.null,is_verified.eq.true")
       .order("name", { ascending: true });
     setVenueOptions((vens ?? []) as VenueOption[]);
 

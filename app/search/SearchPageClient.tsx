@@ -172,6 +172,7 @@ export default function SearchPageClient() {
       const venuesPromise = supabase
         .from("venues")
         .select("*")
+        .or("is_verified.is.null,is_verified.eq.true")
         .or(`name.ilike.%${q}%,city.ilike.%${q}%,description.ilike.%${q}%,tags::text.ilike.%${q}%`)
         .limit(8);
 

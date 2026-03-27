@@ -63,6 +63,7 @@ export default function ProfileRouterPage() {
               .from("venues")
               .select("id")
               .eq("contact_email", email)
+              .or("is_verified.is.null,is_verified.eq.true")
               .order("created_at", { ascending: false })
               .limit(1)
               .maybeSingle();

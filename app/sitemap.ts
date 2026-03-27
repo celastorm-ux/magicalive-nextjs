@@ -9,7 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [magicians, events, venues, articles] = await Promise.all([
     db.from("profiles").select("id").eq("account_type", "magician"),
     db.from("shows").select("id"),
-    db.from("venues").select("id"),
+    db.from("venues").select("id").or("is_verified.is.null,is_verified.eq.true"),
     db.from("articles").select("id").eq("status", "published"),
   ]);
 
@@ -30,6 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/about`, changeFrequency: "monthly", priority: 0.55 },
     { url: `${base}/contact`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/submit-article`, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${base}/submit-venue`, changeFrequency: "weekly", priority: 0.6 },
   ];
 
   const dynamicRoutes: MetadataRoute.Sitemap = [

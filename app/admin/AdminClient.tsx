@@ -64,6 +64,7 @@ type VenueAdminRow = {
   id: string;
   name: string | null;
   city: string | null;
+  state: string | null;
   venue_type: string | null;
   created_at: string | null;
   is_verified: boolean | null;
@@ -248,6 +249,16 @@ export default function AdminClient() {
 
   const venuesMissingCoords = useMemo(() => venues.filter((v) => v.latitude == null).length, [venues]);
 
+  const sortedVenues = useMemo(() => {
+    const rank = (v: VenueAdminRow) => (v.is_verified === false ? 0 : 1);
+    return [...venues].sort((a, b) => {
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+  }, [venues]);
+
   useEffect(() => {
     if (tab === "articles" && !dataLoading && articles.length === 0) {
       console.log("Articles:", articles);
@@ -413,6 +424,7 @@ export default function AdminClient() {
     const { data, error } = await supabase
       .from("venues")
       .select("id, name, city, state")
+      .or("is_verified.is.null,is_verified.eq.true")
       .order("name", { ascending: true });
     if (!error && data) {
       setPostVenues(
@@ -496,6 +508,14 @@ export default function AdminClient() {
 
   const venueDecision = async (venueId: string, decision: "approve" | "reject") => {
     setActionErr("");
+    if (
+      decision === "reject" &&
+      !window.confirm(
+        "Reject this submission? The venue row will be permanently deleted. This cannot be undone.",
+      )
+    ) {
+      return;
+    }
     const res = await fetch("/api/admin/venues", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1075,11 +1095,12 @@ export default function AdminClient() {
             {dataLoading ? (
               <p className="text-sm text-zinc-500">Loading…</p>
             ) : (
-              <table className="w-full min-w-[860px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[920px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-white/10 text-[10px] uppercase tracking-wider text-zinc-500">
                     <th className="py-3 pr-4">Name</th>
                     <th className="py-3 pr-4">City</th>
+                    <th className="py-3 pr-4">State</th>
                     <th className="py-3 pr-4">Type</th>
                     <th className="py-3 pr-4">Coords</th>
                     <th className="py-3 pr-4">Submitted</th>
@@ -1088,11 +1109,21 @@ export default function AdminClient() {
                   </tr>
                 </thead>
                 <tbody>
-                  {venues.map((v) => (
+                  {sortedVenues.map((v) => (
                     <Fragment key={v.id}>
                       <tr className="border-b border-white/5">
-                        <td className="py-3 pr-4 font-medium text-zinc-200">{v.name || "—"}</td>
+                        <td className="py-3 pr-4 font-medium text-zinc-200">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {v.is_verified === false ? (
+                              <span className="shrink-0 rounded-full border border-[var(--ml-gold)]/40 bg-[var(--ml-gold)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ml-gold)]">
+                                Pending
+                              </span>
+                            ) : null}
+                            <span>{v.name || "—"}</span>
+                          </div>
+                        </td>
                         <td className="py-3 pr-4 text-zinc-400">{v.city || "—"}</td>
+                        <td className="py-3 pr-4 text-zinc-400">{v.state || "—"}</td>
                         <td className="py-3 pr-4 text-zinc-400">{v.venue_type || "—"}</td>
                         <td className="py-3 pr-4 text-xs text-zinc-500">
                           <span
@@ -1121,20 +1152,24 @@ export default function AdminClient() {
                         <td className="py-3 pr-4 text-zinc-500">{fmtShort(v.created_at)}</td>
                         <td className="py-3 pr-4">
                           <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => void venueDecision(v.id, "approve")}
-                              className="text-xs font-semibold text-emerald-400 hover:underline"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void venueDecision(v.id, "reject")}
-                              className="text-xs font-semibold text-red-400 hover:underline"
-                            >
-                              Reject
-                            </button>
+                            {v.is_verified !== true ? (
+                              <button
+                                type="button"
+                                onClick={() => void venueDecision(v.id, "approve")}
+                                className="text-xs font-semibold text-emerald-400 hover:underline"
+                              >
+                                Approve
+                              </button>
+                            ) : null}
+                            {v.is_verified === false ? (
+                              <button
+                                type="button"
+                                onClick={() => void venueDecision(v.id, "reject")}
+                                className="text-xs font-semibold text-red-400 hover:underline"
+                              >
+                                Reject
+                              </button>
+                            ) : null}
                           </div>
                         </td>
                         <td className="py-3">
@@ -1148,7 +1183,7 @@ export default function AdminClient() {
                       </tr>
                       {editingVenueId === v.id ? (
                         <tr className="border-b border-white/5 bg-white/[0.02]">
-                          <td colSpan={7} className="px-4 py-4">
+                          <td colSpan={8} className="px-4 py-4">
                             <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                               Manual coordinates
                             </p>

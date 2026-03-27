@@ -59,10 +59,25 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: false, error: "venueId and decision required" }, { status: 400 });
   }
 
-  const is_verified = decision === "approve";
-  const { error } = await ctx.db.from("venues").update({ is_verified }).eq("id", venueId);
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (decision === "approve") {
+    const { error } = await ctx.db.from("venues").update({ is_verified: true }).eq("id", venueId);
+    if (error) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  const { data: vrow } = await ctx.db.from("venues").select("is_verified").eq("id", venueId).maybeSingle();
+  if (vrow?.is_verified !== false) {
+    return NextResponse.json(
+      { ok: false, error: "Only pending submissions (is_verified = false) can be rejected" },
+      { status: 400 },
+    );
+  }
+
+  const { error: delErr } = await ctx.db.from("venues").delete().eq("id", venueId);
+  if (delErr) {
+    return NextResponse.json({ ok: false, error: delErr.message }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }

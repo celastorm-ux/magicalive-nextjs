@@ -97,7 +97,12 @@ export const getVenueDetailBundle = cache(async (venueId: string): Promise<Venue
     return { venue: null, upcomingShows: [], pastCount: 0, totalShows: 0, magicians: [] };
   }
 
-  const venueNormalized = normalizeVenueContactRow(vRow as Record<string, unknown>);
+  const rawVenue = vRow as Record<string, unknown>;
+  if (rawVenue.is_verified === false) {
+    return { venue: null, upcomingShows: [], pastCount: 0, totalShows: 0, magicians: [] };
+  }
+
+  const venueNormalized = normalizeVenueContactRow(rawVenue);
   const today = new Date().toISOString().split("T")[0]!;
   const { data: upcoming } = await db
     .from("shows")

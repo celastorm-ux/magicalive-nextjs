@@ -12,6 +12,7 @@ export type MagicaliveEmailType =
   | "new_follower"
   | "new_review"
   | "article_submitted"
+  | "venue_submitted"
   | "founding_member_welcome"
   | "magician_invite";
 
@@ -452,6 +453,69 @@ export function emailMagicianInvite(data: {
   };
 }
 
+function venueSubmittedDetailRow(label: string, value: string): string {
+  const v = value.trim();
+  if (!v) return "";
+  return `<tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-family:system-ui,sans-serif;font-size:13px;color:${MUTED};width:38%;vertical-align:top;">${escapeHtml(label)}</td><td style="padding:8px 0 8px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:system-ui,sans-serif;font-size:14px;color:${TEXT};vertical-align:top;">${escapeHtml(v).replace(/\n/g, "<br/>")}</td></tr>`;
+}
+
+/** Public venue submission — to team inbox */
+export function emailVenueSubmitted(data: {
+  venue_name: string;
+  venue_type: string;
+  country: string;
+  state: string;
+  city: string;
+  full_address: string;
+  capacity: string;
+  established_year: string;
+  website: string;
+  phone: string;
+  description: string;
+  submitter_name: string;
+  submitter_email: string;
+  submission_notes: string;
+  venue_id: string;
+  admin_url: string;
+}): { subject: string; html: string; from: string } {
+  const subject = `New venue submission: ${data.venue_name}`;
+  const rows = [
+    venueSubmittedDetailRow("Venue name", data.venue_name),
+    venueSubmittedDetailRow("Type", data.venue_type),
+    venueSubmittedDetailRow("Country", data.country),
+    venueSubmittedDetailRow("State / region", data.state),
+    venueSubmittedDetailRow("City", data.city),
+    venueSubmittedDetailRow("Address", data.full_address),
+    venueSubmittedDetailRow("Capacity", data.capacity),
+    venueSubmittedDetailRow("Established", data.established_year),
+    venueSubmittedDetailRow("Website", data.website),
+    venueSubmittedDetailRow("Phone", data.phone),
+    venueSubmittedDetailRow("Description", data.description),
+    venueSubmittedDetailRow("Submitted by", data.submitter_name),
+    venueSubmittedDetailRow("Contact email", data.submitter_email),
+    venueSubmittedDetailRow("Additional notes", data.submission_notes),
+    venueSubmittedDetailRow("Venue ID", data.venue_id),
+  ].join("");
+  const inner = `
+  <tr>
+    <td style="padding:8px 28px 0;">
+      <h1 style="margin:0 0 12px;font-family:Georgia,'Cormorant Garamond','Times New Roman',serif;font-size:24px;font-weight:600;color:${GOLD};line-height:1.2;">
+        New venue submission
+      </h1>
+      <p style="margin:0 0 16px;font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.6;color:${TEXT};">
+        A visitor submitted a venue for the directory. Review it in the admin panel.
+      </p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;">${rows}</table>
+      ${button(data.admin_url, "Open admin — Venues")}
+    </td>
+  </tr>`;
+  return {
+    subject,
+    html: wrapBody(inner),
+    from: "Magicalive <hello@magicalive.com>",
+  };
+}
+
 /** New review — to magician */
 export function emailNewReview(data: {
   reviewer_name: string;
@@ -542,6 +606,9 @@ export async function sendMagicaliveEmail(
         break;
       case "article_submitted":
         built = emailArticleSubmitted(data as unknown as Parameters<typeof emailArticleSubmitted>[0]);
+        break;
+      case "venue_submitted":
+        built = emailVenueSubmitted(data as unknown as Parameters<typeof emailVenueSubmitted>[0]);
         break;
       case "founding_member_welcome":
         built = emailFoundingMemberWelcome(

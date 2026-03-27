@@ -328,6 +328,7 @@ export default function CreateProfileClient() {
       description: venueDesc.trim(),
       contact_email: venueEmail.trim(),
       tags: [] as string[],
+      is_verified: true,
     };
     if (!venuePayload.name || !venuePayload.contact_email) {
       setVenueError("Please fill in venue name and contact email.");

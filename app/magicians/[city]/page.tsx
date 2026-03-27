@@ -108,6 +108,7 @@ export default async function CityMagiciansPage({ params }: { params: PageParams
   const { data: venueRows } = await db
     .from("venues")
     .select("id, name, city, state")
+    .or("is_verified.is.null,is_verified.eq.true")
     .or(venueCityOrFilter(def.venueCityMatch))
     .limit(12);
 
