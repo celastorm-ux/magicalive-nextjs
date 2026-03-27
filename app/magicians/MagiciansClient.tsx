@@ -7,7 +7,6 @@ import { useUser } from "@clerk/nextjs";
 import { CLASSES } from "@/lib/constants";
 import {
   countriesForPicker,
-  findCountryForCity,
   getCitiesForCountry,
   profileLocationMatchesFilter,
 } from "@/lib/locations";
@@ -281,24 +280,6 @@ export default function MagiciansClient() {
     }
     setFollowBusyId(null);
   };
-
-  const cityCounts = useMemo(() => {
-    const c: Record<string, number> = {};
-    for (const m of magicians) {
-      const loc = m.location.split(",")[0]?.trim() || m.location;
-      c[loc] = (c[loc] ?? 0) + 1;
-    }
-    return c;
-  }, [magicians]);
-
-  const cityOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const m of magicians) {
-      const loc = m.location.split(",")[0]?.trim() || m.location.trim();
-      if (loc) set.add(loc);
-    }
-    return [ALL_CITIES, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
-  }, [magicians]);
 
   const countryFilterOptions = useMemo(() => [ALL_COUNTRIES, ...countriesForPicker()], []);
 
@@ -750,38 +731,6 @@ export default function MagiciansClient() {
                   </Link>
                 ))}
               </div>
-            </div>
-
-            <div>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                By city
-              </h3>
-              <ul className="space-y-1 rounded-2xl border border-white/10 bg-white/[0.03] p-2">
-                {cityOptions.filter((c) => c !== ALL_CITIES).map((c) => (
-                  <li key={c}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (filterCity === c) {
-                          setFilterCity(ALL_CITIES);
-                          setFilterCountry(ALL_COUNTRIES);
-                        } else {
-                          setFilterCity(c);
-                          setFilterCountry(findCountryForCity(c) || ALL_COUNTRIES);
-                        }
-                      }}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                        filterCity === c
-                          ? "bg-[var(--ml-gold)]/10 text-[var(--ml-gold)]"
-                          : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-                      }`}
-                    >
-                      <span>{c}</span>
-                      <span className="text-xs text-zinc-500">{cityCounts[c] ?? 0}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
             </div>
 
             <div className="relative overflow-hidden rounded-2xl border border-[var(--ml-gold)]/25 bg-[var(--ml-gold)]/10 p-5">
