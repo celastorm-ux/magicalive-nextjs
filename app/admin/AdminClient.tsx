@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { CLASSES } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
@@ -67,6 +67,8 @@ type VenueAdminRow = {
   venue_type: string | null;
   created_at: string | null;
   is_verified: boolean | null;
+  latitude: number | string | null;
+  longitude: number | string | null;
 };
 
 type UserAdminRow = {
@@ -169,6 +171,13 @@ export default function AdminClient() {
   const [coverSuccessId, setCoverSuccessId] = useState<string | null>(null);
   const coverFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const [geocodeBusy, setGeocodeBusy] = useState(false);
+  const [geocodeMsg, setGeocodeMsg] = useState("");
+  const [editingVenueId, setEditingVenueId] = useState<string | null>(null);
+  const [manualLat, setManualLat] = useState("");
+  const [manualLng, setManualLng] = useState("");
+  const [manualSaving, setManualSaving] = useState(false);
+
   const setTab = useCallback(
     (next: AdminTab) => {
       const p = new URLSearchParams(searchParams.toString());
@@ -236,6 +245,11 @@ export default function AdminClient() {
     if (articleFilter === "all") return articles;
     return articles.filter((a) => (a.status || "").toLowerCase() === articleFilter);
   }, [articles, articleFilter]);
+
+  const venuesMissingCoords = useMemo(
+    () => venues.filter((v) => v.latitude == null || v.longitude == null).length,
+    [venues],
+  );
 
   useEffect(() => {
     if (tab === "articles" && !dataLoading && articles.length === 0) {
@@ -496,6 +510,73 @@ export default function AdminClient() {
       return;
     }
     void fetchTab();
+  };
+
+  const runGeocodeVenues = async () => {
+    setActionErr("");
+    setGeocodeMsg("");
+    setGeocodeBusy(true);
+    try {
+      const res = await fetch("/api/geocode-venues", { method: "POST" });
+      const json = (await res.json()) as {
+        success?: boolean;
+        geocoded?: number;
+        failed?: number;
+        total?: number;
+        error?: string;
+        ok?: boolean;
+      };
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Geocoding failed");
+      }
+      const n = json.geocoded ?? 0;
+      const failed = json.failed ?? 0;
+      const total = json.total ?? 0;
+      setGeocodeMsg(
+        failed > 0
+          ? `Geocoded ${n} venue${n === 1 ? "" : "s"} successfully (${failed} of ${total} could not be resolved).`
+          : `Geocoded ${n} venue${n === 1 ? "" : "s"} successfully.`,
+      );
+      await fetchTab();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Geocoding failed");
+    } finally {
+      setGeocodeBusy(false);
+    }
+  };
+
+  const openLocationEditor = (v: VenueAdminRow) => {
+    setActionErr("");
+    setEditingVenueId(v.id);
+    setManualLat(v.latitude != null ? String(v.latitude) : "");
+    setManualLng(v.longitude != null ? String(v.longitude) : "");
+  };
+
+  const saveManualVenueLocation = async (venueId: string) => {
+    const lat = parseFloat(manualLat.trim());
+    const lng = parseFloat(manualLng.trim());
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setActionErr("Enter valid latitude and longitude numbers.");
+      return;
+    }
+    setActionErr("");
+    setManualSaving(true);
+    try {
+      const res = await fetch("/api/admin/venues", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId, latitude: lat, longitude: lng }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        setActionErr(json.error || "Save failed");
+        return;
+      }
+      setEditingVenueId(null);
+      await fetchTab();
+    } finally {
+      setManualSaving(false);
+    }
   };
 
   const toggleUserAdmin = async (uid: string, next: boolean) => {
@@ -969,15 +1050,43 @@ export default function AdminClient() {
 
         {tab === "venues" ? (
           <section className="mt-8 overflow-x-auto">
+            <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="text-sm text-zinc-400">
+                <span className="font-semibold text-zinc-200">{venuesMissingCoords}</span> venue
+                {venuesMissingCoords === 1 ? "" : "s"} missing coordinates
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={geocodeBusy || venuesMissingCoords === 0 || dataLoading}
+                  onClick={() => void runGeocodeVenues()}
+                  className={`${CLASSES.btnPrimarySm} disabled:cursor-not-allowed disabled:opacity-40`}
+                >
+                  {geocodeBusy ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--ml-gold)] border-t-transparent"
+                        aria-hidden
+                      />
+                      Auto-geocoding…
+                    </span>
+                  ) : (
+                    "Auto-geocode venues"
+                  )}
+                </button>
+                {geocodeMsg ? <p className="text-sm text-emerald-400/90">{geocodeMsg}</p> : null}
+              </div>
+            </div>
             {dataLoading ? (
               <p className="text-sm text-zinc-500">Loading…</p>
             ) : (
-              <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[860px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-white/10 text-[10px] uppercase tracking-wider text-zinc-500">
                     <th className="py-3 pr-4">Name</th>
                     <th className="py-3 pr-4">City</th>
                     <th className="py-3 pr-4">Type</th>
+                    <th className="py-3 pr-4">Coords</th>
                     <th className="py-3 pr-4">Submitted</th>
                     <th className="py-3 pr-4">Actions</th>
                     <th className="py-3">View</th>
@@ -985,38 +1094,110 @@ export default function AdminClient() {
                 </thead>
                 <tbody>
                   {venues.map((v) => (
-                    <tr key={v.id} className="border-b border-white/5">
-                      <td className="py-3 pr-4 font-medium text-zinc-200">{v.name || "—"}</td>
-                      <td className="py-3 pr-4 text-zinc-400">{v.city || "—"}</td>
-                      <td className="py-3 pr-4 text-zinc-400">{v.venue_type || "—"}</td>
-                      <td className="py-3 pr-4 text-zinc-500">{fmtShort(v.created_at)}</td>
-                      <td className="py-3 pr-4">
-                        <div className="flex flex-wrap gap-2">
+                    <Fragment key={v.id}>
+                      <tr className="border-b border-white/5">
+                        <td className="py-3 pr-4 font-medium text-zinc-200">{v.name || "—"}</td>
+                        <td className="py-3 pr-4 text-zinc-400">{v.city || "—"}</td>
+                        <td className="py-3 pr-4 text-zinc-400">{v.venue_type || "—"}</td>
+                        <td className="py-3 pr-4 text-xs text-zinc-500">
+                          {v.latitude != null && v.longitude != null ? (
+                            <span className="font-mono text-zinc-400">
+                              {Number(v.latitude).toFixed(4)}, {Number(v.longitude).toFixed(4)}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-600">—</span>
+                          )}
                           <button
                             type="button"
-                            onClick={() => void venueDecision(v.id, "approve")}
-                            className="text-xs font-semibold text-emerald-400 hover:underline"
+                            onClick={() => openLocationEditor(v)}
+                            className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] hover:underline"
                           >
-                            Approve
+                            Set location
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => void venueDecision(v.id, "reject")}
-                            className="text-xs font-semibold text-red-400 hover:underline"
+                        </td>
+                        <td className="py-3 pr-4 text-zinc-500">{fmtShort(v.created_at)}</td>
+                        <td className="py-3 pr-4">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void venueDecision(v.id, "approve")}
+                              className="text-xs font-semibold text-emerald-400 hover:underline"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void venueDecision(v.id, "reject")}
+                              className="text-xs font-semibold text-red-400 hover:underline"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-3">
+                          <Link
+                            href={`/venues/${encodeURIComponent(v.id)}`}
+                            className="text-xs text-zinc-400 hover:text-[var(--ml-gold)]"
                           >
-                            Reject
-                          </button>
-                        </div>
-                      </td>
-                      <td className="py-3">
-                        <Link
-                          href={`/venues/${encodeURIComponent(v.id)}`}
-                          className="text-xs text-zinc-400 hover:text-[var(--ml-gold)]"
-                        >
-                          View
-                        </Link>
-                      </td>
-                    </tr>
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                      {editingVenueId === v.id ? (
+                        <tr className="border-b border-white/5 bg-white/[0.02]">
+                          <td colSpan={7} className="px-4 py-4">
+                            <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                              Manual coordinates
+                            </p>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                              <label className="flex min-w-[140px] flex-col gap-1 text-xs text-zinc-500">
+                                Latitude
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={manualLat}
+                                  onChange={(e) => setManualLat(e.target.value)}
+                                  className="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                  placeholder="e.g. 34.0983"
+                                />
+                              </label>
+                              <label className="flex min-w-[140px] flex-col gap-1 text-xs text-zinc-500">
+                                Longitude
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={manualLng}
+                                  onChange={(e) => setManualLng(e.target.value)}
+                                  className="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                  placeholder="e.g. -118.3267"
+                                />
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  disabled={manualSaving}
+                                  onClick={() => void saveManualVenueLocation(v.id)}
+                                  className={CLASSES.btnPrimarySm}
+                                >
+                                  {manualSaving ? "Saving…" : "Save"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={manualSaving}
+                                  onClick={() => {
+                                    setEditingVenueId(null);
+                                    setActionErr("");
+                                  }}
+                                  className={CLASSES.btnSecondary}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>

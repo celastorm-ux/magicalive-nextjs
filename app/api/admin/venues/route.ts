@@ -10,7 +10,7 @@ export async function GET() {
   }
   const { data, error } = await ctx.db
     .from("venues")
-    .select("id, name, city, state, venue_type, created_at, is_verified")
+    .select("id, name, city, state, venue_type, created_at, is_verified, latitude, longitude")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -35,6 +35,25 @@ export async function PATCH(request: Request) {
   }
   const rec = body as Record<string, unknown>;
   const venueId = typeof rec.venueId === "string" ? rec.venueId.trim() : "";
+
+  if (venueId && rec.latitude !== undefined && rec.longitude !== undefined) {
+    const lat =
+      typeof rec.latitude === "number" ? rec.latitude : parseFloat(String(rec.latitude));
+    const lng =
+      typeof rec.longitude === "number" ? rec.longitude : parseFloat(String(rec.longitude));
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return NextResponse.json({ ok: false, error: "Invalid latitude or longitude" }, { status: 400 });
+    }
+    const { error } = await ctx.db
+      .from("venues")
+      .update({ latitude: lat, longitude: lng })
+      .eq("id", venueId);
+    if (error) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   const decision = rec.decision === "approve" || rec.decision === "reject" ? rec.decision : null;
   if (!venueId || !decision) {
     return NextResponse.json({ ok: false, error: "venueId and decision required" }, { status: 400 });
