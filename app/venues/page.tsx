@@ -6,8 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CLASSES } from "@/lib/constants";
 import {
   countriesForPicker,
+  countryUsesStatePicker,
   getCitiesForCountry,
-  rowCityMatchesFilter,
+  getCitiesForState,
+  getStatesForCountry,
+  rowLocationMatchesFilter,
 } from "@/lib/locations";
 import { supabase } from "@/lib/supabase";
 
@@ -56,14 +59,6 @@ type Venue = VenueRow & {
 const ALL_COUNTRIES = "All countries";
 const ALL_CITIES = "All cities";
 const ALL_STATES = "All states";
-
-function sameState(rowState: string | null | undefined, selected: string): boolean {
-  const a = (rowState || "").trim();
-  const b = selected.trim();
-  if (!a || !b) return false;
-  if (a.length === 2 && b.length === 2) return a.toUpperCase() === b.toUpperCase();
-  return a === b;
-}
 
 const CAPS = ["Any capacity", "Under 300", "300-1000", "1000+"] as const;
 
@@ -160,24 +155,25 @@ export default function VenuesPage() {
 
   const countryFilterOptions = useMemo(() => [ALL_COUNTRIES, ...countriesForPicker()], []);
 
+  const showStateFilter =
+    filterCountry !== ALL_COUNTRIES && countryUsesStatePicker(filterCountry);
+
   const stateFilterOptions = useMemo(() => {
-    const states = [...new Set(venues.map((v) => v.state?.trim()).filter(Boolean))] as string[];
-    return [ALL_STATES, ...states.sort((a, b) => a.localeCompare(b))];
-  }, [venues]);
+    if (filterCountry === ALL_COUNTRIES) return [ALL_STATES];
+    if (!countryUsesStatePicker(filterCountry)) return [ALL_STATES];
+    return [ALL_STATES, ...getStatesForCountry(filterCountry)];
+  }, [filterCountry]);
 
   const cityFilterOptions = useMemo(() => {
-    if (filterState !== ALL_STATES) {
-      const cities = new Set<string>();
-      for (const v of venues) {
-        if (!sameState(v.state, filterState)) continue;
-        const c = v.city?.trim();
-        if (c) cities.add(c);
-      }
-      return [ALL_CITIES, ...Array.from(cities).sort((a, b) => a.localeCompare(b))];
-    }
     if (filterCountry === ALL_COUNTRIES) return [ALL_CITIES];
-    return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
-  }, [venues, filterState, filterCountry]);
+    if (!countryUsesStatePicker(filterCountry)) {
+      return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
+    }
+    if (filterState === ALL_STATES) {
+      return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
+    }
+    return [ALL_CITIES, ...getCitiesForState(filterCountry, filterState)];
+  }, [filterCountry, filterState]);
 
   const typeOptions = useMemo(() => {
     const set = new Set<string>();
@@ -189,11 +185,14 @@ export default function VenuesPage() {
   }, [venues]);
 
   useEffect(() => {
-    if (filterState !== ALL_STATES && !stateFilterOptions.includes(filterState)) {
+    if (!showStateFilter && filterState !== ALL_STATES) {
+      setFilterState(ALL_STATES);
+      setFilterCity(ALL_CITIES);
+    } else if (filterState !== ALL_STATES && !stateFilterOptions.includes(filterState)) {
       setFilterState(ALL_STATES);
       setFilterCity(ALL_CITIES);
     }
-  }, [filterState, stateFilterOptions]);
+  }, [showStateFilter, filterState, stateFilterOptions]);
 
   useEffect(() => {
     if (filterCity !== ALL_CITIES && !cityFilterOptions.includes(filterCity)) {
@@ -228,23 +227,19 @@ export default function VenuesPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return venues.filter((v) => {
-      const cityStr = v.city?.trim() || "";
-      if (filterState !== ALL_STATES && !sameState(v.state, filterState)) return false;
       if (
-        filterCity !== ALL_CITIES ||
-        filterCountry !== ALL_COUNTRIES
+        !rowLocationMatchesFilter(
+          v.city,
+          v.state,
+          filterCountry,
+          filterState,
+          filterCity,
+          ALL_COUNTRIES,
+          ALL_STATES,
+          ALL_CITIES,
+        )
       ) {
-        if (
-          !rowCityMatchesFilter(
-            cityStr || null,
-            filterCountry,
-            filterCity,
-            ALL_COUNTRIES,
-            ALL_CITIES,
-          )
-        ) {
-          return false;
-        }
+        return false;
       }
       if (vtype !== "Any type" && (v.venue_type || "").trim() !== vtype) return false;
       if (!capacityMatches(v.capacity, cap)) return false;
@@ -257,9 +252,7 @@ export default function VenuesPage() {
     const n = filtered.length;
     const word = n === 1 ? "venue" : "venues";
     if (filterState !== ALL_STATES) {
-      const st =
-        filterState.length === 2 ? filterState.toUpperCase() : filterState;
-      return `${n} ${word} in ${st}`;
+      return `${n} ${word} in ${filterState}`;
     }
     return `${n} ${word}`;
   }, [filtered.length, filterState]);
@@ -300,33 +293,17 @@ export default function VenuesPage() {
         <p className="mt-3 text-sm text-zinc-400 sm:text-base">{headerSubtitle}</p>
 
         <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-3">
-            <div className="relative min-w-0 flex-1">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
-                ⌕
-              </span>
-              <input
-                type="search"
-                placeholder="Search venues, cities, types…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className={`${CLASSES.inputSearch} w-full pl-9`}
-              />
-            </div>
-            <select
-              className={`${selectClass} w-full sm:w-auto sm:min-w-[140px] sm:flex-initial sm:shrink-0`}
-              value={filterState}
-              onChange={(e) => {
-                setFilterState(e.target.value);
-                setFilterCity(ALL_CITIES);
-              }}
-            >
-              {stateFilterOptions.map((s) => (
-                <option key={s} value={s} className="bg-zinc-900">
-                  {s === ALL_STATES ? s : s.length === 2 ? s.toUpperCase() : s}
-                </option>
-              ))}
-            </select>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
+              ⌕
+            </span>
+            <input
+              type="search"
+              placeholder="Search venues, cities, types…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={`${CLASSES.inputSearch} w-full pl-9`}
+            />
           </div>
           <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
             <select
@@ -334,6 +311,7 @@ export default function VenuesPage() {
               value={filterCountry}
               onChange={(e) => {
                 setFilterCountry(e.target.value);
+                setFilterState(ALL_STATES);
                 setFilterCity(ALL_CITIES);
               }}
             >
@@ -343,6 +321,22 @@ export default function VenuesPage() {
                 </option>
               ))}
             </select>
+            {showStateFilter ? (
+              <select
+                className={selectClass}
+                value={filterState}
+                onChange={(e) => {
+                  setFilterState(e.target.value);
+                  setFilterCity(ALL_CITIES);
+                }}
+              >
+                {stateFilterOptions.map((s) => (
+                  <option key={s} value={s} className="bg-zinc-900">
+                    {s}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <select
               className={selectClass}
               value={filterCity}

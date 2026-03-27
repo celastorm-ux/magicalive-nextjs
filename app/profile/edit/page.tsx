@@ -78,6 +78,7 @@ export default function EditProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [handle, setHandle] = useState("");
   const [locCountry, setLocCountry] = useState("");
+  const [locState, setLocState] = useState("");
   const [locCity, setLocCity] = useState("");
   const [age, setAge] = useState("");
   const [shortBio, setShortBio] = useState("");
@@ -126,6 +127,7 @@ export default function EditProfilePage() {
       setHandle(p.handle || "");
       const parsed = parseStoredLocation(p.location);
       setLocCountry(parsed.country);
+      setLocState(parsed.state);
       setLocCity(parsed.city);
       setAge(p.age != null ? String(p.age) : "");
       setShortBio(p.short_bio || "");
@@ -269,7 +271,7 @@ export default function EditProfilePage() {
       handle: handle.replace(/^@/, "").trim() || null,
       location:
         locCountry.trim() && locCity.trim()
-          ? formatLocation(locCity, locCountry)
+          ? formatLocation(locCity, locState, locCountry)
           : locCity.trim()
             ? locCity.trim()
             : null,
@@ -494,8 +496,10 @@ export default function EditProfilePage() {
             <LocationPicker
               className="mt-2"
               selectedCountry={locCountry}
+              selectedState={locState}
               selectedCity={locCity}
               onCountryChange={setLocCountry}
+              onStateChange={setLocState}
               onCityChange={setLocCity}
             />
           </div>

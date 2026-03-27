@@ -6,9 +6,13 @@ import { useEffect, useMemo, useState } from "react";
 import { CLASSES } from "@/lib/constants";
 import {
   countriesForPicker,
+  countryUsesStatePicker,
   findCountryForCity,
+  findStateForCity,
   getCitiesForCountry,
-  rowCityMatchesFilter,
+  getCitiesForState,
+  getStatesForCountry,
+  rowLocationMatchesFilter,
 } from "@/lib/locations";
 import { supabase } from "@/lib/supabase";
 
@@ -38,6 +42,7 @@ type EventRow = {
 
 const ALL_COUNTRIES = "All countries";
 const ALL_CITIES = "All cities";
+const ALL_STATES = "All states";
 
 const DATE_FILTERS = ["Any date", "This week", "This month"] as const;
 const LECTURE_SKILL_FILTERS = ["All levels", "Beginner", "Intermediate", "Advanced"] as const;
@@ -95,6 +100,7 @@ export default function EventsPage() {
   const [catalogTab, setCatalogTab] = useState<"shows" | "lectures">("shows");
   const [search, setSearch] = useState("");
   const [filterCountry, setFilterCountry] = useState(ALL_COUNTRIES);
+  const [filterState, setFilterState] = useState(ALL_STATES);
   const [filterCity, setFilterCity] = useState(ALL_CITIES);
   const [style, setStyle] = useState("Any style");
   const [dateFilter, setDateFilter] = useState<(typeof DATE_FILTERS)[number]>("Any date");
@@ -108,7 +114,16 @@ export default function EventsPage() {
   useEffect(() => {
     const c = searchParams.get("city")?.trim();
     const co = searchParams.get("country")?.trim();
+    const st = searchParams.get("state")?.trim();
     if (co) setFilterCountry(co);
+    const country = co || ALL_COUNTRIES;
+    if (st) {
+      setFilterState(st);
+    } else if (c && country !== ALL_COUNTRIES) {
+      setFilterState(findStateForCity(c, country) || ALL_STATES);
+    } else {
+      setFilterState(ALL_STATES);
+    }
     if (c) setFilterCity(c);
     const s = searchParams.get("style")?.trim();
     if (s) setStyle(s);
@@ -146,16 +161,47 @@ export default function EventsPage() {
 
   const countryFilterOptions = useMemo(() => [ALL_COUNTRIES, ...countriesForPicker()], []);
 
+  const showStateFilter =
+    filterCountry !== ALL_COUNTRIES && countryUsesStatePicker(filterCountry);
+
+  const stateFilterOptions = useMemo(() => {
+    if (filterCountry === ALL_COUNTRIES) return [ALL_STATES];
+    if (!countryUsesStatePicker(filterCountry)) return [ALL_STATES];
+    return [ALL_STATES, ...getStatesForCountry(filterCountry)];
+  }, [filterCountry]);
+
   const cityFilterOptions = useMemo(() => {
     if (filterCountry === ALL_COUNTRIES) return [ALL_CITIES];
-    return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
-  }, [filterCountry]);
+    if (!countryUsesStatePicker(filterCountry)) {
+      return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
+    }
+    if (filterState === ALL_STATES) {
+      return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
+    }
+    return [ALL_CITIES, ...getCitiesForState(filterCountry, filterState)];
+  }, [filterCountry, filterState]);
 
   const citiesWithQuery = useMemo(() => {
     const qp = searchParams.get("city")?.trim();
     if (!qp || cityFilterOptions.includes(qp)) return cityFilterOptions;
     return [ALL_CITIES, qp, ...cityFilterOptions.filter((c) => c !== ALL_CITIES)];
   }, [cityFilterOptions, searchParams]);
+
+  useEffect(() => {
+    if (!showStateFilter && filterState !== ALL_STATES) {
+      setFilterState(ALL_STATES);
+      setFilterCity(ALL_CITIES);
+    } else if (filterState !== ALL_STATES && !stateFilterOptions.includes(filterState)) {
+      setFilterState(ALL_STATES);
+      setFilterCity(ALL_CITIES);
+    }
+  }, [showStateFilter, filterState, stateFilterOptions]);
+
+  useEffect(() => {
+    if (filterCity !== ALL_CITIES && !citiesWithQuery.includes(filterCity)) {
+      setFilterCity(ALL_CITIES);
+    }
+  }, [filterCity, citiesWithQuery]);
 
   const styles = useMemo(() => {
     const set = new Set<string>(CORE_SPECIALTY_TAGS);
@@ -192,14 +238,21 @@ export default function EventsPage() {
         if (lectureFormat === "online" && !e.is_online) return false;
         if (lectureFormat === "in_person" && e.is_online) return false;
       }
-      if (filterCity !== ALL_CITIES || filterCountry !== ALL_COUNTRIES) {
+      if (
+        filterCity !== ALL_CITIES ||
+        filterCountry !== ALL_COUNTRIES ||
+        filterState !== ALL_STATES
+      ) {
         if (isLecture(e) && e.is_online) return false;
         if (
-          !rowCityMatchesFilter(
+          !rowLocationMatchesFilter(
             e.city,
+            null,
             filterCountry,
+            filterState,
             filterCity,
             ALL_COUNTRIES,
+            ALL_STATES,
             ALL_CITIES,
           )
         ) {
@@ -222,6 +275,7 @@ export default function EventsPage() {
     events,
     search,
     filterCountry,
+    filterState,
     filterCity,
     style,
     dateFilter,
@@ -299,6 +353,7 @@ export default function EventsPage() {
             onClick={() => {
               setCatalogTab("shows");
               setFilterCountry(ALL_COUNTRIES);
+              setFilterState(ALL_STATES);
               setFilterCity(ALL_CITIES);
             }}
             className={`border-b-2 px-4 py-3 text-sm font-semibold transition ${
@@ -314,6 +369,7 @@ export default function EventsPage() {
             onClick={() => {
               setCatalogTab("lectures");
               setFilterCountry(ALL_COUNTRIES);
+              setFilterState(ALL_STATES);
               setFilterCity(ALL_CITIES);
             }}
             className={`border-b-2 px-4 py-3 text-sm font-semibold transition ${
@@ -343,6 +399,7 @@ export default function EventsPage() {
               value={filterCountry}
               onChange={(e) => {
                 setFilterCountry(e.target.value);
+                setFilterState(ALL_STATES);
                 setFilterCity(ALL_CITIES);
               }}
             >
@@ -352,6 +409,22 @@ export default function EventsPage() {
                 </option>
               ))}
             </select>
+            {showStateFilter ? (
+              <select
+                className={selectClass}
+                value={filterState}
+                onChange={(e) => {
+                  setFilterState(e.target.value);
+                  setFilterCity(ALL_CITIES);
+                }}
+              >
+                {stateFilterOptions.map((s) => (
+                  <option key={s} value={s} className="bg-zinc-900">
+                    {s}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <select
               className={selectClass}
               value={filterCity}
@@ -677,9 +750,12 @@ export default function EventsPage() {
                         if (filterCity === c) {
                           setFilterCity(ALL_CITIES);
                           setFilterCountry(ALL_COUNTRIES);
+                          setFilterState(ALL_STATES);
                         } else {
+                          const nat = findCountryForCity(c) || ALL_COUNTRIES;
                           setFilterCity(c);
-                          setFilterCountry(findCountryForCity(c) || ALL_COUNTRIES);
+                          setFilterCountry(nat);
+                          setFilterState(findStateForCity(c, nat) || ALL_STATES);
                         }
                       }}
                       className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${

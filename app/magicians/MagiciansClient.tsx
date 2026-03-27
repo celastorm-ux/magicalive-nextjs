@@ -7,7 +7,11 @@ import { useUser } from "@clerk/nextjs";
 import { CLASSES } from "@/lib/constants";
 import {
   countriesForPicker,
+  countryUsesStatePicker,
+  findStateForCity,
   getCitiesForCountry,
+  getCitiesForState,
+  getStatesForCountry,
   profileLocationMatchesFilter,
 } from "@/lib/locations";
 import {
@@ -43,6 +47,7 @@ type Magician = {
 
 const ALL_COUNTRIES = "All countries";
 const ALL_CITIES = "All cities";
+const ALL_STATES = "All states";
 
 const STYLES = [
   "Any style",
@@ -93,6 +98,7 @@ export default function MagiciansClient() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [filterCountry, setFilterCountry] = useState<string>(ALL_COUNTRIES);
+  const [filterState, setFilterState] = useState<string>(ALL_STATES);
   const [filterCity, setFilterCity] = useState<string>(ALL_CITIES);
   const [style, setStyle] = useState<string>(STYLES[0]);
   const [onlineOnly, setOnlineOnly] = useState(false);
@@ -108,9 +114,19 @@ export default function MagiciansClient() {
     const styleParam = searchParams.get("style")?.trim();
     const cityParam = searchParams.get("city")?.trim();
     const countryParam = searchParams.get("country")?.trim();
+    const stateParam = searchParams.get("state")?.trim();
     setStyle(styleParam || STYLES[0]);
     setSidebarTag(styleParam || null);
-    setFilterCountry(countryParam || ALL_COUNTRIES);
+    const co = countryParam || ALL_COUNTRIES;
+    setFilterCountry(co);
+    if (stateParam) {
+      setFilterState(stateParam);
+    } else if (cityParam && co !== ALL_COUNTRIES) {
+      const st = findStateForCity(cityParam, co);
+      setFilterState(st || ALL_STATES);
+    } else {
+      setFilterState(ALL_STATES);
+    }
     setFilterCity(cityParam || ALL_CITIES);
   }, [searchParams]);
 
@@ -283,17 +299,47 @@ export default function MagiciansClient() {
 
   const countryFilterOptions = useMemo(() => [ALL_COUNTRIES, ...countriesForPicker()], []);
 
+  const showStateFilter =
+    filterCountry !== ALL_COUNTRIES && countryUsesStatePicker(filterCountry);
+
+  const stateFilterOptions = useMemo(() => {
+    if (filterCountry === ALL_COUNTRIES) return [ALL_STATES];
+    if (!countryUsesStatePicker(filterCountry)) return [ALL_STATES];
+    return [ALL_STATES, ...getStatesForCountry(filterCountry)];
+  }, [filterCountry]);
+
   const cityFilterOptions = useMemo(() => {
     if (filterCountry === ALL_COUNTRIES) return [ALL_CITIES];
-    const list = getCitiesForCountry(filterCountry);
-    return [ALL_CITIES, ...list];
-  }, [filterCountry]);
+    if (!countryUsesStatePicker(filterCountry)) {
+      return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
+    }
+    if (filterState === ALL_STATES) {
+      return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
+    }
+    return [ALL_CITIES, ...getCitiesForState(filterCountry, filterState)];
+  }, [filterCountry, filterState]);
 
   const cityOptionsWithQuery = useMemo(() => {
     const qp = searchParams.get("city")?.trim();
     if (!qp || cityFilterOptions.includes(qp)) return cityFilterOptions;
     return [ALL_CITIES, qp, ...cityFilterOptions.filter((c) => c !== ALL_CITIES)];
   }, [cityFilterOptions, searchParams]);
+
+  useEffect(() => {
+    if (!showStateFilter && filterState !== ALL_STATES) {
+      setFilterState(ALL_STATES);
+      setFilterCity(ALL_CITIES);
+    } else if (filterState !== ALL_STATES && !stateFilterOptions.includes(filterState)) {
+      setFilterState(ALL_STATES);
+      setFilterCity(ALL_CITIES);
+    }
+  }, [showStateFilter, filterState, stateFilterOptions]);
+
+  useEffect(() => {
+    if (filterCity !== ALL_CITIES && !cityOptionsWithQuery.includes(filterCity)) {
+      setFilterCity(ALL_CITIES);
+    }
+  }, [filterCity, cityOptionsWithQuery]);
 
   const styleOptions = useMemo(() => {
     const set = new Set<string>(CORE_SPECIALTY_TAGS);
@@ -340,8 +386,10 @@ export default function MagiciansClient() {
         !profileLocationMatchesFilter(
           m.location,
           filterCountry,
+          filterState,
           filterCity,
           ALL_COUNTRIES,
+          ALL_STATES,
           ALL_CITIES,
         )
       ) {
@@ -361,7 +409,7 @@ export default function MagiciansClient() {
       }
       return true;
     });
-  }, [search, filterCountry, filterCity, style, onlineOnly, sidebarTag, magicians]);
+  }, [search, filterCountry, filterState, filterCity, style, onlineOnly, sidebarTag, magicians]);
 
   const toggleSidebarTag = (tag: string) => {
     setSidebarTag((t) => {
@@ -374,6 +422,7 @@ export default function MagiciansClient() {
   const hasActiveFilters =
     search.trim().length > 0 ||
     filterCountry !== ALL_COUNTRIES ||
+    filterState !== ALL_STATES ||
     filterCity !== ALL_CITIES ||
     style !== STYLES[0] ||
     Boolean(availParam) ||
@@ -383,6 +432,7 @@ export default function MagiciansClient() {
   const clearAllFilters = () => {
     setSearch("");
     setFilterCountry(ALL_COUNTRIES);
+    setFilterState(ALL_STATES);
     setFilterCity(ALL_CITIES);
     setStyle(STYLES[0]);
     setOnlineOnly(false);
@@ -434,6 +484,7 @@ export default function MagiciansClient() {
               value={filterCountry}
               onChange={(e) => {
                 setFilterCountry(e.target.value);
+                setFilterState(ALL_STATES);
                 setFilterCity(ALL_CITIES);
               }}
             >
@@ -443,6 +494,22 @@ export default function MagiciansClient() {
                 </option>
               ))}
             </select>
+            {showStateFilter ? (
+              <select
+                className={selectClass}
+                value={filterState}
+                onChange={(e) => {
+                  setFilterState(e.target.value);
+                  setFilterCity(ALL_CITIES);
+                }}
+              >
+                {stateFilterOptions.map((s) => (
+                  <option key={s} value={s} className="bg-zinc-900">
+                    {s}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <select
               className={selectClass}
               value={filterCity}

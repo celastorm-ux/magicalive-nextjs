@@ -15,7 +15,7 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { MAGICIAN_AVAILABLE_FOR_OPTIONS } from "@/lib/available-for-booking";
 import { CLASSES } from "@/lib/constants";
 import { FoundingMemberSpots } from "@/components/FoundingMemberSpots";
-import { formatLocation } from "@/lib/locations";
+import { countryUsesStatePicker, formatLocation } from "@/lib/locations";
 import { generateFanHandle } from "@/lib/generate-fan-handle";
 import { supabase } from "@/lib/supabase";
 import pkg from "../../package.json";
@@ -112,6 +112,7 @@ export default function CreateProfileClient() {
   const [magAvatarFile, setMagAvatarFile] = useState<File | null>(null);
   const [magAvatarPreview, setMagAvatarPreview] = useState<string | null>(null);
   const [magLocCountry, setMagLocCountry] = useState("");
+  const [magLocState, setMagLocState] = useState("");
   const [magLocCity, setMagLocCity] = useState("");
   const [handle, setHandle] = useState("");
   const [age, setAge] = useState("");
@@ -392,7 +393,7 @@ export default function CreateProfileClient() {
         display_name: displayName.trim(),
         handle: handle.replace(/^@/, "").trim(),
         email: emailForRow,
-        location: formatLocation(magLocCity, magLocCountry).trim() || null,
+        location: formatLocation(magLocCity, magLocState, magLocCountry).trim() || null,
         age: Number.isFinite(ageNum) ? ageNum : null,
         short_bio: shortBio.trim(),
         full_bio: fullBio.trim(),
@@ -423,6 +424,7 @@ export default function CreateProfileClient() {
       displayName,
       handle,
       magLocCity,
+      magLocState,
       magLocCountry,
       shortBio,
       fullBio,
@@ -536,7 +538,7 @@ export default function CreateProfileClient() {
   );
 
   const previewName = displayName.trim() || "Your name";
-  const previewLoc = formatLocation(magLocCity, magLocCountry).trim() || "Your location";
+  const previewLoc = formatLocation(magLocCity, magLocState, magLocCountry).trim() || "Your location";
   const previewTagList =
     selectedTags.size > 0 ? [...selectedTags].slice(0, 4) : ["Your tags"];
 
@@ -867,8 +869,10 @@ export default function CreateProfileClient() {
           <div className="mb-[18px]">
             <LocationPicker
               selectedCountry={magLocCountry}
+              selectedState={magLocState}
               selectedCity={magLocCity}
               onCountryChange={setMagLocCountry}
+              onStateChange={setMagLocState}
               onCityChange={setMagLocCity}
               required
             />
@@ -1498,7 +1502,9 @@ export default function CreateProfileClient() {
                   (flow === "magician" && mStep === 1 && !magTermsAccepted) ||
                   (flow === "magician" &&
                     mStep === 2 &&
-                    (!magLocCountry.trim() || !magLocCity.trim()))
+                    (!magLocCountry.trim() ||
+                      !magLocCity.trim() ||
+                      (countryUsesStatePicker(magLocCountry) && !magLocState.trim())))
                 }
                 className={`${CLASSES.btnPrimary} px-7 py-2.5 text-xs uppercase tracking-wider disabled:opacity-60`}
               >

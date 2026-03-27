@@ -7,9 +7,12 @@ import { SearchBar } from "@/components/SearchBar";
 import { CLASSES } from "@/lib/constants";
 import {
   countriesForPicker,
+  countryUsesStatePicker,
   getCitiesForCountry,
+  getCitiesForState,
+  getStatesForCountry,
   profileLocationMatchesFilter,
-  rowCityMatchesFilter,
+  rowLocationMatchesFilter,
 } from "@/lib/locations";
 import { formatLastSeen } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -67,6 +70,7 @@ type VenueResult = {
 
 const ALL_COUNTRIES = "All countries";
 const ALL_CITIES = "All cities";
+const ALL_STATES = "All states";
 
 const searchSelectClass =
   "min-w-0 cursor-pointer rounded-2xl border border-white/10 bg-white/5 py-2.5 pl-3 pr-8 text-sm text-zinc-100 outline-none transition focus:border-[var(--ml-gold)]/50 sm:min-w-[140px]";
@@ -105,13 +109,30 @@ export default function SearchPageClient() {
   const [shows, setShows] = useState<ShowResult[]>([]);
   const [venues, setVenues] = useState<VenueResult[]>([]);
   const [filterCountry, setFilterCountry] = useState(ALL_COUNTRIES);
+  const [filterState, setFilterState] = useState(ALL_STATES);
   const [filterCity, setFilterCity] = useState(ALL_CITIES);
 
   const countryFilterOptions = useMemo(() => [ALL_COUNTRIES, ...countriesForPicker()], []);
+
+  const showStateFilter =
+    filterCountry !== ALL_COUNTRIES && countryUsesStatePicker(filterCountry);
+
+  const stateFilterOptions = useMemo(() => {
+    if (filterCountry === ALL_COUNTRIES) return [ALL_STATES];
+    if (!countryUsesStatePicker(filterCountry)) return [ALL_STATES];
+    return [ALL_STATES, ...getStatesForCountry(filterCountry)];
+  }, [filterCountry]);
+
   const cityFilterOptions = useMemo(() => {
     if (filterCountry === ALL_COUNTRIES) return [ALL_CITIES];
-    return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
-  }, [filterCountry]);
+    if (!countryUsesStatePicker(filterCountry)) {
+      return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
+    }
+    if (filterState === ALL_STATES) {
+      return [ALL_CITIES, ...getCitiesForCountry(filterCountry)];
+    }
+    return [ALL_CITIES, ...getCitiesForState(filterCountry, filterState)];
+  }, [filterCountry, filterState]);
 
   useEffect(() => {
     console.log("URL query param:", query);
@@ -184,34 +205,70 @@ export default function SearchPageClient() {
     void runSearch();
   }, [query, searchQuery]);
 
+  useEffect(() => {
+    if (!showStateFilter && filterState !== ALL_STATES) {
+      setFilterState(ALL_STATES);
+      setFilterCity(ALL_CITIES);
+    } else if (filterState !== ALL_STATES && !stateFilterOptions.includes(filterState)) {
+      setFilterState(ALL_STATES);
+      setFilterCity(ALL_CITIES);
+    }
+  }, [showStateFilter, filterState, stateFilterOptions]);
+
+  useEffect(() => {
+    if (filterCity !== ALL_CITIES && !cityFilterOptions.includes(filterCity)) {
+      setFilterCity(ALL_CITIES);
+    }
+  }, [filterCity, cityFilterOptions]);
+
   const filteredMagicians = useMemo(
     () =>
       magicians.filter((m) =>
         profileLocationMatchesFilter(
           m.location || "",
           filterCountry,
+          filterState,
           filterCity,
           ALL_COUNTRIES,
+          ALL_STATES,
           ALL_CITIES,
         ),
       ),
-    [magicians, filterCountry, filterCity],
+    [magicians, filterCountry, filterState, filterCity],
   );
 
   const filteredShows = useMemo(
     () =>
       shows.filter((s) =>
-        rowCityMatchesFilter(s.city, filterCountry, filterCity, ALL_COUNTRIES, ALL_CITIES),
+        rowLocationMatchesFilter(
+          s.city,
+          null,
+          filterCountry,
+          filterState,
+          filterCity,
+          ALL_COUNTRIES,
+          ALL_STATES,
+          ALL_CITIES,
+        ),
       ),
-    [shows, filterCountry, filterCity],
+    [shows, filterCountry, filterState, filterCity],
   );
 
   const filteredVenues = useMemo(
     () =>
       venues.filter((v) =>
-        rowCityMatchesFilter(v.city, filterCountry, filterCity, ALL_COUNTRIES, ALL_CITIES),
+        rowLocationMatchesFilter(
+          v.city,
+          v.state,
+          filterCountry,
+          filterState,
+          filterCity,
+          ALL_COUNTRIES,
+          ALL_STATES,
+          ALL_CITIES,
+        ),
       ),
-    [venues, filterCountry, filterCity],
+    [venues, filterCountry, filterState, filterCity],
   );
 
   const total = useMemo(
@@ -240,6 +297,7 @@ export default function SearchPageClient() {
             value={filterCountry}
             onChange={(e) => {
               setFilterCountry(e.target.value);
+              setFilterState(ALL_STATES);
               setFilterCity(ALL_CITIES);
             }}
           >
@@ -249,6 +307,22 @@ export default function SearchPageClient() {
               </option>
             ))}
           </select>
+          {showStateFilter ? (
+            <select
+              className={searchSelectClass}
+              value={filterState}
+              onChange={(e) => {
+                setFilterState(e.target.value);
+                setFilterCity(ALL_CITIES);
+              }}
+            >
+              {stateFilterOptions.map((s) => (
+                <option key={s} value={s} className="bg-zinc-900">
+                  {s}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <select
             className={searchSelectClass}
             value={filterCity}
