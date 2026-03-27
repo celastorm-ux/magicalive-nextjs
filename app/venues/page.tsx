@@ -357,9 +357,11 @@ export default function VenuesPage() {
             </Link>
           </div>
         ) : (
-          <div className="mt-10 flex flex-col gap-8 xl:flex-row xl:items-stretch">
-            {/* Map */}
-            <div className="relative h-[320px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#0a090c] xl:h-auto xl:min-h-[560px] xl:w-[48%]">
+          <div className="mt-10 flex w-full flex-col">
+            {/* Map — full width, horizontal */}
+            <div
+              className="relative mb-8 h-[280px] w-full shrink-0 overflow-hidden rounded-[3px] border-[0.5px] border-[rgba(201,168,76,0.2)] bg-[#0a090c] sm:h-[400px]"
+            >
               <VenueMap
                 venues={filtered}
                 activeVenueId={selectedId}
@@ -367,9 +369,43 @@ export default function VenuesPage() {
               />
             </div>
 
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-8 lg:flex-row">
-              {/* List */}
-              <div className="min-h-0 min-w-0 flex-1 lg:max-h-[640px] lg:overflow-y-auto lg:pr-2">
+            {/* By city + venue grid */}
+            <div className="flex w-full min-w-0 flex-col gap-8">
+              <aside className="w-full shrink-0">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                  By city
+                </h3>
+                <ul className="rounded-2xl border border-white/10 bg-white/[0.03] p-2">
+                  {cityOptions
+                    .filter((c) => c !== ALL_CITIES)
+                    .map((c) => (
+                      <li key={c}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (filterCity === c) {
+                              setFilterCity(ALL_CITIES);
+                              setFilterCountry(ALL_COUNTRIES);
+                            } else {
+                              setFilterCity(c);
+                              setFilterCountry(findCountryForCity(c) || ALL_COUNTRIES);
+                            }
+                          }}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                            filterCity === c
+                              ? "bg-[var(--ml-gold)]/10 text-[var(--ml-gold)]"
+                              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                          }`}
+                        >
+                          <span>{c}</span>
+                          <span className="text-xs text-zinc-500">{cityCounts[c] ?? 0}</span>
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              </aside>
+
+              <div className="min-w-0 w-full">
                 {filtered.length === 0 ? (
                   <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-8 py-16 text-center">
                     <p className="ml-font-heading text-xl text-zinc-300">
@@ -393,9 +429,9 @@ export default function VenuesPage() {
                     </button>
                   </div>
                 ) : (
-                  <ul className="flex flex-col gap-5">
+                  <ul className="grid w-full max-sm:grid-cols-1 gap-4 sm:[grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
                     {filtered.map((v) => (
-                      <li key={v.id}>
+                      <li key={v.id} className="min-w-0">
                         <div
                           ref={(el) => {
                             cardRefs.current[v.id] = el;
@@ -492,41 +528,6 @@ export default function VenuesPage() {
                   </ul>
                 )}
               </div>
-
-              {/* Sidebar: cities */}
-              <aside className="w-full shrink-0 lg:w-72">
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                  By city
-                </h3>
-                <ul className="rounded-2xl border border-white/10 bg-white/[0.03] p-2">
-                  {cityOptions
-                    .filter((c) => c !== ALL_CITIES)
-                    .map((c) => (
-                      <li key={c}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (filterCity === c) {
-                              setFilterCity(ALL_CITIES);
-                              setFilterCountry(ALL_COUNTRIES);
-                            } else {
-                              setFilterCity(c);
-                              setFilterCountry(findCountryForCity(c) || ALL_COUNTRIES);
-                            }
-                          }}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                            filterCity === c
-                              ? "bg-[var(--ml-gold)]/10 text-[var(--ml-gold)]"
-                              : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-                          }`}
-                        >
-                          <span>{c}</span>
-                          <span className="text-xs text-zinc-500">{cityCounts[c] ?? 0}</span>
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-              </aside>
             </div>
           </div>
         )}
