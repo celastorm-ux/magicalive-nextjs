@@ -246,10 +246,7 @@ export default function AdminClient() {
     return articles.filter((a) => (a.status || "").toLowerCase() === articleFilter);
   }, [articles, articleFilter]);
 
-  const venuesMissingCoords = useMemo(
-    () => venues.filter((v) => v.latitude == null || v.longitude == null).length,
-    [venues],
-  );
+  const venuesMissingCoords = useMemo(() => venues.filter((v) => v.latitude == null).length, [venues]);
 
   useEffect(() => {
     if (tab === "articles" && !dataLoading && articles.length === 0) {
@@ -530,13 +527,7 @@ export default function AdminClient() {
         throw new Error(json.error || "Geocoding failed");
       }
       const n = json.geocoded ?? 0;
-      const failed = json.failed ?? 0;
-      const total = json.total ?? 0;
-      setGeocodeMsg(
-        failed > 0
-          ? `Geocoded ${n} venue${n === 1 ? "" : "s"} successfully (${failed} of ${total} could not be resolved).`
-          : `Geocoded ${n} venue${n === 1 ? "" : "s"} successfully.`,
-      );
+      setGeocodeMsg(`Geocoded ${n} venues successfully`);
       await fetchTab();
     } catch (e) {
       setActionErr(e instanceof Error ? e.message : "Geocoding failed");
@@ -1051,9 +1042,13 @@ export default function AdminClient() {
         {tab === "venues" ? (
           <section className="mt-8 overflow-x-auto">
             <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-              <div className="text-sm text-zinc-400">
-                <span className="font-semibold text-zinc-200">{venuesMissingCoords}</span> venue
-                {venuesMissingCoords === 1 ? "" : "s"} missing coordinates
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-zinc-400">
+                <p>
+                  Total venues: <span className="font-semibold text-zinc-200">{venues.length}</span>
+                </p>
+                <p>
+                  Missing coordinates: <span className="font-semibold text-zinc-200">{venuesMissingCoords}</span>
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <button
@@ -1068,10 +1063,10 @@ export default function AdminClient() {
                         className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--ml-gold)] border-t-transparent"
                         aria-hidden
                       />
-                      Auto-geocoding…
+                      Geocoding venues... this may take a minute
                     </span>
                   ) : (
-                    "Auto-geocode venues"
+                    `Auto-geocode ${venuesMissingCoords} venues`
                   )}
                 </button>
                 {geocodeMsg ? <p className="text-sm text-emerald-400/90">{geocodeMsg}</p> : null}
@@ -1100,6 +1095,12 @@ export default function AdminClient() {
                         <td className="py-3 pr-4 text-zinc-400">{v.city || "—"}</td>
                         <td className="py-3 pr-4 text-zinc-400">{v.venue_type || "—"}</td>
                         <td className="py-3 pr-4 text-xs text-zinc-500">
+                          <span
+                            className={`mr-2 inline-block h-2.5 w-2.5 rounded-full ${
+                              v.latitude != null && v.longitude != null ? "bg-emerald-400" : "bg-red-400"
+                            }`}
+                            aria-hidden
+                          />
                           {v.latitude != null && v.longitude != null ? (
                             <span className="font-mono text-zinc-400">
                               {Number(v.latitude).toFixed(4)}, {Number(v.longitude).toFixed(4)}
@@ -1107,13 +1108,15 @@ export default function AdminClient() {
                           ) : (
                             <span className="text-zinc-600">—</span>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => openLocationEditor(v)}
-                            className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] hover:underline"
-                          >
-                            Set location
-                          </button>
+                          {v.latitude == null || v.longitude == null ? (
+                            <button
+                              type="button"
+                              onClick={() => openLocationEditor(v)}
+                              className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] hover:underline"
+                            >
+                              Set location
+                            </button>
+                          ) : null}
                         </td>
                         <td className="py-3 pr-4 text-zinc-500">{fmtShort(v.created_at)}</td>
                         <td className="py-3 pr-4">
