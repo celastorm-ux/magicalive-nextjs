@@ -72,17 +72,32 @@ function normalizeShowProfile(
   return Array.isArray(profiles) ? (profiles[0] as { id: string; display_name: string | null; avatar_url: string | null } | undefined) ?? null : (profiles as { id: string; display_name: string | null; avatar_url: string | null });
 }
 
+/** Trim contact/url fields; treat non-string DB values and whitespace-only as empty. */
+function normalizeVenueContactRow(row: Record<string, unknown>): Record<string, unknown> {
+  const trimText = (v: unknown): string | null => {
+    if (v == null) return null;
+    const s = typeof v === "string" ? v : String(v);
+    const t = s.trim();
+    return t.length ? t : null;
+  };
+  return {
+    ...row,
+    website: trimText(row.website),
+    address: trimText(row.address),
+    phone: trimText(row.phone),
+  };
+}
+
 export const getVenueDetailBundle = cache(async (venueId: string): Promise<VenueDetailBundle | null> => {
   if (!venueId.trim()) return null;
   const db = await getRouteSupabase();
-  const { data: vRow, error: vErr } = await db
-    .from("venues")
-    .select("*, website, address, phone, latitude, longitude")
-    .eq("id", venueId)
-    .maybeSingle();
+  const { data: vRow, error: vErr } = await db.from("venues").select("*").eq("id", venueId).single();
   if (vErr || !vRow) {
+    console.error("[getVenueDetailBundle] venues select error:", vErr?.message ?? "no row", vErr);
     return { venue: null, upcomingShows: [], pastCount: 0, totalShows: 0, magicians: [] };
   }
+
+  const venueNormalized = normalizeVenueContactRow(vRow as Record<string, unknown>);
   const today = new Date().toISOString().split("T")[0]!;
   const { data: upcoming } = await db
     .from("shows")
@@ -123,7 +138,7 @@ export const getVenueDetailBundle = cache(async (venueId: string): Promise<Venue
   }
 
   return {
-    venue: vRow as Record<string, unknown>,
+    venue: venueNormalized,
     upcomingShows,
     pastCount: pastC ?? 0,
     totalShows: totalC ?? 0,

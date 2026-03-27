@@ -71,6 +71,14 @@ function initials(name: string) {
   return `${p[0]![0]}${p[p.length - 1]![0]}`.toUpperCase();
 }
 
+/** Handles null, "", whitespace, and odd JSON types from Supabase. */
+function trimmedText(v: unknown): string | null {
+  if (v == null) return null;
+  const s = typeof v === "string" ? v : String(v);
+  const t = s.trim();
+  return t.length ? t : null;
+}
+
 function formatShowDate(dateStr: string | null) {
   if (!dateStr) return "Date TBA";
   const d = new Date(dateStr);
@@ -109,14 +117,18 @@ export default function VenueDetailClient({
   }, [venue.city, venue.state]);
 
   const displayAddress = useMemo(() => {
-    return venue.address?.trim() || venue.full_address?.trim() || "";
+    return trimmedText(venue.address) ?? trimmedText(venue.full_address) ?? "";
   }, [venue.address, venue.full_address]);
 
   const websiteHref = useMemo(() => {
-    const w = venue.website?.trim();
+    const w = trimmedText(venue.website);
     if (!w) return null;
     return w.startsWith("http") ? w : `https://${w}`;
   }, [venue.website]);
+
+  const phoneDisplay = useMemo(() => trimmedText(venue.phone), [venue.phone]);
+
+  const addressLine = useMemo(() => trimmedText(venue.address), [venue.address]);
 
   const hasOwner = Boolean(venue.user_id?.trim());
 
@@ -344,7 +356,7 @@ export default function VenueDetailClient({
           <aside className="space-y-6">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
               <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]">
-                Contact
+                Details
               </h3>
               {venue.contact_email?.trim() ? (
                 <a
@@ -356,27 +368,68 @@ export default function VenueDetailClient({
               ) : (
                 <p className="mt-3 text-sm text-zinc-600">No contact email listed.</p>
               )}
-              {websiteHref && venue.website?.trim() ? (
-                <a
-                  href={websiteHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 block break-all text-sm text-[var(--ml-gold)]/90 transition hover:underline"
-                >
-                  {venue.website.trim()}
-                </a>
-              ) : null}
-              {displayAddress ? (
-                <p className="mt-3 text-sm leading-relaxed text-zinc-300">{displayAddress}</p>
-              ) : null}
-              {venue.phone?.trim() ? (
-                <a
-                  href={`tel:${venue.phone.replace(/\s+/g, "")}`}
-                  className="mt-3 block text-sm text-zinc-300 transition hover:text-[var(--ml-gold)]"
-                >
-                  {venue.phone.trim()}
-                </a>
-              ) : null}
+              <div className="mt-4 space-y-0">
+                {trimmedText(venue.website) && websiteHref ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      padding: "8px 0",
+                      borderBottom: "0.5px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    <span style={{ fontSize: "12px", color: "#6b6460" }}>Website</span>
+                    <a
+                      href={websiteHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontSize: "12px", color: "#c9a84c", textDecoration: "none" }}
+                    >
+                      Visit website ↗
+                    </a>
+                  </div>
+                ) : null}
+                {addressLine ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      padding: "8px 0",
+                      borderBottom: "0.5px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    <span style={{ fontSize: "12px", color: "#6b6460" }}>Address</span>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        color: "#f5f0e8",
+                        textAlign: "right",
+                        maxWidth: "200px",
+                      }}
+                    >
+                      {addressLine}
+                    </span>
+                  </div>
+                ) : null}
+                {phoneDisplay ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      padding: "8px 0",
+                      borderBottom: "0.5px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    <span style={{ fontSize: "12px", color: "#6b6460" }}>Phone</span>
+                    <a
+                      href={`tel:${phoneDisplay.replace(/\s+/g, "")}`}
+                      style={{ fontSize: "12px", color: "#c9a84c", textDecoration: "none" }}
+                    >
+                      {phoneDisplay}
+                    </a>
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">

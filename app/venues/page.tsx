@@ -104,7 +104,7 @@ export default function VenuesPage() {
       setLoading(true);
       const { data: venueRows, error: vErr } = await supabase
         .from("venues")
-        .select("*, website, address, phone, latitude, longitude")
+        .select("*")
         .order("name", { ascending: true });
 
       if (vErr) {
@@ -446,15 +446,15 @@ export default function VenuesPage() {
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
                                 style={{
-                                  display: "inline-block",
                                   fontSize: "11px",
                                   letterSpacing: "0.08em",
                                   textTransform: "uppercase",
-                                  color: "var(--gold)",
-                                  border: "0.5px solid var(--gold-dim)",
+                                  color: "#c9a84c",
+                                  border: "0.5px solid #8a6f2e",
                                   padding: "5px 12px",
                                   borderRadius: "2px",
                                   textDecoration: "none",
+                                  display: "inline-block",
                                   marginTop: "8px",
                                 }}
                               >

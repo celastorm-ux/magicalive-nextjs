@@ -47,6 +47,9 @@ export default async function VenueDetailPage({ params }: { params: PageParams }
   const venue = bundle.venue as VenueRow;
   const base = siteBaseUrl();
 
+  /* Venue row is loaded in getVenueDetailBundle via:
+     db.from('venues').select('*').eq('id', venueId).single() */
+
   const street = venue.address?.trim() || venue.full_address?.trim() || undefined;
 
   const localBusiness = {

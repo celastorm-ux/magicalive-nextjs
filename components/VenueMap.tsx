@@ -146,8 +146,8 @@ function VenueMarker({
   }, [isActive])
 
   const href = `/venues/${encodeURIComponent(venue.id)}`
-  const web = venue.website?.trim()
-  const webHref = web ? (web.startsWith('http') ? web : `https://${web}`) : null
+  const rawWebsite =
+    typeof venue.website === 'string' ? venue.website.trim() : venue.website != null ? String(venue.website).trim() : ''
 
   return (
     <Marker
@@ -191,12 +191,18 @@ function VenueMarker({
           >
             View venue →
           </a>
-          {webHref ? (
+          {rawWebsite ? (
             <a
-              href={webHref}
+              href={rawWebsite.startsWith('http') ? rawWebsite : `https://${rawWebsite}`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ fontSize: 11, color: '#c9a84c', display: 'block', marginTop: 4 }}
+              style={{
+                fontSize: 11,
+                color: '#c9a84c',
+                display: 'block',
+                marginTop: 6,
+                textDecoration: 'none',
+              }}
             >
               Visit website ↗
             </a>
