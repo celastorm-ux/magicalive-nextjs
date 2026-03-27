@@ -12,6 +12,9 @@ export type VenueMapVenue = {
   state: string | null
   venue_type: string | null
   capacity: number | null
+  website: string | null
+  address: string | null
+  phone: string | null
   latitude: number | string | null
   longitude: number | string | null
 }
@@ -143,6 +146,8 @@ function VenueMarker({
   }, [isActive])
 
   const href = `/venues/${encodeURIComponent(venue.id)}`
+  const web = venue.website?.trim()
+  const webHref = web ? (web.startsWith('http') ? web : `https://${web}`) : null
 
   return (
     <Marker
@@ -186,6 +191,16 @@ function VenueMarker({
           >
             View venue →
           </a>
+          {webHref ? (
+            <a
+              href={webHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: 11, color: '#c9a84c', display: 'block', marginTop: 4 }}
+            >
+              Visit website ↗
+            </a>
+          ) : null}
         </div>
       </Popup>
     </Marker>

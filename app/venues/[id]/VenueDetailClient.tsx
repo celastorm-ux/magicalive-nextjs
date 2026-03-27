@@ -16,7 +16,11 @@ export type VenueRow = {
   tags: string[] | null;
   contact_email: string | null;
   full_address: string | null;
+  address: string | null;
   website: string | null;
+  phone: string | null;
+  latitude: number | null;
+  longitude: number | null;
   user_id?: string | null;
 };
 
@@ -103,6 +107,16 @@ export default function VenueDetailClient({
   const locationLine = useMemo(() => {
     return [venue.city, venue.state].filter(Boolean).join(", ");
   }, [venue.city, venue.state]);
+
+  const displayAddress = useMemo(() => {
+    return venue.address?.trim() || venue.full_address?.trim() || "";
+  }, [venue.address, venue.full_address]);
+
+  const websiteHref = useMemo(() => {
+    const w = venue.website?.trim();
+    if (!w) return null;
+    return w.startsWith("http") ? w : `https://${w}`;
+  }, [venue.website]);
 
   const hasOwner = Boolean(venue.user_id?.trim());
 
@@ -210,7 +224,7 @@ export default function VenueDetailClient({
                     </div>
                     <div className="sm:col-span-2">
                       <dt className="text-zinc-500">Address</dt>
-                      <dd className="text-zinc-200">{venue.full_address?.trim() || locationLine || "—"}</dd>
+                      <dd className="text-zinc-200">{displayAddress || locationLine || "—"}</dd>
                     </div>
                   </dl>
                   <div className="mt-5 flex flex-wrap gap-2">
@@ -342,14 +356,25 @@ export default function VenueDetailClient({
               ) : (
                 <p className="mt-3 text-sm text-zinc-600">No contact email listed.</p>
               )}
-              {venue.website?.trim() ? (
+              {websiteHref && venue.website?.trim() ? (
                 <a
-                  href={venue.website.startsWith("http") ? venue.website : `https://${venue.website}`}
+                  href={websiteHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-3 inline-block text-sm text-[var(--ml-gold)]/85 hover:underline"
+                  className="mt-3 block break-all text-sm text-[var(--ml-gold)]/90 transition hover:underline"
                 >
-                  Website
+                  {venue.website.trim()}
+                </a>
+              ) : null}
+              {displayAddress ? (
+                <p className="mt-3 text-sm leading-relaxed text-zinc-300">{displayAddress}</p>
+              ) : null}
+              {venue.phone?.trim() ? (
+                <a
+                  href={`tel:${venue.phone.replace(/\s+/g, "")}`}
+                  className="mt-3 block text-sm text-zinc-300 transition hover:text-[var(--ml-gold)]"
+                >
+                  {venue.phone.trim()}
                 </a>
               ) : null}
             </div>

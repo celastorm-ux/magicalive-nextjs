@@ -47,6 +47,8 @@ export default async function VenueDetailPage({ params }: { params: PageParams }
   const venue = bundle.venue as VenueRow;
   const base = siteBaseUrl();
 
+  const street = venue.address?.trim() || venue.full_address?.trim() || undefined;
+
   const localBusiness = {
     "@context": "https://schema.org",
     "@type": "EntertainmentBusiness",
@@ -56,7 +58,7 @@ export default async function VenueDetailPage({ params }: { params: PageParams }
       "@type": "PostalAddress",
       addressLocality: venue.city || undefined,
       addressRegion: venue.state || undefined,
-      streetAddress: venue.full_address?.trim() || undefined,
+      streetAddress: street,
     },
     url: `${base}/venues/${venue.id}`,
   };

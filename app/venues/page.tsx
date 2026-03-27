@@ -40,6 +40,9 @@ type VenueRow = {
   established_year: number | null;
   description: string | null;
   tags: string[] | null;
+  website: string | null;
+  address: string | null;
+  phone: string | null;
   latitude: number | null;
   longitude: number | null;
 };
@@ -101,7 +104,7 @@ export default function VenuesPage() {
       setLoading(true);
       const { data: venueRows, error: vErr } = await supabase
         .from("venues")
-        .select("*, latitude, longitude")
+        .select("*, website, address, phone, latitude, longitude")
         .order("name", { ascending: true });
 
       if (vErr) {
@@ -431,6 +434,32 @@ export default function VenuesPage() {
                               <p className="mt-2 line-clamp-2 text-sm text-zinc-500">
                                 {v.description.trim()}
                               </p>
+                            ) : null}
+                            {v.website?.trim() ? (
+                              <a
+                                href={
+                                  v.website.trim().startsWith("http")
+                                    ? v.website.trim()
+                                    : `https://${v.website.trim()}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  display: "inline-block",
+                                  fontSize: "11px",
+                                  letterSpacing: "0.08em",
+                                  textTransform: "uppercase",
+                                  color: "var(--gold)",
+                                  border: "0.5px solid var(--gold-dim)",
+                                  padding: "5px 12px",
+                                  borderRadius: "2px",
+                                  textDecoration: "none",
+                                  marginTop: "8px",
+                                }}
+                              >
+                                Visit website ↗
+                              </a>
                             ) : null}
                             <div className="mt-3 flex flex-wrap gap-2">
                               {(v.tags ?? []).length ? (

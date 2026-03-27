@@ -94,6 +94,7 @@
 
   /* Aliases for CTA inline styles (admin, legacy snippets) */
   --gold: var(--ml-gold);
+  --gold-dim: var(--ml-gold-border-subtle);
   --ink: #0a0a0a;
 }
 

@@ -75,7 +75,11 @@ function normalizeShowProfile(
 export const getVenueDetailBundle = cache(async (venueId: string): Promise<VenueDetailBundle | null> => {
   if (!venueId.trim()) return null;
   const db = await getRouteSupabase();
-  const { data: vRow, error: vErr } = await db.from("venues").select("*").eq("id", venueId).maybeSingle();
+  const { data: vRow, error: vErr } = await db
+    .from("venues")
+    .select("*, website, address, phone, latitude, longitude")
+    .eq("id", venueId)
+    .maybeSingle();
   if (vErr || !vRow) {
     return { venue: null, upcomingShows: [], pastCount: 0, totalShows: 0, magicians: [] };
   }
