@@ -2,7 +2,16 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { CLASSES } from "@/lib/constants";
 import {
   countriesForPicker,
@@ -18,19 +27,43 @@ const VenueMap = dynamic(() => import("@/components/VenueMap"), {
   ssr: false,
   loading: () => (
     <div
-      style={{
-        height: "100%",
-        background: "#0d0b0e",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#c9a84c",
-      }}
+      className="flex h-full w-full items-center justify-center text-sm text-[#c9a84c]"
+      style={{ background: "#0d0b0e" }}
     >
       Loading map...
     </div>
   ),
 });
+
+class VenueMapErrorBoundary extends Component<
+  { children: ReactNode },
+  { mapFailed: boolean }
+> {
+  state = { mapFailed: false };
+
+  static getDerivedStateFromError(): { mapFailed: boolean } {
+    return { mapFailed: true };
+  }
+
+  componentDidCatch(err: Error, info: ErrorInfo) {
+    console.error("VenueMap render error:", err, info.componentStack);
+  }
+
+  render() {
+    if (this.state.mapFailed) {
+      return (
+        <div
+          className="flex h-full w-full flex-col items-center justify-center gap-3 px-4 text-center text-sm text-zinc-400"
+          style={{ background: "#0d0b0e" }}
+        >
+          <p className="text-[#c9a84c]">Map couldn&apos;t load.</p>
+          <p>Venue list below is still available.</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 type VenueRow = {
   id: string;
@@ -100,22 +133,23 @@ export default function VenuesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const fetchVenues = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const { data: venueRows, error: vErr } = await supabase
+      const { data, error } = await supabase
         .from("venues")
         .select("*")
+        .eq("is_verified", true)
         .order("name", { ascending: true });
 
-      console.log("Venues fetched:", venueRows?.length, vErr);
+      console.log("Venues fetched:", data?.length, error);
 
-      if (vErr) {
-        console.error("[venues] fetch venues:", vErr);
-      }
+      if (error) throw error;
 
       const today = new Date().toISOString().split("T")[0];
       const { data: showRows, error: sErr } = await supabase
@@ -135,27 +169,29 @@ export default function VenuesPage() {
         countByVenueId[vid] = (countByVenueId[vid] ?? 0) + 1;
       }
 
-      const rows = (venueRows ?? []) as VenueRow[];
-      if (rows.length === 0) {
-        setVenues([]);
-        return;
-      }
-
-      const mapped: Venue[] = rows.map((row) => {
+      const rows = (data ?? []) as VenueRow[];
+      const mapped: Venue[] = [];
+      for (const row of rows) {
+        if (row == null) continue;
+        const id = row.id != null ? String(row.id) : "";
+        if (!id) continue;
         const cityStr = row.city?.trim() || "—";
-        const h = hashId(row.id);
-        return {
+        const h = hashId(id);
+        mapped.push({
           ...row,
+          id,
+          name: row.name != null ? String(row.name) : "—",
           cityKey: cityStr,
-          upcomingShows: countByVenueId[row.id] ?? 0,
+          upcomingShows: countByVenueId[id] ?? 0,
           gradient: CARD_GRADIENTS[h % CARD_GRADIENTS.length]!,
           emoji: EMOJIS[h % EMOJIS.length]!,
-        };
-      });
+        });
+      }
 
       setVenues(mapped);
-    } catch (e) {
-      console.error("[venues] fetchVenues:", e);
+    } catch (err) {
+      console.error("Venues fetch error:", err);
+      setError("Something went wrong loading venues.");
       setVenues([]);
     } finally {
       setLoading(false);
@@ -190,8 +226,8 @@ export default function VenuesPage() {
 
   const typeOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const v of venues) {
-      const t = v.venue_type?.trim();
+    for (const v of venues ?? []) {
+      const t = v?.venue_type?.trim();
       if (t) set.add(t);
     }
     return ["Any type", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
@@ -239,7 +275,8 @@ export default function VenuesPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return venues.filter((v) => {
+    return (venues ?? []).filter((v) => {
+      if (!v?.id) return false;
       if (
         !rowLocationMatchesFilter(
           v.city,
@@ -256,7 +293,7 @@ export default function VenuesPage() {
       }
       if (vtype !== "Any type" && (v.venue_type || "").trim() !== vtype) return false;
       if (!capacityMatches(v.capacity, cap)) return false;
-      if (q && !v.name.toLowerCase().includes(q)) return false;
+      if (q && !(v.name ?? "").toLowerCase().includes(q)) return false;
       return true;
     });
   }, [search, filterState, filterCountry, filterCity, vtype, cap, venues]);
@@ -270,7 +307,12 @@ export default function VenuesPage() {
     return `${n} ${word}`;
   }, [filtered.length, filterState]);
 
-  const filteredIds = useMemo(() => new Set(filtered.map((v) => v.id)), [filtered]);
+  const filteredIds = useMemo(() => {
+    const ids = (filtered ?? [])
+      .map((v) => v?.id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+    return new Set(ids);
+  }, [filtered]);
 
   const scrollToCard = useCallback((id: string) => {
     cardRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -286,13 +328,31 @@ export default function VenuesPage() {
     scrollToCard(id);
   };
 
+  const safeVenues = venues ?? [];
   const headerSubtitle = loading
     ? "Loading venues…"
-    : venues.length === 0
+    : safeVenues.length === 0
       ? "No venues on Magicalive yet"
-      : filtered.length === venues.length
-        ? `${venues.length} venue${venues.length === 1 ? "" : "s"} hosting shows on Magicalive`
-        : `${filtered.length} of ${venues.length} venues match your filters`;
+      : filtered.length === safeVenues.length
+        ? `${safeVenues.length} venue${safeVenues.length === 1 ? "" : "s"} hosting shows on Magicalive`
+        : `${filtered.length} of ${safeVenues.length} venues match your filters`;
+
+  if (error) {
+    return (
+      <div className="min-h-0 flex-1 bg-black pb-20 pt-8 text-zinc-100 sm:pt-12">
+        <div className={`${CLASSES.section} max-w-7xl`}>
+          <p className="text-zinc-300">{error}</p>
+          <button
+            type="button"
+            onClick={() => void fetchVenues()}
+            className={`${CLASSES.btnSecondary} mt-6`}
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-0 flex-1 bg-black pb-20 pt-8 text-zinc-100 sm:pt-12">
@@ -423,11 +483,13 @@ export default function VenuesPage() {
                 Loading map…
               </div>
             ) : (
-              <VenueMap
-                venues={filtered}
-                activeVenueId={selectedId}
-                onVenueClick={handleVenueFromMapClick}
-              />
+              <VenueMapErrorBoundary>
+                <VenueMap
+                  venues={filtered ?? []}
+                  activeVenueId={selectedId}
+                  onVenueClick={handleVenueFromMapClick}
+                />
+              </VenueMapErrorBoundary>
             )}
           </div>
 
@@ -450,7 +512,7 @@ export default function VenuesPage() {
                 </div>
               ))}
             </div>
-          ) : venues.length === 0 ? (
+          ) : safeVenues.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-8 py-16 text-center">
               <p className="ml-font-heading text-xl text-zinc-300">No venues listed yet</p>
               <p className="mt-2 text-sm text-zinc-500">
@@ -476,53 +538,55 @@ export default function VenuesPage() {
             </div>
           ) : (
             <ul className="grid w-full max-sm:grid-cols-1 gap-4 sm:[grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
-              {filtered.map((v) => (
+              {(filtered ?? []).map((v) => (
                 <li key={v.id} className="min-w-0">
                   <div
                     ref={(el) => {
-                      cardRefs.current[v.id] = el;
+                      if (v?.id) cardRefs.current[v.id] = el;
                     }}
                     role="button"
                     tabIndex={0}
                     onClick={() => {
+                      if (!v?.id) return;
                       setSelectedId(v.id);
                       scrollToCard(v.id);
                     }}
                     onKeyDown={(e) => {
+                      if (!v?.id) return;
                       if (e.key === "Enter" || e.key === " ") {
                         setSelectedId(v.id);
                         scrollToCard(v.id);
                       }
                     }}
                     className={`cursor-pointer overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
-                      selectedId === v.id
+                      selectedId === v?.id
                         ? "border-[var(--ml-gold)]/60 shadow-[0_0_32px_-8px_rgba(245,204,113,0.2)]"
                         : "border-white/10 hover:border-white/20"
                     }`}
                   >
-                    <div className={`h-32 bg-gradient-to-br sm:h-36 ${v.gradient}`} />
+                    <div className={`h-32 bg-gradient-to-br sm:h-36 ${v?.gradient ?? CARD_GRADIENTS[0]}`} />
                     <div className="p-5">
                       <h2 className="ml-font-heading text-xl font-semibold text-zinc-50">
-                        {v.name}
+                        {v?.name ?? "—"}
                       </h2>
                       <p className="mt-1 text-sm text-zinc-500">
-                        {v.city || "—"} · {v.venue_type || "Venue"}
+                        {v?.city || "—"} · {v?.venue_type || "Venue"}
                       </p>
                       <p className="mt-2 text-xs text-zinc-600">
-                        Capacity {(v.capacity ?? 0).toLocaleString()} · Est.{" "}
-                        {v.established_year ?? "—"}
+                        Capacity {(v?.capacity ?? 0).toLocaleString()} · Est.{" "}
+                        {v?.established_year ?? "—"}
                       </p>
-                      {v.description?.trim() ? (
+                      {v?.description?.trim() ? (
                         <p className="mt-2 line-clamp-2 text-sm text-zinc-500">
                           {v.description.trim()}
                         </p>
                       ) : null}
-                      {v.website?.trim() ? (
+                      {v?.website?.trim() ? (
                         <a
                           href={
-                            v.website.trim().startsWith("http")
-                              ? v.website.trim()
-                              : `https://${v.website.trim()}`
+                            v.website!.trim().startsWith("http")
+                              ? v.website!.trim()
+                              : `https://${v.website!.trim()}`
                           }
                           target="_blank"
                           rel="noopener noreferrer"
@@ -544,8 +608,8 @@ export default function VenuesPage() {
                         </a>
                       ) : null}
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {(v.tags ?? []).length ? (
-                          v.tags!.map((t) => (
+                        {(v?.tags ?? []).length ? (
+                          (v.tags ?? []).map((t) => (
                             <span key={t} className={CLASSES.tag}>
                               {t}
                             </span>
@@ -556,11 +620,11 @@ export default function VenuesPage() {
                       </div>
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                         <span className="text-sm font-semibold text-emerald-400">
-                          {v.upcomingShows} upcoming{" "}
-                          {v.upcomingShows === 1 ? "show" : "shows"}
+                          {v?.upcomingShows ?? 0} upcoming{" "}
+                          {(v?.upcomingShows ?? 0) === 1 ? "show" : "shows"}
                         </span>
                         <Link
-                          href={`/venues/${encodeURIComponent(v.id)}`}
+                          href={`/venues/${encodeURIComponent(v?.id ?? "")}`}
                           onClick={(e) => e.stopPropagation()}
                           className={CLASSES.btnPrimarySm}
                         >

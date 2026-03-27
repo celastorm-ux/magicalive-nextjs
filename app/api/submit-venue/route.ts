@@ -71,6 +71,7 @@ export async function POST(request: Request) {
     name,
     city,
     state: stateForDb,
+    country: country || null,
     venue_type: venueType,
     full_address: fullAddress || null,
     capacity,
@@ -79,20 +80,29 @@ export async function POST(request: Request) {
     phone: phone || null,
     description: description || null,
     contact_email: submitterEmail,
+    submitter_name: submitterName,
+    submitter_email: submitterEmail,
     tags: ["public-submission"],
     is_verified: false,
   };
 
-  const withSubmissionMeta = {
+  const withNotes = {
     ...baseRow,
-    submitter_name: submitterName,
     submission_notes: submissionNotes || null,
   };
 
-  let inserted = await db.from("venues").insert(withSubmissionMeta).select("id").single();
+  let inserted = await db.from("venues").insert(withNotes).select("id").single();
 
-  if (inserted.error && /submitter_name|submission_notes|column/i.test(inserted.error.message)) {
+  if (inserted.error && /submission_notes|column|does not exist/i.test(inserted.error.message)) {
     inserted = await db.from("venues").insert(baseRow).select("id").single();
+  }
+
+  if (inserted.error && /submitter_name|submitter_email|country|column|does not exist/i.test(inserted.error.message)) {
+    const legacyRow = { ...baseRow };
+    delete legacyRow.submitter_name;
+    delete legacyRow.submitter_email;
+    delete legacyRow.country;
+    inserted = await db.from("venues").insert(legacyRow).select("id").single();
   }
 
   if (inserted.error || !inserted.data?.id) {

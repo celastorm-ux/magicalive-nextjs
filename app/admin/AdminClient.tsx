@@ -65,7 +65,15 @@ type VenueAdminRow = {
   name: string | null;
   city: string | null;
   state: string | null;
+  country: string | null;
   venue_type: string | null;
+  full_address: string | null;
+  capacity: number | string | null;
+  website: string | null;
+  description: string | null;
+  submitter_name: string | null;
+  submitter_email: string | null;
+  contact_email: string | null;
   created_at: string | null;
   is_verified: boolean | null;
   latitude: number | string | null;
@@ -100,6 +108,13 @@ function fmtShort(iso: string | null | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function fmtSubmitted(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
 /** Stable public handle for unclaimed profiles (required by directory / claim flow). */
@@ -247,17 +262,23 @@ export default function AdminClient() {
     return articles.filter((a) => (a.status || "").toLowerCase() === articleFilter);
   }, [articles, articleFilter]);
 
+  const pendingVenues = useMemo(
+    () => venues.filter((v) => v.is_verified === false),
+    [venues],
+  );
+
+  const verifiedVenuesForTable = useMemo(
+    () => venues.filter((v) => v.is_verified !== false),
+    [venues],
+  );
+
   const venuesMissingCoords = useMemo(() => venues.filter((v) => v.latitude == null).length, [venues]);
 
   const sortedVenues = useMemo(() => {
-    const rank = (v: VenueAdminRow) => (v.is_verified === false ? 0 : 1);
-    return [...venues].sort((a, b) => {
-      const ra = rank(a);
-      const rb = rank(b);
-      if (ra !== rb) return ra - rb;
-      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-    });
-  }, [venues]);
+    return [...verifiedVenuesForTable].sort(
+      (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
+    );
+  }, [verifiedVenuesForTable]);
 
   useEffect(() => {
     if (tab === "articles" && !dataLoading && articles.length === 0) {
@@ -1061,10 +1082,163 @@ export default function AdminClient() {
 
         {tab === "venues" ? (
           <section className="mt-8 overflow-x-auto">
+            <div className="mb-8 rounded-2xl border border-[var(--ml-gold)]/30 bg-[var(--ml-gold)]/[0.06] p-5 sm:p-6">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2 className="ml-font-heading text-lg font-semibold text-zinc-100">
+                    Pending submissions
+                  </h2>
+                  <p className="mt-1 text-sm font-medium text-[var(--ml-gold)]">
+                    {pendingVenues.length === 1
+                      ? "1 venue awaiting review"
+                      : `${pendingVenues.length} venues awaiting review`}
+                  </p>
+                </div>
+              </div>
+              {pendingVenues.length === 0 ? (
+                <p className="mt-4 text-sm text-zinc-500">No pending venue submissions.</p>
+              ) : (
+                <div className="mt-5 space-y-4">
+                  {pendingVenues.map((v) => (
+                    <div
+                      key={v.id}
+                      className="rounded-2xl border border-white/10 bg-black/50 p-4 sm:p-5 shadow-[0_0_0_1px_rgba(201,168,76,0.08)_inset]"
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex flex-wrap items-center gap-2">
+                          <span
+                            className={`${CLASSES.pillGold} border-[var(--ml-gold)]/50 bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]`}
+                          >
+                            Pending
+                          </span>
+                          <h3 className="ml-font-heading text-base font-semibold text-zinc-50 sm:text-lg">
+                            {v.name || "—"}
+                          </h3>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void venueDecision(v.id, "approve")}
+                            className={CLASSES.btnPrimarySm}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void venueDecision(v.id, "reject")}
+                            className={`${CLASSES.btnSecondarySm} border-red-400/30 text-red-300 hover:border-red-400/50 hover:bg-red-400/10`}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                      <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                        <div>
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                            Type
+                          </dt>
+                          <dd className="mt-0.5 text-zinc-200">{v.venue_type || "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                            City / state / country
+                          </dt>
+                          <dd className="mt-0.5 text-zinc-200">
+                            {[v.city, v.state, v.country].filter(Boolean).join(", ") || "—"}
+                          </dd>
+                        </div>
+                        <div className="sm:col-span-2 lg:col-span-1">
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                            Address
+                          </dt>
+                          <dd className="mt-0.5 text-zinc-200">{v.full_address?.trim() || "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                            Capacity
+                          </dt>
+                          <dd className="mt-0.5 text-zinc-200">
+                            {v.capacity != null && v.capacity !== ""
+                              ? Number(v.capacity).toLocaleString()
+                              : "—"}
+                          </dd>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                            Website
+                          </dt>
+                          <dd className="mt-0.5 break-all text-zinc-200">
+                            {v.website?.trim() ? (
+                              <a
+                                href={
+                                  v.website.trim().startsWith("http")
+                                    ? v.website.trim()
+                                    : `https://${v.website.trim()}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[var(--ml-gold)] hover:underline"
+                              >
+                                {v.website.trim()}
+                              </a>
+                            ) : (
+                              "—"
+                            )}
+                          </dd>
+                        </div>
+                        <div className="sm:col-span-2 lg:col-span-3">
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                            Description
+                          </dt>
+                          <dd className="mt-0.5 whitespace-pre-wrap text-zinc-300">
+                            {v.description?.trim() || "—"}
+                          </dd>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                            Submitted by
+                          </dt>
+                          <dd className="mt-0.5 text-zinc-200">
+                            {v.submitter_name?.trim() || "—"}
+                            {v.submitter_email?.trim() || v.contact_email?.trim() ? (
+                              <span className="text-zinc-400">
+                                {" "}
+                                ·{" "}
+                                <a
+                                  href={`mailto:${(v.submitter_email || v.contact_email)!.trim()}`}
+                                  className="text-[var(--ml-gold)] hover:underline"
+                                >
+                                  {(v.submitter_email || v.contact_email)!.trim()}
+                                </a>
+                              </span>
+                            ) : null}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                            Submitted date
+                          </dt>
+                          <dd className="mt-0.5 text-zinc-200">{fmtSubmitted(v.created_at)}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-zinc-400">
                 <p>
                   Total venues: <span className="font-semibold text-zinc-200">{venues.length}</span>
+                </p>
+                <p>
+                  Verified:{" "}
+                  <span className="font-semibold text-zinc-200">{verifiedVenuesForTable.length}</span>
+                </p>
+                <p>
+                  Pending:{" "}
+                  <span className="font-semibold text-zinc-200">{pendingVenues.length}</span>
                 </p>
                 <p>
                   Missing coordinates: <span className="font-semibold text-zinc-200">{venuesMissingCoords}</span>
@@ -1092,6 +1266,9 @@ export default function AdminClient() {
                 {geocodeMsg ? <p className="text-sm text-emerald-400/90">{geocodeMsg}</p> : null}
               </div>
             </div>
+            <h3 className="mb-3 ml-font-heading text-base font-semibold text-zinc-200">
+              Verified venues
+            </h3>
             {dataLoading ? (
               <p className="text-sm text-zinc-500">Loading…</p>
             ) : (
@@ -1104,7 +1281,6 @@ export default function AdminClient() {
                     <th className="py-3 pr-4">Type</th>
                     <th className="py-3 pr-4">Coords</th>
                     <th className="py-3 pr-4">Submitted</th>
-                    <th className="py-3 pr-4">Actions</th>
                     <th className="py-3">View</th>
                   </tr>
                 </thead>
@@ -1113,14 +1289,7 @@ export default function AdminClient() {
                     <Fragment key={v.id}>
                       <tr className="border-b border-white/5">
                         <td className="py-3 pr-4 font-medium text-zinc-200">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {v.is_verified === false ? (
-                              <span className="shrink-0 rounded-full border border-[var(--ml-gold)]/40 bg-[var(--ml-gold)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--ml-gold)]">
-                                Pending
-                              </span>
-                            ) : null}
-                            <span>{v.name || "—"}</span>
-                          </div>
+                          <span>{v.name || "—"}</span>
                         </td>
                         <td className="py-3 pr-4 text-zinc-400">{v.city || "—"}</td>
                         <td className="py-3 pr-4 text-zinc-400">{v.state || "—"}</td>
@@ -1150,28 +1319,6 @@ export default function AdminClient() {
                           ) : null}
                         </td>
                         <td className="py-3 pr-4 text-zinc-500">{fmtShort(v.created_at)}</td>
-                        <td className="py-3 pr-4">
-                          <div className="flex flex-wrap gap-2">
-                            {v.is_verified !== true ? (
-                              <button
-                                type="button"
-                                onClick={() => void venueDecision(v.id, "approve")}
-                                className="text-xs font-semibold text-emerald-400 hover:underline"
-                              >
-                                Approve
-                              </button>
-                            ) : null}
-                            {v.is_verified === false ? (
-                              <button
-                                type="button"
-                                onClick={() => void venueDecision(v.id, "reject")}
-                                className="text-xs font-semibold text-red-400 hover:underline"
-                              >
-                                Reject
-                              </button>
-                            ) : null}
-                          </div>
-                        </td>
                         <td className="py-3">
                           <Link
                             href={`/venues/${encodeURIComponent(v.id)}`}
@@ -1183,7 +1330,7 @@ export default function AdminClient() {
                       </tr>
                       {editingVenueId === v.id ? (
                         <tr className="border-b border-white/5 bg-white/[0.02]">
-                          <td colSpan={8} className="px-4 py-4">
+                          <td colSpan={7} className="px-4 py-4">
                             <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                               Manual coordinates
                             </p>
@@ -1240,7 +1387,12 @@ export default function AdminClient() {
                 </tbody>
               </table>
             )}
-            {!dataLoading && !venues.length ? <p className="mt-4 text-sm text-zinc-500">No venues.</p> : null}
+            {!dataLoading && !venues.length ? (
+              <p className="mt-4 text-sm text-zinc-500">No venues.</p>
+            ) : null}
+            {!dataLoading && venues.length > 0 && !sortedVenues.length ? (
+              <p className="mt-4 text-sm text-zinc-500">No verified venues in the directory.</p>
+            ) : null}
           </section>
         ) : null}
 
