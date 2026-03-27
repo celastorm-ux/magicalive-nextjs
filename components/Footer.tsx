@@ -35,8 +35,23 @@ export function Footer() {
             <Link href="/magic-shows" className={CLASSES.footerLink}>
               Magic Shows
             </Link>
-            <Link href="/magicians/cities" className={CLASSES.footerLink}>
-              Find Magicians by City
+            <Link href="/magicians/los-angeles" className={CLASSES.footerLink}>
+              Los Angeles
+            </Link>
+            <Link href="/magicians/new-york" className={CLASSES.footerLink}>
+              New York
+            </Link>
+            <Link href="/magicians/chicago" className={CLASSES.footerLink}>
+              Chicago
+            </Link>
+            <Link href="/magicians/las-vegas" className={CLASSES.footerLink}>
+              Las Vegas
+            </Link>
+            <Link href="/magicians?city=London&country=United+Kingdom" className={CLASSES.footerLink}>
+              London
+            </Link>
+            <Link href="/magicians?city=Sydney&country=Australia" className={CLASSES.footerLink}>
+              Sydney
             </Link>
           </div>
         </div>

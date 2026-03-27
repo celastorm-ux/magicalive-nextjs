@@ -324,8 +324,8 @@ export default function CityMagiciansClient({
                   </li>
                 ))}
               </ul>
-              <Link href="/magicians/cities" className={`${CLASSES.linkGold} mt-4 inline-block text-sm`}>
-                All city pages →
+              <Link href="/magicians" className={`${CLASSES.linkGold} mt-4 inline-block text-sm`}>
+                Full directory →
               </Link>
             </div>
           </aside>
