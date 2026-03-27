@@ -103,25 +103,30 @@ export default function VenuesPage() {
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  useEffect(() => {
-    void (async () => {
-      setLoading(true);
+  const fetchVenues = useCallback(async () => {
+    setLoading(true);
+    try {
       const { data: venueRows, error: vErr } = await supabase
         .from("venues")
         .select("*")
-        .or("is_verified.is.null,is_verified.eq.true")
         .order("name", { ascending: true });
+
+      console.log("Venues fetched:", venueRows?.length, vErr);
 
       if (vErr) {
         console.error("[venues] fetch venues:", vErr);
       }
 
       const today = new Date().toISOString().split("T")[0];
-      const { data: showRows } = await supabase
+      const { data: showRows, error: sErr } = await supabase
         .from("shows")
         .select("venue_id")
         .gte("date", today)
         .eq("is_public", true);
+
+      if (sErr) {
+        console.error("[venues] fetch shows:", sErr);
+      }
 
       const countByVenueId: Record<string, number> = {};
       for (const s of showRows ?? []) {
@@ -133,7 +138,6 @@ export default function VenuesPage() {
       const rows = (venueRows ?? []) as VenueRow[];
       if (rows.length === 0) {
         setVenues([]);
-        setLoading(false);
         return;
       }
 
@@ -150,9 +154,17 @@ export default function VenuesPage() {
       });
 
       setVenues(mapped);
+    } catch (e) {
+      console.error("[venues] fetchVenues:", e);
+      setVenues([]);
+    } finally {
       setLoading(false);
-    })();
+    }
   }, []);
+
+  useEffect(() => {
+    void fetchVenues();
+  }, [fetchVenues]);
 
   const countryFilterOptions = useMemo(() => [ALL_COUNTRIES, ...countriesForPicker()], []);
 
@@ -398,167 +410,170 @@ export default function VenuesPage() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
+        <div className="mt-10 flex w-full flex-col">
+          {/* Map — full width; shown whenever not loading */}
+          <div
+            className="relative mb-8 h-[280px] w-full shrink-0 overflow-hidden rounded-[3px] border-[0.5px] border-[rgba(201,168,76,0.2)] bg-[#0a090c] sm:h-[400px]"
+          >
+            {loading ? (
               <div
-                key={i}
-                className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/50"
+                className="flex h-full w-full items-center justify-center text-sm text-[#c9a84c]"
+                aria-hidden
               >
-                <div className="h-32 animate-pulse bg-white/10 sm:h-36" />
-                <div className="space-y-3 p-5">
-                  <div className="h-6 w-2/3 animate-pulse rounded bg-white/10" />
-                  <div className="h-4 w-1/2 animate-pulse rounded bg-white/10" />
-                  <div className="flex gap-2">
-                    <div className="h-5 w-16 animate-pulse rounded-full bg-white/10" />
-                    <div className="h-5 w-20 animate-pulse rounded-full bg-white/10" />
-                  </div>
-                </div>
+                Loading map…
               </div>
-            ))}
-          </div>
-        ) : venues.length === 0 ? (
-          <div className="mt-10 flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-8 py-16 text-center">
-            <p className="ml-font-heading text-xl text-zinc-300">No venues listed yet</p>
-            <p className="mt-2 text-sm text-zinc-500">
-              Be the first venue on Magicalive.
-            </p>
-            <Link href="/contact" className={`${CLASSES.btnPrimary} mt-6`}>
-              Get your venue listed
-            </Link>
-          </div>
-        ) : (
-          <div className="mt-10 flex w-full flex-col">
-            {/* Map — full width, horizontal */}
-            <div
-              className="relative mb-8 h-[280px] w-full shrink-0 overflow-hidden rounded-[3px] border-[0.5px] border-[rgba(201,168,76,0.2)] bg-[#0a090c] sm:h-[400px]"
-            >
+            ) : (
               <VenueMap
                 venues={filtered}
                 activeVenueId={selectedId}
                 onVenueClick={handleVenueFromMapClick}
               />
-            </div>
-
-            <div className="min-w-0 w-full">
-              {filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-8 py-16 text-center">
-                  <p className="ml-font-heading text-xl text-zinc-300">
-                    No venues match
-                  </p>
-                  <p className="mt-2 text-sm text-zinc-500">
-                    Try widening your search or clearing filters.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={resetAllFilters}
-                    className={`${CLASSES.btnPrimary} mt-6`}
-                  >
-                    Reset filters
-                  </button>
-                </div>
-              ) : (
-                <ul className="grid w-full max-sm:grid-cols-1 gap-4 sm:[grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
-                  {filtered.map((v) => (
-                    <li key={v.id} className="min-w-0">
-                      <div
-                        ref={(el) => {
-                          cardRefs.current[v.id] = el;
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => {
-                          setSelectedId(v.id);
-                          scrollToCard(v.id);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            setSelectedId(v.id);
-                            scrollToCard(v.id);
-                          }
-                        }}
-                        className={`cursor-pointer overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
-                          selectedId === v.id
-                            ? "border-[var(--ml-gold)]/60 shadow-[0_0_32px_-8px_rgba(245,204,113,0.2)]"
-                            : "border-white/10 hover:border-white/20"
-                        }`}
-                      >
-                        <div className={`h-32 bg-gradient-to-br sm:h-36 ${v.gradient}`} />
-                        <div className="p-5">
-                          <h2 className="ml-font-heading text-xl font-semibold text-zinc-50">
-                            {v.name}
-                          </h2>
-                          <p className="mt-1 text-sm text-zinc-500">
-                            {v.city || "—"} · {v.venue_type || "Venue"}
-                          </p>
-                          <p className="mt-2 text-xs text-zinc-600">
-                            Capacity {(v.capacity ?? 0).toLocaleString()} · Est.{" "}
-                            {v.established_year ?? "—"}
-                          </p>
-                          {v.description?.trim() ? (
-                            <p className="mt-2 line-clamp-2 text-sm text-zinc-500">
-                              {v.description.trim()}
-                            </p>
-                          ) : null}
-                          {v.website?.trim() ? (
-                            <a
-                              href={
-                                v.website.trim().startsWith("http")
-                                  ? v.website.trim()
-                                  : `https://${v.website.trim()}`
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                fontSize: "11px",
-                                letterSpacing: "0.08em",
-                                textTransform: "uppercase",
-                                color: "#c9a84c",
-                                border: "0.5px solid #8a6f2e",
-                                padding: "5px 12px",
-                                borderRadius: "2px",
-                                textDecoration: "none",
-                                display: "inline-block",
-                                marginTop: "8px",
-                              }}
-                            >
-                              Visit website ↗
-                            </a>
-                          ) : null}
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {(v.tags ?? []).length ? (
-                              v.tags!.map((t) => (
-                                <span key={t} className={CLASSES.tag}>
-                                  {t}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-xs text-zinc-600">No tags</span>
-                            )}
-                          </div>
-                          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                            <span className="text-sm font-semibold text-emerald-400">
-                              {v.upcomingShows} upcoming{" "}
-                              {v.upcomingShows === 1 ? "show" : "shows"}
-                            </span>
-                            <Link
-                              href={`/venues/${encodeURIComponent(v.id)}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className={CLASSES.btnPrimarySm}
-                            >
-                              View venue
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            )}
           </div>
-        )}
+
+          {loading ? (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/50"
+                >
+                  <div className="h-32 animate-pulse bg-white/10 sm:h-36" />
+                  <div className="space-y-3 p-5">
+                    <div className="h-6 w-2/3 animate-pulse rounded bg-white/10" />
+                    <div className="h-4 w-1/2 animate-pulse rounded bg-white/10" />
+                    <div className="flex gap-2">
+                      <div className="h-5 w-16 animate-pulse rounded-full bg-white/10" />
+                      <div className="h-5 w-20 animate-pulse rounded-full bg-white/10" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : venues.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-8 py-16 text-center">
+              <p className="ml-font-heading text-xl text-zinc-300">No venues listed yet</p>
+              <p className="mt-2 text-sm text-zinc-500">
+                Be the first venue on Magicalive.
+              </p>
+              <Link href="/contact" className={`${CLASSES.btnPrimary} mt-6`}>
+                Get your venue listed
+              </Link>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-8 py-16 text-center">
+              <p className="ml-font-heading text-xl text-zinc-300">No venues match</p>
+              <p className="mt-2 text-sm text-zinc-500">
+                Try widening your search or clearing filters.
+              </p>
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className={`${CLASSES.btnPrimary} mt-6`}
+              >
+                Reset filters
+              </button>
+            </div>
+          ) : (
+            <ul className="grid w-full max-sm:grid-cols-1 gap-4 sm:[grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+              {filtered.map((v) => (
+                <li key={v.id} className="min-w-0">
+                  <div
+                    ref={(el) => {
+                      cardRefs.current[v.id] = el;
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      setSelectedId(v.id);
+                      scrollToCard(v.id);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        setSelectedId(v.id);
+                        scrollToCard(v.id);
+                      }
+                    }}
+                    className={`cursor-pointer overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
+                      selectedId === v.id
+                        ? "border-[var(--ml-gold)]/60 shadow-[0_0_32px_-8px_rgba(245,204,113,0.2)]"
+                        : "border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    <div className={`h-32 bg-gradient-to-br sm:h-36 ${v.gradient}`} />
+                    <div className="p-5">
+                      <h2 className="ml-font-heading text-xl font-semibold text-zinc-50">
+                        {v.name}
+                      </h2>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {v.city || "—"} · {v.venue_type || "Venue"}
+                      </p>
+                      <p className="mt-2 text-xs text-zinc-600">
+                        Capacity {(v.capacity ?? 0).toLocaleString()} · Est.{" "}
+                        {v.established_year ?? "—"}
+                      </p>
+                      {v.description?.trim() ? (
+                        <p className="mt-2 line-clamp-2 text-sm text-zinc-500">
+                          {v.description.trim()}
+                        </p>
+                      ) : null}
+                      {v.website?.trim() ? (
+                        <a
+                          href={
+                            v.website.trim().startsWith("http")
+                              ? v.website.trim()
+                              : `https://${v.website.trim()}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            fontSize: "11px",
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            color: "#c9a84c",
+                            border: "0.5px solid #8a6f2e",
+                            padding: "5px 12px",
+                            borderRadius: "2px",
+                            textDecoration: "none",
+                            display: "inline-block",
+                            marginTop: "8px",
+                          }}
+                        >
+                          Visit website ↗
+                        </a>
+                      ) : null}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {(v.tags ?? []).length ? (
+                          v.tags!.map((t) => (
+                            <span key={t} className={CLASSES.tag}>
+                              {t}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-zinc-600">No tags</span>
+                        )}
+                      </div>
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                        <span className="text-sm font-semibold text-emerald-400">
+                          {v.upcomingShows} upcoming{" "}
+                          {v.upcomingShows === 1 ? "show" : "shows"}
+                        </span>
+                        <Link
+                          href={`/venues/${encodeURIComponent(v.id)}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className={CLASSES.btnPrimarySm}
+                        >
+                          View venue
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );
