@@ -76,6 +76,8 @@ type ShowRow = {
   includes_props?: boolean | null;
   max_attendees?: number | null;
   is_online?: boolean | null;
+  is_cancelled?: boolean | null;
+  cancellation_reason?: string | null;
 };
 
 type ReviewRow = {
@@ -357,13 +359,28 @@ export default function MagicianProfileClient({
     (!user?.id || user.id !== profileId);
   const upcoming = useMemo(() => shows, [shows]);
   const upcomingShowEvents = useMemo(
-    () => upcoming.filter((s) => (s.event_type ?? "show") !== "lecture"),
+    () =>
+      upcoming.filter((s) => (s.event_type ?? "show") !== "lecture" && !s.is_cancelled),
     [upcoming],
   );
   const upcomingLectures = useMemo(
-    () => upcoming.filter((s) => s.event_type === "lecture"),
+    () => upcoming.filter((s) => s.event_type === "lecture" && !s.is_cancelled),
     [upcoming],
   );
+  const cancelledShows = useMemo(() => {
+    const byId = new Map<string, ShowRow>();
+    for (const s of upcoming) {
+      if (s.is_cancelled) byId.set(s.id, s);
+    }
+    for (const s of pastShows) {
+      if (s.is_cancelled) byId.set(s.id, s);
+    }
+    return Array.from(byId.values()).sort((a, b) => {
+      const ad = a.date ?? "";
+      const bd = b.date ?? "";
+      return ad.localeCompare(bd);
+    });
+  }, [upcoming, pastShows]);
   const past = useMemo(() => pastShows, [pastShows]);
   const avgRating = useMemo(() => {
     const r = reviews.filter((x) => x.rating != null);
@@ -1029,6 +1046,60 @@ export default function MagicianProfileClient({
                       <li className="px-5 py-10 text-center text-sm text-zinc-500">No upcoming lectures</li>
                     )}
                   </ul>
+
+                  {cancelledShows.length ? (
+                    <section className="mt-10">
+                      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-red-400/90">
+                        Cancelled shows
+                      </h3>
+                      <ul className="divide-y divide-white/10 rounded-2xl border border-red-500/20 bg-red-950/[0.12]">
+                        {cancelledShows.map((show) => {
+                          const lecture = show.event_type === "lecture";
+                          return (
+                            <li
+                              key={show.id}
+                              className={`flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 ${
+                                lecture ? "border-l-2 border-l-violet-500/35" : ""
+                              }`}
+                            >
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {lecture ? (
+                                    <span className="rounded-full border border-violet-400/35 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200">
+                                      Lecture
+                                    </span>
+                                  ) : (
+                                    <span className="rounded-full border border-[var(--ml-gold)]/35 text-[10px] font-semibold uppercase tracking-wide text-[var(--ml-gold)]">
+                                      Show
+                                    </span>
+                                  )}
+                                  <span className="rounded-full border border-red-500/45 bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-300">
+                                    Cancelled
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-sm font-semibold text-zinc-300">
+                                  {show.date ? formatShowDateLongEnUS(show.date) : "Date TBA"}
+                                  {show.time ? ` · ${formatTime(show.time)}` : ""}
+                                </p>
+                                <Link
+                                  href={`/events/${encodeURIComponent(show.id)}`}
+                                  className="mt-1 inline-flex ml-font-heading text-lg font-semibold text-zinc-100 transition hover:underline"
+                                >
+                                  {show.name}
+                                </Link>
+                                {show.cancellation_reason?.trim() ? (
+                                  <p className="mt-2 text-sm text-red-200/75">{show.cancellation_reason.trim()}</p>
+                                ) : null}
+                              </div>
+                              <Link href={`/events/${encodeURIComponent(show.id)}`} className={CLASSES.btnSecondarySm}>
+                                View details
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  ) : null}
                 </div>
               )}
               {tab === "Reviews" && (

@@ -30,9 +30,10 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   const date = ev.date ? formatShowDateLongEnUS(ev.date) : "TBA";
   const prof = normalizeProfilesProf(ev.profiles as unknown);
   const magicianName = prof?.display_name || "a magician";
+  const cancelled = Boolean((ev as { is_cancelled?: boolean | null }).is_cancelled);
   const base = buildMetadata({
-    title: `${showName} — Magicalive Events`,
-    description: `${showName} at ${venue} in ${city} on ${date}`,
+    title: `${showName} — Magicalive Events${cancelled ? " (Cancelled)" : ""}`,
+    description: `${showName} at ${venue} in ${city} on ${date}${cancelled ? " — This event has been cancelled." : ""}`,
   });
   return {
     ...base,

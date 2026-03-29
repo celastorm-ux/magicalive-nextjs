@@ -110,6 +110,7 @@ export const getVenueDetailBundle = cache(async (venueId: string): Promise<Venue
     .eq("venue_id", venueId)
     .gte("date", today)
     .eq("is_public", true)
+    .eq("is_cancelled", false)
     .order("date", { ascending: true });
 
   const upcomingShows = ((upcoming ?? []) as Array<Record<string, unknown>>).map((s) => ({
@@ -186,6 +187,7 @@ export const getEventDetailBundle = cache(async (eventId: string): Promise<Event
         )
         .eq("magician_id", magicianId)
         .gte("date", today)
+        .eq("is_cancelled", false)
         .neq("id", current.id)
         .order("date", { ascending: true })
         .limit(3),
@@ -196,6 +198,7 @@ export const getEventDetailBundle = cache(async (eventId: string): Promise<Event
         )
         .neq("magician_id", magicianId)
         .gte("date", today)
+        .eq("is_cancelled", false)
         .order("date", { ascending: true })
         .limit(3),
       db

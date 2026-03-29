@@ -33,6 +33,7 @@ type EventRow = {
   includes_props?: boolean | null;
   max_attendees?: number | null;
   is_online?: boolean | null;
+  is_cancelled?: boolean | null;
   profiles: {
     id: string | null;
     display_name: string | null;
@@ -128,6 +129,7 @@ export default function EventsPage() {
         .from("shows")
         .select("*, profiles(id, display_name, avatar_url, location, specialty_tags)")
         .eq("is_public", true)
+        .eq("is_cancelled", false)
         .gte("date", today)
         .order("date", { ascending: true });
       if (catalogTab === "shows") {

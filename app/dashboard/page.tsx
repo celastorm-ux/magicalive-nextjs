@@ -55,6 +55,8 @@ type ShowRow = {
   includes_props?: boolean | null;
   max_attendees?: number | null;
   is_online?: boolean | null;
+  is_cancelled?: boolean | null;
+  cancellation_reason?: string | null;
 };
 
 type VenueOption = {
@@ -188,6 +190,10 @@ export default function DashboardPage() {
   const [editIncludesProps, setEditIncludesProps] = useState(false);
   const [editIsOnline, setEditIsOnline] = useState(false);
   const [editMeetingLink, setEditMeetingLink] = useState("");
+
+  const [cancelTarget, setCancelTarget] = useState<ShowRow | null>(null);
+  const [cancelReasonDraft, setCancelReasonDraft] = useState("");
+  const [cancelSaving, setCancelSaving] = useState(false);
 
   const load = async (uid: string) => {
     const { data: p } = await supabase
@@ -462,18 +468,48 @@ export default function DashboardPage() {
   };
 
   const deleteShow = async (showId: string) => {
-    const confirmed = window.confirm("Delete this show? This cannot be undone.");
-    if (!confirmed) return;
+    if (!window.confirm("Delete this show? This cannot be undone.")) return;
 
-    const { error } = await supabase.from("shows").delete().eq("id", showId);
+    try {
+      console.log("Deleting show:", showId);
+      const { error } = await supabase.from("shows").delete().eq("id", showId);
+
+      console.log("Delete result:", error);
+
+      if (error) {
+        alert("Could not delete: " + error.message);
+        return;
+      }
+
+      setShows((prev) => prev.filter((s) => s.id !== showId));
+      alert("Show deleted successfully");
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Something went wrong");
+    }
+  };
+
+  const confirmCancelShow = async () => {
+    if (!user?.id || !cancelTarget) return;
+    setCancelSaving(true);
+    const reason = cancelReasonDraft.trim() || null;
+    const { error } = await supabase
+      .from("shows")
+      .update({ is_cancelled: true, cancellation_reason: reason })
+      .eq("id", cancelTarget.id)
+      .eq("magician_id", user.id);
+    setCancelSaving(false);
     if (error) {
-      console.error("Delete error:", error);
-      alert("Could not delete show. Please try again.");
+      alert("Could not cancel: " + error.message);
       return;
     }
-
-    setShows((prev) => prev.filter((s) => s.id !== showId));
-    console.log("Show deleted successfully:", showId);
+    setShows((prev) =>
+      prev.map((s) =>
+        s.id === cancelTarget.id ? { ...s, is_cancelled: true, cancellation_reason: reason } : s,
+      ),
+    );
+    setCancelTarget(null);
+    setCancelReasonDraft("");
   };
 
   const startEditShow = (s: ShowRow) => {
@@ -716,6 +752,11 @@ export default function DashboardPage() {
           >
             {s.event_type === "lecture" ? "Lecture" : "Show"}
           </span>
+          {s.is_cancelled ? (
+            <span className="shrink-0 rounded-full border border-red-500/45 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-300">
+              Cancelled
+            </span>
+          ) : null}
           <p className={`font-semibold ${past ? "text-zinc-200" : "text-zinc-100"}`}>
             {formatShowDateLongEnUS(s.date)}
             {s.time?.trim() ? ` · ${formatTime(s.time)}` : ""} — {s.name}
@@ -738,6 +779,18 @@ export default function DashboardPage() {
         >
           Edit
         </button>
+        {!past && !s.is_cancelled ? (
+          <button
+            type="button"
+            onClick={() => {
+              setCancelTarget(s);
+              setCancelReasonDraft("");
+            }}
+            className="rounded-lg border border-amber-500/35 px-2 py-1 text-xs text-amber-200/90"
+          >
+            Cancel show
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => void deleteShow(s.id)}
@@ -1652,6 +1705,51 @@ export default function DashboardPage() {
           </div>
         ) : null}
       </div>
+
+      {cancelTarget ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-show-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-xl">
+            <h2 id="cancel-show-title" className="ml-font-heading text-lg font-semibold text-zinc-100">
+              Cancel this event?
+            </h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              Why are you cancelling this show? (optional)
+            </p>
+            <textarea
+              className={`${inputClass} mt-3 min-h-[100px] resize-y`}
+              value={cancelReasonDraft}
+              onChange={(e) => setCancelReasonDraft(e.target.value)}
+              placeholder="Share a brief note for your records or attendees who open the event page…"
+            />
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCancelTarget(null);
+                  setCancelReasonDraft("");
+                }}
+                disabled={cancelSaving}
+                className={CLASSES.btnSecondarySm}
+              >
+                Keep show
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmCancelShow()}
+                disabled={cancelSaving}
+                className="rounded-lg border border-red-500/45 bg-red-500/15 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-red-200 transition hover:bg-red-500/25 disabled:opacity-60"
+              >
+                {cancelSaving ? "Cancelling…" : "Cancel show"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -25,6 +25,8 @@ export type ShowWithMagician = {
   includes_props?: boolean | null;
   max_attendees?: number | null;
   is_online?: boolean | null;
+  is_cancelled?: boolean | null;
+  cancellation_reason?: string | null;
   profiles: {
     id: string | null;
     display_name: string | null;
@@ -111,6 +113,8 @@ export default function EventDetailClient({
   const ticketLink = event?.ticket_url?.trim() || null;
   const isLecture = event?.event_type === "lecture";
   const maxAtt = event?.max_attendees != null && event.max_attendees > 0 ? event.max_attendees : null;
+  const isCancelled = Boolean(event?.is_cancelled);
+  const cancelReason = event?.cancellation_reason?.trim() || null;
 
   const onCopyLink = async () => {
     await navigator.clipboard.writeText(window.location.href);
@@ -132,6 +136,18 @@ export default function EventDetailClient({
 
   return (
     <div className="min-h-screen bg-black pb-20 text-zinc-100">
+      {isCancelled ? (
+        <div className="border-b border-red-500/40 bg-red-950/55 px-4 py-5 text-center sm:px-8">
+          <p className="ml-font-heading text-lg font-semibold text-red-200 sm:text-xl">
+            This show has been cancelled
+          </p>
+          {cancelReason ? (
+            <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-red-100/85">{cancelReason}</p>
+          ) : (
+            <p className="mt-2 text-sm text-red-200/70">Details below are kept for reference.</p>
+          )}
+        </div>
+      ) : null}
       <div className="relative h-64 sm:h-80 md:h-96">
         {event.profiles?.banner_url ? (
           // eslint-disable-next-line @next/next/no-img-element

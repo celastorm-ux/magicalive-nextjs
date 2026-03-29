@@ -132,6 +132,7 @@ export default async function MagicShowsPage() {
     .from("shows")
     .select("id, name, date, time, venue_name, city, ticket_url, profiles(display_name)")
     .eq("is_public", true)
+    .eq("is_cancelled", false)
     .gte("date", todayStr)
     .lte("date", weekEndStr)
     .or("event_type.eq.show,event_type.is.null")

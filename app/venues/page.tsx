@@ -156,7 +156,8 @@ export default function VenuesPage() {
         .from("shows")
         .select("venue_id")
         .gte("date", today)
-        .eq("is_public", true);
+        .eq("is_public", true)
+        .eq("is_cancelled", false);
 
       if (sErr) {
         console.error("[venues] fetch shows:", sErr);

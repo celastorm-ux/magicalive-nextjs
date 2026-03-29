@@ -166,6 +166,7 @@ export default function SearchPageClient() {
         .from("shows")
         .select("id, name, venue_name, city, date, ticket_url, profiles(display_name, avatar_url, id)")
         .eq("is_public", true)
+        .eq("is_cancelled", false)
         .gte("date", today)
         .or(`name.ilike.%${q}%,venue_name.ilike.%${q}%,city.ilike.%${q}%`)
         .limit(8);

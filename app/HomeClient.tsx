@@ -117,6 +117,7 @@ export default function HomeClient() {
         .from("shows")
         .select("*, profiles(id, display_name, avatar_url)")
         .eq("is_public", true)
+        .eq("is_cancelled", false)
         .gte("date", todayYmdLocal())
         .order("date", { ascending: true })
         .limit(4);
