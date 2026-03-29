@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CLASSES } from "@/lib/constants";
+import { formatShowDateLongEnUS, parseShowYmd } from "@/lib/show-dates";
 
 export type ShowWithMagician = {
   id: string;
@@ -52,21 +53,15 @@ function initials(name: string) {
   return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase();
 }
 
-function formatLongDate(dateStr: string | null) {
-  if (!dateStr) return "Date TBA";
-  const dt = new Date(dateStr);
-  if (Number.isNaN(dt.getTime())) return "Date TBA";
-  return dt.toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 function createIcs(show: ShowWithMagician) {
   if (!show.date) return null;
-  const start = new Date(`${show.date}T${show.time || "20:00"}:00`);
+  const p = parseShowYmd(show.date);
+  if (!p) return null;
+  const tRaw = (show.time || "20:00").slice(0, 5);
+  const tm = /^(\d{1,2}):(\d{2})$/.exec(tRaw);
+  const hh = tm ? Math.min(23, Number(tm[1])) : 20;
+  const min = tm ? Math.min(59, Number(tm[2])) : 0;
+  const start = new Date(p.y, p.m - 1, p.d, hh, min, 0, 0);
   const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
   const fmt = (d: Date) =>
     d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -106,7 +101,7 @@ export default function EventDetailClient({
 }: EventDetailClientProps) {
   const [copied, setCopied] = useState(false);
 
-  const eventDate = useMemo(() => formatLongDate(event?.date ?? null), [event?.date]);
+  const eventDate = useMemo(() => formatShowDateLongEnUS(event?.date ?? null), [event?.date]);
   const magicianName = event?.profiles?.display_name?.trim() || "Magician";
   const aboutShow =
     event?.description?.trim() ||
@@ -374,7 +369,7 @@ export default function EventDetailClient({
                     >
                       <p className="text-sm font-semibold text-zinc-100">{s.name}</p>
                       <p className="mt-0.5 text-xs text-zinc-500">
-                        {s.date ? new Date(s.date).toLocaleDateString() : "Date TBA"}
+                        {s.date ? formatShowDateLongEnUS(s.date) : "Date TBA"}
                       </p>
                     </Link>
                   </li>

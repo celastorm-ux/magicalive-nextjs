@@ -9,6 +9,7 @@ import { BookingModal } from "@/components/BookingModal";
 import { ContactModal } from "@/components/ContactModal";
 import { ReviewForm, type CreatedReview } from "@/components/ReviewForm";
 import { CLASSES } from "@/lib/constants";
+import { formatShowDateLongEnUS, formatShowDateMediumEnUS, todayYmdLocal } from "@/lib/show-dates";
 import { formatLastSeen } from "@/lib/utils";
 import { createNotification } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
@@ -245,7 +246,7 @@ export default function MagicianProfileClient({
       return;
     }
     setProfile(p as unknown as MagicianRow);
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayYmdLocal();
     const { data: sh, error: shErr } = await supabase
       .from("shows")
       .select("*")
@@ -908,11 +909,7 @@ export default function MagicianProfileClient({
                           >
                             <div>
                               <p className="text-sm font-semibold text-[var(--ml-gold)]">
-                                {show.date
-                                  ? new Date(show.date).toLocaleDateString(undefined, {
-                                      dateStyle: "medium",
-                                    })
-                                  : "Date TBA"}
+                                {show.date ? formatShowDateLongEnUS(show.date) : "Date TBA"}
                                 {show.time ? ` · ${show.time}` : ""}
                               </p>
                               <Link
@@ -966,11 +963,7 @@ export default function MagicianProfileClient({
                                 Lecture
                               </span>
                               <p className="text-sm font-semibold text-violet-200/90">
-                                {show.date
-                                  ? new Date(show.date).toLocaleDateString(undefined, {
-                                      dateStyle: "medium",
-                                    })
-                                  : "Date TBA"}
+                                {show.date ? formatShowDateLongEnUS(show.date) : "Date TBA"}
                                 {show.time ? ` · ${show.time}` : ""}
                               </p>
                             </div>
@@ -1139,9 +1132,7 @@ export default function MagicianProfileClient({
                         past.map((show) => (
                           <tr key={show.id}>
                             <td className="px-4 py-3 text-zinc-400 sm:px-5">
-                              {show.date
-                                ? new Date(show.date).toLocaleDateString()
-                                : "—"}
+                              {show.date ? formatShowDateMediumEnUS(show.date) : "—"}
                             </td>
                             <td className="px-4 py-3 font-medium text-zinc-200 sm:px-5">
                               {show.name}

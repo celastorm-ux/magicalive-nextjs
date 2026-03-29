@@ -14,6 +14,7 @@ import {
   getStatesForCountry,
   rowLocationMatchesFilter,
 } from "@/lib/locations";
+import { daysAheadOfTodayLocal, localMidnightFromShowDate, todayYmdLocal } from "@/lib/show-dates";
 import { supabase } from "@/lib/supabase";
 
 type EventRow = {
@@ -64,19 +65,6 @@ const CORE_SPECIALTY_TAGS = [
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const selectClass =
   "min-w-0 cursor-pointer rounded-2xl border border-white/10 bg-white/5 py-2.5 pl-3 pr-8 text-sm text-zinc-100 outline-none transition focus:border-[var(--ml-gold)]/50";
-
-function startOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function daysAhead(dateStr: string) {
-  const dt = new Date(dateStr);
-  if (Number.isNaN(dt.getTime())) return 10000;
-  const diff = startOfDay(dt).getTime() - startOfDay(new Date()).getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -130,9 +118,11 @@ export default function EventsPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    void (async () => {
-      setLoading(true);
-      const today = new Date().toISOString().split("T")[0];
+    let cancelled = false;
+
+    const fetchEvents = async (isInitial: boolean) => {
+      if (isInitial) setLoading(true);
+      const today = todayYmdLocal();
       let q = supabase
         .from("shows")
         .select("*, profiles(id, display_name, avatar_url, location, specialty_tags)")
@@ -145,9 +135,21 @@ export default function EventsPage() {
         q = q.eq("event_type", "lecture");
       }
       const { data: shows } = await q;
+      if (cancelled) return;
       setEvents((shows ?? []) as EventRow[]);
-      setLoading(false);
-    })();
+      if (isInitial) setLoading(false);
+    };
+
+    void fetchEvents(true);
+
+    const onVis = () => {
+      if (document.visibilityState === "visible") void fetchEvents(false);
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [catalogTab]);
 
   const cities = useMemo(() => {
@@ -262,7 +264,7 @@ export default function EventsPage() {
       if (style !== "Any style" && !(e.profiles?.specialty_tags ?? []).some((t) => t.toLowerCase() === style.toLowerCase())) {
         return false;
       }
-      const ahead = daysAhead(e.date);
+      const ahead = daysAheadOfTodayLocal(e.date);
       if (dateFilter === "This week" && (ahead < 0 || ahead > 7)) return false;
       if (dateFilter === "This month" && (ahead < 0 || ahead > 30)) return false;
       if (q) {
@@ -287,7 +289,7 @@ export default function EventsPage() {
   const grouped = useMemo(() => {
     const out: Record<"thisWeek" | "thisMonth" | "future", EventRow[]> = { thisWeek: [], thisMonth: [], future: [] };
     for (const e of filtered) {
-      const ahead = daysAhead(e.date);
+      const ahead = daysAheadOfTodayLocal(e.date);
       if (ahead <= 7) out.thisWeek.push(e);
       else if (ahead <= 30) out.thisMonth.push(e);
       else out.future.push(e);
@@ -547,7 +549,7 @@ export default function EventsPage() {
                       </div>
                       <ul className="divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.02]">
                         {items.map((e) => {
-                          const d = new Date(e.date);
+                          const d = localMidnightFromShowDate(e.date);
                           const ticketLink = e.ticket_url?.trim() || null;
                           const lecture = isLecture(e);
                           return (
@@ -568,12 +570,12 @@ export default function EventsPage() {
                                   <span
                                     className={`ml-font-heading text-xl font-semibold ${lecture ? "text-violet-200" : "text-[var(--ml-gold)]"}`}
                                   >
-                                    {d.getDate()}
+                                    {d ? d.getDate() : "—"}
                                   </span>
                                   <span
                                     className={`text-[10px] font-medium uppercase tracking-wider ${lecture ? "text-violet-300/80" : "text-zinc-500"}`}
                                   >
-                                    {MONTH_NAMES[d.getMonth()]}
+                                    {d ? MONTH_NAMES[d.getMonth()] : ""}
                                   </span>
                                 </div>
                                 <div className="min-w-0 flex-1 sm:hidden">
@@ -660,7 +662,7 @@ export default function EventsPage() {
             ) : (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {filtered.map((e) => {
-                  const d = new Date(e.date);
+                  const d = localMidnightFromShowDate(e.date);
                   const ticketLink = e.ticket_url?.trim() || null;
                   const lecture = isLecture(e);
                   return (
@@ -681,9 +683,11 @@ export default function EventsPage() {
                           <div
                             className={`ml-font-heading text-lg font-semibold ${lecture ? "text-violet-200" : "text-[var(--ml-gold)]"}`}
                           >
-                            {d.getDate()}
+                            {d ? d.getDate() : "—"}
                           </div>
-                          <div className="text-[9px] font-medium uppercase tracking-wider text-zinc-300">{MONTH_NAMES[d.getMonth()]}</div>
+                          <div className="text-[9px] font-medium uppercase tracking-wider text-zinc-300">
+                            {d ? MONTH_NAMES[d.getMonth()] : ""}
+                          </div>
                         </div>
                       </div>
                       <div className="p-4">

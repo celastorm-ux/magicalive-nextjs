@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { CLASSES } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
+import { parseShowYmd, todayYmdLocal } from "@/lib/show-dates";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -108,10 +109,10 @@ function normalizeShowRow(raw: {
   };
 }
 
-function formatShowDate(iso: string) {
-  const d = new Date(`${iso}T12:00:00`);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, {
+function formatShowDate(ymd: string) {
+  const p = parseShowYmd(ymd);
+  if (!p) return ymd;
+  return new Date(p.y, p.m - 1, p.d).toLocaleDateString(undefined, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -121,11 +122,10 @@ function formatShowDate(iso: string) {
 
 export default async function MagicShowsPage() {
   const db = await getRouteSupabase();
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
-  const weekEnd = new Date(today);
-  weekEnd.setDate(weekEnd.getDate() + 7);
-  const weekEndStr = weekEnd.toISOString().slice(0, 10);
+  const todayStr = todayYmdLocal();
+  const t = new Date();
+  const weekEndCal = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 7);
+  const weekEndStr = `${weekEndCal.getFullYear()}-${String(weekEndCal.getMonth() + 1).padStart(2, "0")}-${String(weekEndCal.getDate()).padStart(2, "0")}`;
 
   const { data: rawShows } = await db
     .from("shows")

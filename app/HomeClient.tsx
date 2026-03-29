@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { HomeOurStoryTeaser } from "@/components/HomeOurStoryTeaser";
 import { CLASSES } from "@/lib/constants";
+import { formatShowDateShortEnUS, todayYmdLocal } from "@/lib/show-dates";
 import { supabase } from "@/lib/supabase";
 
 const SIGN_UP_CREATE_PROFILE = `/sign-up?redirect_url=${encodeURIComponent("/create-profile")}`;
@@ -107,14 +108,17 @@ export default function HomeClient() {
   }, []);
 
   useEffect(() => {
-    void (async () => {
+    let cancelled = false;
+
+    const fetchUpcoming = async () => {
       const { data: shows } = await supabase
         .from("shows")
         .select("*, profiles(id, display_name, avatar_url)")
         .eq("is_public", true)
-        .gte("date", new Date().toISOString().split("T")[0])
+        .gte("date", todayYmdLocal())
         .order("date", { ascending: true })
         .limit(4);
+      if (cancelled) return;
       const rows = (
         (shows ?? []) as Array<{
           id: string;
@@ -133,7 +137,7 @@ export default function HomeClient() {
         const online = Boolean(s.is_online);
         return {
           id: s.id,
-          date: new Date(s.date).toLocaleDateString(undefined, { month: "short", day: "2-digit" }),
+          date: formatShowDateShortEnUS(s.date),
           name: s.name,
           venue: isLec && online ? "Online" : [s.venue_name, s.city].filter(Boolean).join(" · ") || "Venue TBA",
           ticket_url: s.ticket_url,
@@ -145,7 +149,17 @@ export default function HomeClient() {
         };
       });
       setUpcomingEvents(rows);
-    })();
+    };
+
+    void fetchUpcoming();
+    const onVis = () => {
+      if (document.visibilityState === "visible") void fetchUpcoming();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, []);
 
   useEffect(() => {

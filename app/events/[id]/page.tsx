@@ -3,6 +3,7 @@ import JsonLd from "@/components/JsonLd";
 import { siteBaseUrl } from "@/lib/magicalive-resend";
 import { buildMetadata } from "@/lib/seo";
 import { getEventDetailBundle } from "@/lib/server/detail-pages";
+import { formatShowDateLongEnUS } from "@/lib/show-dates";
 import EventDetailClient, { type ReviewItem, type ShowWithMagician } from "./EventDetailClient";
 
 type PageParams = Promise<{ id: string }>;
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   const showName = ev.name?.trim() || "Event";
   const venue = ev.venue_name?.trim() || "Venue";
   const city = ev.city?.trim() || "City";
-  const date = ev.date ? new Date(ev.date).toLocaleDateString() : "TBA";
+  const date = ev.date ? formatShowDateLongEnUS(ev.date) : "TBA";
   const prof = normalizeProfilesProf(ev.profiles as unknown);
   const magicianName = prof?.display_name || "a magician";
   const base = buildMetadata({

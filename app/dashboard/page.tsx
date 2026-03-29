@@ -9,6 +9,7 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { CLASSES } from "@/lib/constants";
 import { findCountryForCity, pickerStateFromDatabase, stateValueForDatabase } from "@/lib/locations";
 import { createNotification } from "@/lib/notifications";
+import { formatShowDateLongEnUS, localMidnightFromShowDate } from "@/lib/show-dates";
 import { supabase } from "@/lib/supabase";
 
 type Tab = "overview" | "post" | "shows" | "availability" | "articles" | "settings";
@@ -254,8 +255,8 @@ export default function DashboardPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return shows.filter((s) => {
-      const d = new Date(s.date);
-      return !Number.isNaN(d.getTime()) && d >= today;
+      const d = localMidnightFromShowDate(s.date);
+      return d != null && !Number.isNaN(d.getTime()) && d >= today;
     });
   }, [shows]);
 
@@ -263,8 +264,8 @@ export default function DashboardPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return shows.filter((s) => {
-      const d = new Date(s.date);
-      return !Number.isNaN(d.getTime()) && d < today;
+      const d = localMidnightFromShowDate(s.date);
+      return d != null && !Number.isNaN(d.getTime()) && d < today;
     });
   }, [shows]);
 
@@ -389,9 +390,13 @@ export default function DashboardPage() {
 
     setPosting(true);
     try {
-      const normalizedDate = /^\d{4}-\d{2}-\d{2}$/.test(showDate)
-        ? showDate
-        : new Date(showDate).toISOString().slice(0, 10);
+      const trimmedDate = showDate.trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
+        setErrorMsg("Please enter a valid show date.");
+        setPosting(false);
+        return;
+      }
+      const normalizedDate = trimmedDate;
 
       const isLecture = postEventType === "lecture";
       const online = isLecture && lectureOnline;
@@ -455,16 +460,19 @@ export default function DashboardPage() {
     await load(user.id);
   };
 
-  const removeShow = async (id: string) => {
-    if (!window.confirm("Delete this show? This cannot be undone")) return;
-    const prev = shows;
-    setShows((curr) => curr.filter((s) => s.id !== id));
-    const { error } = await supabase.from("shows").delete().eq("id", id);
+  const deleteShow = async (showId: string) => {
+    const confirmed = window.confirm("Delete this show? This cannot be undone.");
+    if (!confirmed) return;
+
+    const { error } = await supabase.from("shows").delete().eq("id", showId);
     if (error) {
-      setErrorMsg("Something went wrong");
-      setShows(prev);
+      console.error("Delete error:", error);
+      alert("Could not delete show. Please try again.");
       return;
     }
+
+    setShows((prev) => prev.filter((s) => s.id !== showId));
+    console.log("Show deleted successfully:", showId);
   };
 
   const startEditShow = (s: ShowRow) => {
@@ -532,9 +540,13 @@ export default function DashboardPage() {
     }
 
     setEditSaving(true);
-    const normalizedDate = /^\d{4}-\d{2}-\d{2}$/.test(editShowDate)
-      ? editShowDate
-      : new Date(editShowDate).toISOString().slice(0, 10);
+    const trimmedEditDate = editShowDate.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedEditDate)) {
+      setErrorMsg("Please enter a valid show date.");
+      setEditSaving(false);
+      return;
+    }
+    const normalizedDate = trimmedEditDate;
     const online = editEventType === "lecture" && editIsOnline;
     const venueIdForUpdate = online
       ? null
@@ -704,7 +716,7 @@ export default function DashboardPage() {
             {s.event_type === "lecture" ? "Lecture" : "Show"}
           </span>
           <p className={`font-semibold ${past ? "text-zinc-200" : "text-zinc-100"}`}>
-            {s.date} — {s.name}
+            {formatShowDateLongEnUS(s.date)} — {s.name}
           </p>
         </div>
         <p className="text-zinc-500">
@@ -726,7 +738,7 @@ export default function DashboardPage() {
         </button>
         <button
           type="button"
-          onClick={() => void removeShow(s.id)}
+          onClick={() => void deleteShow(s.id)}
           className="rounded-lg border border-red-500/35 px-2 py-1 text-xs text-red-300"
         >
           Delete

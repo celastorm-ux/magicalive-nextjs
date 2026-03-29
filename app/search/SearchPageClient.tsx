@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { SearchBar } from "@/components/SearchBar";
 import { CLASSES } from "@/lib/constants";
+import { formatShowDateMediumEnUS } from "@/lib/show-dates";
 import {
   countriesForPicker,
   countryUsesStatePicker,
@@ -435,7 +436,7 @@ export default function SearchPageClient() {
                         <Highlight text={[s.venue_name, s.city].filter(Boolean).join(" · ") || "Venue TBA"} q={searchQuery} />
                       </p>
                       <p className="mt-1 text-xs text-zinc-600">
-                        {s.date ? new Date(s.date).toLocaleDateString() : "Date TBA"}
+                        {s.date ? formatShowDateMediumEnUS(s.date) : "Date TBA"}
                         {s.profiles?.display_name ? ` · ${s.profiles.display_name}` : ""}
                       </p>
                     </Link>
