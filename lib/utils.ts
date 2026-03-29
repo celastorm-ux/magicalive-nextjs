@@ -1,3 +1,19 @@
+export function formatTime(time: string): string {
+  if (!time) return "";
+
+  const [hourStr, minutePart = "00"] = time.trim().split(":");
+  const minuteStr = (minutePart || "00").slice(0, 2);
+  const hour = parseInt(hourStr ?? "", 10);
+
+  if (Number.isNaN(hour)) return time.trim();
+
+  const period = hour >= 12 ? "PM" : "AM";
+  const standardHour = hour % 12 || 12;
+  const minute = minuteStr.padStart(2, "0");
+
+  return `${standardHour}:${minute} ${period}`;
+}
+
 export function formatLastSeen(lastSeen: string): string {
   const diff = Date.now() - new Date(lastSeen).getTime();
   const minutes = Math.floor(diff / 60000);

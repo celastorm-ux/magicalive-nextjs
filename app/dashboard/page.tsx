@@ -10,6 +10,7 @@ import { CLASSES } from "@/lib/constants";
 import { findCountryForCity, pickerStateFromDatabase, stateValueForDatabase } from "@/lib/locations";
 import { createNotification } from "@/lib/notifications";
 import { formatShowDateLongEnUS, localMidnightFromShowDate } from "@/lib/show-dates";
+import { formatTime } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
 type Tab = "overview" | "post" | "shows" | "availability" | "articles" | "settings";
@@ -716,7 +717,8 @@ export default function DashboardPage() {
             {s.event_type === "lecture" ? "Lecture" : "Show"}
           </span>
           <p className={`font-semibold ${past ? "text-zinc-200" : "text-zinc-100"}`}>
-            {formatShowDateLongEnUS(s.date)} — {s.name}
+            {formatShowDateLongEnUS(s.date)}
+            {s.time?.trim() ? ` · ${formatTime(s.time)}` : ""} — {s.name}
           </p>
         </div>
         <p className="text-zinc-500">
@@ -1159,6 +1161,11 @@ export default function DashboardPage() {
               <div>
                 <label className={labelClass}>Time *</label>
                 <input type="time" className={inputClass} value={showTime} onChange={(e) => setShowTime(e.target.value)} />
+                {showTime.trim() ? (
+                  <p className="mt-1.5 text-xs text-zinc-500">
+                    Show time: {formatTime(showTime)}
+                  </p>
+                ) : null}
               </div>
               {postEventType === "lecture" ? (
                 <>

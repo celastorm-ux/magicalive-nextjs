@@ -16,6 +16,7 @@ import {
 } from "@/lib/locations";
 import { daysAheadOfTodayLocal, localMidnightFromShowDate, todayYmdLocal } from "@/lib/show-dates";
 import { supabase } from "@/lib/supabase";
+import { formatTime } from "@/lib/utils";
 
 type EventRow = {
   id: string;
@@ -640,7 +641,7 @@ export default function EventsPage() {
                                 </div>
                               </div>
                               <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end sm:gap-2">
-                                <span className="text-sm text-zinc-500">{e.time || "TBA"}</span>
+                                <span className="text-sm text-zinc-500">{formatTime(e.time ?? "") || "TBA"}</span>
                                 {ticketLink ? (
                                   <a href={ticketLink} target="_blank" rel="noopener noreferrer" className={CLASSES.btnPrimarySm}>
                                     {ticketLabel(e)}
@@ -718,7 +719,7 @@ export default function EventsPage() {
                           ) : (
                             <span>{e.profiles?.display_name || "Magician"}</span>
                           )}
-                          <span className="text-zinc-600">· {e.time || "TBA"}</span>
+                          <span className="text-zinc-600">· {formatTime(e.time ?? "") || "TBA"}</span>
                         </div>
                         {ticketLink ? (
                           <a

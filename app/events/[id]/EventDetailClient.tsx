@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CLASSES } from "@/lib/constants";
 import { formatShowDateLongEnUS, parseShowYmd } from "@/lib/show-dates";
+import { formatTime } from "@/lib/utils";
 
 export type ShowWithMagician = {
   id: string;
@@ -170,7 +171,7 @@ export default function EventDetailClient({
               </div>
             ) : null}
             <p className={`text-xs uppercase tracking-wider text-[var(--ml-gold)]/80 ${isLecture ? "mt-3" : ""}`}>
-              {eventDate} {event.time ? `· ${event.time}` : ""}
+              {eventDate} {event.time ? `· ${formatTime(event.time)}` : ""}
             </p>
             <h1 className="mt-2 ml-font-heading text-4xl font-semibold text-zinc-50 sm:text-5xl">
               {event.name}
@@ -209,7 +210,7 @@ export default function EventDetailClient({
             </h2>
             <div className="mt-4 space-y-1 text-sm text-zinc-400">
               <p>{eventDate}</p>
-              <p>{event.time || "Time TBA"}</p>
+              <p>{formatTime(event.time ?? "") || "Time TBA"}</p>
               {isLecture && event.is_online ? (
                 <p className="text-sky-200/90">Online</p>
               ) : (

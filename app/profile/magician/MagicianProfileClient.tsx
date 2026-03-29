@@ -10,7 +10,7 @@ import { ContactModal } from "@/components/ContactModal";
 import { ReviewForm, type CreatedReview } from "@/components/ReviewForm";
 import { CLASSES } from "@/lib/constants";
 import { formatShowDateLongEnUS, formatShowDateMediumEnUS, todayYmdLocal } from "@/lib/show-dates";
-import { formatLastSeen } from "@/lib/utils";
+import { formatLastSeen, formatTime } from "@/lib/utils";
 import { createNotification } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 
@@ -910,7 +910,7 @@ export default function MagicianProfileClient({
                             <div>
                               <p className="text-sm font-semibold text-[var(--ml-gold)]">
                                 {show.date ? formatShowDateLongEnUS(show.date) : "Date TBA"}
-                                {show.time ? ` · ${show.time}` : ""}
+                                {show.time ? ` · ${formatTime(show.time)}` : ""}
                               </p>
                               <Link
                                 href={`/events/${encodeURIComponent(show.id)}`}
@@ -964,7 +964,7 @@ export default function MagicianProfileClient({
                               </span>
                               <p className="text-sm font-semibold text-violet-200/90">
                                 {show.date ? formatShowDateLongEnUS(show.date) : "Date TBA"}
-                                {show.time ? ` · ${show.time}` : ""}
+                                {show.time ? ` · ${formatTime(show.time)}` : ""}
                               </p>
                             </div>
                             <Link

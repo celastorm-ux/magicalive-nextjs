@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CLASSES } from "@/lib/constants";
+import { formatTime } from "@/lib/utils";
 
 export type VenueRow = {
   id: string;
@@ -269,7 +270,7 @@ export default function VenueDetailClient({
                         <div className="min-w-0">
                           <p className="text-xs font-medium uppercase tracking-wider text-[var(--ml-gold)]">
                             {formatShowDate(s.date)}
-                            {s.time ? ` · ${s.time}` : ""}
+                            {s.time ? ` · ${formatTime(s.time)}` : ""}
                           </p>
                           <Link
                             href={`/events/${encodeURIComponent(s.id)}`}

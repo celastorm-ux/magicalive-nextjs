@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { CLASSES } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 import { parseShowYmd, todayYmdLocal } from "@/lib/show-dates";
+import { formatTime } from "@/lib/utils";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -205,7 +206,7 @@ export default async function MagicShowsPage() {
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wider text-[var(--ml-gold)]">
                         {formatShowDate(s.date)}
-                        {s.time?.trim() ? ` · ${s.time.trim()}` : ""}
+                        {s.time?.trim() ? ` · ${formatTime(s.time.trim())}` : ""}
                       </p>
                       <h3 className="mt-1 ml-font-heading text-lg font-semibold text-zinc-50">
                         {s.name?.trim() || "Show"}

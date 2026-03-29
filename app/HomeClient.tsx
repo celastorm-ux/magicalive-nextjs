@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { HomeOurStoryTeaser } from "@/components/HomeOurStoryTeaser";
 import { CLASSES } from "@/lib/constants";
 import { formatShowDateShortEnUS, todayYmdLocal } from "@/lib/show-dates";
+import { formatTime } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
 const SIGN_UP_CREATE_PROFILE = `/sign-up?redirect_url=${encodeURIComponent("/create-profile")}`;
@@ -23,6 +24,7 @@ type FeaturedMagician = {
 type UpcomingEvent = {
   id: string;
   date: string;
+  time: string | null;
   name: string;
   venue: string;
   ticket_url: string | null;
@@ -130,6 +132,7 @@ export default function HomeClient() {
           magician_id: string | null;
           event_type?: string | null;
           is_online?: boolean | null;
+          time?: string | null;
           profiles: { id: string | null; display_name: string | null; avatar_url: string | null } | null;
         }>
       ).map((s) => {
@@ -138,6 +141,7 @@ export default function HomeClient() {
         return {
           id: s.id,
           date: formatShowDateShortEnUS(s.date),
+          time: s.time ?? null,
           name: s.name,
           venue: isLec && online ? "Online" : [s.venue_name, s.city].filter(Boolean).join(" · ") || "Venue TBA",
           ticket_url: s.ticket_url,
@@ -452,10 +456,15 @@ export default function HomeClient() {
                     isLec ? "border-l-2 border-l-violet-500/45 bg-violet-950/[0.12]" : ""
                   }`}
                 >
-                  <div
-                    className={`text-sm font-semibold ${isLec ? "text-violet-200" : "text-[var(--ml-gold)]"}`}
-                  >
-                    {e.date}
+                  <div>
+                    <div
+                      className={`text-sm font-semibold ${isLec ? "text-violet-200" : "text-[var(--ml-gold)]"}`}
+                    >
+                      {e.date}
+                    </div>
+                    {e.time?.trim() ? (
+                      <div className="mt-0.5 text-xs font-medium text-zinc-500">{formatTime(e.time)}</div>
+                    ) : null}
                   </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
