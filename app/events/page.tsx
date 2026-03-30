@@ -101,6 +101,9 @@ export default function EventsPage() {
   const [view, setView] = useState<"list" | "cards">("list");
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth());
 
   useEffect(() => {
     const c = searchParams.get("city")?.trim();
@@ -234,6 +237,25 @@ export default function EventsPage() {
     return counts;
   }, [events]);
 
+  const eventDays = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of events) if (e.date) set.add(e.date);
+    return set;
+  }, [events]);
+
+  const calendarDays = useMemo(() => {
+    const firstWeekday = new Date(calendarYear, calendarMonth, 1).getDay();
+    const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+    const cells: Array<{ day: number; dateStr: string } | null> = [];
+    for (let i = 0; i < firstWeekday; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+      const mm = String(calendarMonth + 1).padStart(2, "0");
+      const dd = String(d).padStart(2, "0");
+      cells.push({ day: d, dateStr: `${calendarYear}-${mm}-${dd}` });
+    }
+    return cells;
+  }, [calendarYear, calendarMonth]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return events.filter((e) => {
@@ -268,9 +290,10 @@ export default function EventsPage() {
       if (style !== "Any style" && !(e.profiles?.specialty_tags ?? []).some((t) => t.toLowerCase() === style.toLowerCase())) {
         return false;
       }
+      if (selectedDay && e.date !== selectedDay) return false;
       const ahead = daysAheadOfTodayLocal(e.date);
-      if (dateFilter === "This week" && (ahead < 0 || ahead > 7)) return false;
-      if (dateFilter === "This month" && (ahead < 0 || ahead > 30)) return false;
+      if (!selectedDay && dateFilter === "This week" && (ahead < 0 || ahead > 7)) return false;
+      if (!selectedDay && dateFilter === "This month" && (ahead < 0 || ahead > 30)) return false;
       if (q) {
         const hay = `${e.name} ${e.venue_name || ""} ${e.city || ""} ${e.profiles?.display_name || ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -288,6 +311,7 @@ export default function EventsPage() {
     catalogTab,
     lectureSkillFilter,
     lectureFormat,
+    selectedDay,
   ]);
 
   const grouped = useMemo(() => {
@@ -388,7 +412,79 @@ export default function EventsPage() {
           </button>
         </div>
 
-        <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+        {/* Calendar filter */}
+        <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const d = new Date(calendarYear, calendarMonth - 1, 1);
+                  setCalendarYear(d.getFullYear());
+                  setCalendarMonth(d.getMonth());
+                }}
+                className="cursor-pointer rounded-xl border border-white/10 px-3 py-1.5 text-sm text-zinc-400 transition hover:border-white/25 hover:text-zinc-100"
+              >
+                ‹
+              </button>
+              <span className="min-w-[140px] text-center text-base font-semibold text-zinc-100">
+                {["January","February","March","April","May","June","July","August","September","October","November","December"][calendarMonth]} {calendarYear}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const d = new Date(calendarYear, calendarMonth + 1, 1);
+                  setCalendarYear(d.getFullYear());
+                  setCalendarMonth(d.getMonth());
+                }}
+                className="cursor-pointer rounded-xl border border-white/10 px-3 py-1.5 text-sm text-zinc-400 transition hover:border-white/25 hover:text-zinc-100"
+              >
+                ›
+              </button>
+            </div>
+            {selectedDay ? (
+              <button
+                type="button"
+                onClick={() => setSelectedDay(null)}
+                className="cursor-pointer text-xs font-medium text-[var(--ml-gold)] transition hover:underline"
+              >
+                Clear ×
+              </button>
+            ) : null}
+          </div>
+          <div className="grid grid-cols-7 text-center">
+            {["Su","Mo","Tu","We","Th","Fr","Sa"].map((d) => (
+              <div key={d} className="pb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-600">{d}</div>
+            ))}
+            {calendarDays.map((cell, i) => {
+              if (!cell) return <div key={`empty-${i}`} />;
+              const hasEvent = eventDays.has(cell.dateStr);
+              const isSelected = selectedDay === cell.dateStr;
+              const isToday = cell.dateStr === todayYmdLocal();
+              return (
+                <button
+                  key={cell.dateStr}
+                  type="button"
+                  onClick={() => setSelectedDay(isSelected ? null : cell.dateStr)}
+                  className={`relative mx-auto flex h-9 w-9 flex-col items-center justify-center rounded-xl text-sm font-medium transition ${
+                    isSelected
+                      ? "bg-[var(--ml-gold)] text-black"
+                      : hasEvent
+                      ? "cursor-pointer text-zinc-100 hover:bg-white/10"
+                      : "cursor-default text-zinc-600"
+                  } ${isToday && !isSelected ? "ring-1 ring-[var(--ml-gold)]/50" : ""}`}
+                >
+                  {cell.day}
+                  {hasEvent && !isSelected ? (
+                    <span className="absolute bottom-1 h-1 w-1 rounded-full bg-[var(--ml-gold)]" />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">⌕</span>
             <input
