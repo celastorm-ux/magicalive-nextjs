@@ -707,7 +707,7 @@ export default function MagiciansClient() {
                               void toggleFollow(m.id);
                             }}
                             disabled={followBusyId === m.id}
-                            className="absolute left-3 top-3 rounded-full border border-[var(--ml-gold)]/35 bg-black/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] backdrop-blur-sm"
+                            className="absolute left-3 top-3 cursor-pointer rounded-full border border-[var(--ml-gold)]/35 bg-black/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] backdrop-blur-sm"
                           >
                             {followingIds.has(m.id) ? "♥ Following" : "♡ Follow"}
                           </button>
@@ -719,7 +719,7 @@ export default function MagiciansClient() {
                               e.stopPropagation();
                               router.push("/sign-in");
                             }}
-                            className="absolute left-3 top-3 rounded-full border border-[var(--ml-gold)]/35 bg-black/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] backdrop-blur-sm"
+                            className="absolute left-3 top-3 cursor-pointer rounded-full border border-[var(--ml-gold)]/35 bg-black/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] backdrop-blur-sm"
                           >
                             ♡ Follow
                           </button>

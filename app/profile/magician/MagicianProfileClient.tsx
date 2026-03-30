@@ -657,33 +657,57 @@ export default function MagicianProfileClient({
                 ) : null}
               </div>
               <div className="mt-4 flex-1 text-center sm:mt-0 sm:pb-1 sm:text-left">
-                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                  <h1 className="ml-font-heading text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl md:text-5xl">
-                    {name}
-                  </h1>
-                  {profile.is_founding_member ? (
-                    <span className="inline-flex items-center rounded-full border border-[var(--ml-gold)]/35 bg-[var(--ml-gold)]/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]">
-                      Founding Member ♣
-                    </span>
-                  ) : null}
-                  {profile.is_verified ? (
-                    <span className="inline-flex items-center rounded-full border border-[var(--ml-gold)]/35 bg-[var(--ml-gold)]/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]">
-                      Verified
-                    </span>
-                  ) : null}
-                  {profile.is_online ? (
-                    <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-200">
-                      <span className="relative flex h-2 w-2">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                    <h1 className="ml-font-heading text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl md:text-5xl">
+                      {name}
+                    </h1>
+                    {profile.is_founding_member ? (
+                      <span className="inline-flex items-center rounded-full border border-[var(--ml-gold)]/35 bg-[var(--ml-gold)]/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]">
+                        Founding Member ♣
                       </span>
-                      Online now
-                    </span>
-                  ) : profile.last_seen ? (
-                    <span className="text-[10px] font-medium text-zinc-500">
-                      Last seen {formatLastSeen(profile.last_seen)}
-                    </span>
-                  ) : null}
+                    ) : null}
+                    {profile.is_verified ? (
+                      <span className="inline-flex items-center rounded-full border border-[var(--ml-gold)]/35 bg-[var(--ml-gold)]/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]">
+                        Verified
+                      </span>
+                    ) : null}
+                    {profile.is_online ? (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-200">
+                        <span className="relative flex h-2 w-2">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+                          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                        </span>
+                        Online now
+                      </span>
+                    ) : profile.last_seen ? (
+                      <span className="text-[10px] font-medium text-zinc-500">
+                        Last seen {formatLastSeen(profile.last_seen)}
+                      </span>
+                    ) : null}
+                  </div>
+                  {!isOwn && (
+                    <div className="flex-shrink-0 pt-1">
+                      {user?.id ? (
+                        <button
+                          type="button"
+                          onClick={() => void toggleFollow()}
+                          disabled={followBusy}
+                          className={isFollowing ? `${CLASSES.btnSecondarySm}` : `${CLASSES.btnPrimarySm}`}
+                        >
+                          {isFollowing ? "♥ Following" : "♡ Follow"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => router.push("/sign-in")}
+                          className={CLASSES.btnPrimarySm}
+                        >
+                          ♡ Follow
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <p className="mt-1 text-sm text-[var(--ml-gold)]">@{handle}</p>
                 <p className="mt-1 text-sm text-zinc-400">

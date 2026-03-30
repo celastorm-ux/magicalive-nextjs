@@ -67,21 +67,21 @@ export const CLASSES = {
     "text-xs font-medium uppercase tracking-wide text-zinc-400",
 
   btnPrimary:
-    "inline-flex items-center justify-center rounded-2xl bg-[var(--ml-gold)] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[var(--ml-gold-hover)]",
+    "inline-flex cursor-pointer items-center justify-center rounded-2xl bg-[var(--ml-gold)] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[var(--ml-gold-hover)]",
   btnPrimarySm:
-    "inline-flex items-center justify-center rounded-xl bg-[var(--ml-gold)] px-3 py-2 text-xs font-semibold text-black transition hover:bg-[var(--ml-gold-hover)]",
+    "inline-flex cursor-pointer items-center justify-center rounded-xl bg-[var(--ml-gold)] px-3 py-2 text-xs font-semibold text-black transition hover:bg-[var(--ml-gold-hover)]",
   btnSecondary:
-    "inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:border-white/25 hover:bg-white/10",
+    "inline-flex cursor-pointer items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-zinc-200 transition hover:border-white/25 hover:bg-white/10",
   btnSecondarySm:
-    "rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/20 hover:bg-white/10",
+    "cursor-pointer rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/20 hover:bg-white/10",
   btnGhostGold:
-    "inline-flex items-center justify-center rounded-2xl border border-[var(--ml-gold)]/40 bg-transparent px-4 py-2.5 text-sm font-semibold text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/60 hover:bg-[var(--ml-gold)]/10",
+    "inline-flex cursor-pointer items-center justify-center rounded-2xl border border-[var(--ml-gold)]/40 bg-transparent px-4 py-2.5 text-sm font-semibold text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/60 hover:bg-[var(--ml-gold)]/10",
   btnOutlineLight:
-    "inline-flex items-center justify-center rounded-2xl border border-white/20 bg-[var(--ml-surface-cta)] px-5 py-3 text-sm font-semibold text-zinc-50 transition hover:bg-black/30",
+    "inline-flex cursor-pointer items-center justify-center rounded-2xl border border-white/20 bg-[var(--ml-surface-cta)] px-5 py-3 text-sm font-semibold text-zinc-50 transition hover:bg-black/30",
   btnSignIn:
-    "rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-white/25 hover:bg-white/10",
+    "cursor-pointer rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-white/25 hover:bg-white/10",
   btnCreateProfile:
-    "inline-flex items-center justify-center rounded-full bg-[var(--ml-gold)] px-4 py-2 text-sm font-semibold text-black transition hover:bg-[var(--ml-gold-hover)]",
+    "inline-flex cursor-pointer items-center justify-center rounded-full bg-[var(--ml-gold)] px-4 py-2 text-sm font-semibold text-black transition hover:bg-[var(--ml-gold-hover)]",
 
   card: "rounded-2xl border border-white/10 bg-white/[0.03]",
   cardLg: "rounded-3xl border border-white/10 bg-white/[0.03]",
