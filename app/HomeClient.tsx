@@ -378,52 +378,6 @@ export default function HomeClient() {
           </div>
         </section>
 
-        <section className={`${CLASSES.section} pb-4`}>
-          {showFoundingSpots ? (
-            <div className="rounded-3xl border border-[var(--ml-gold)]/25 bg-[var(--ml-gold)]/10 p-6 sm:p-8">
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">
-                Limited availability
-              </p>
-              <h2 className="mt-2 ml-font-heading text-3xl font-semibold text-zinc-100 sm:text-4xl">
-                Become a Founding Member ♣
-              </h2>
-              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-200/90 sm:text-base">
-                The first 100 magicians to join Magicalive receive a permanent Founding Member
-                badge on their profile.{" "}
-                <span className="text-[var(--ml-gold)]">{foundingRemaining} spots remaining.</span>
-              </p>
-              <div className="mt-6 grid gap-3 text-sm text-zinc-200 sm:grid-cols-3">
-                <div>♣ Permanent badge on your profile</div>
-                <div>♣ Free forever — no premium required</div>
-                <div>♣ Be part of the founding community</div>
-              </div>
-              <div className="mt-6">
-                <Link href={createProfileHref} className={CLASSES.btnPrimary}>
-                  Claim your spot →
-                </Link>
-              </div>
-              <div className="mt-6">
-                <div className="mb-2 text-xs text-zinc-300">
-                  {foundingClaimed} of 100 spots claimed
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-[var(--ml-gold)] transition-all duration-300"
-                    style={{ width: `${foundingProgressPct}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : foundingRemaining === 0 ? (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
-              <p className="text-sm text-zinc-300 sm:text-base">
-                Our 100 Founding Members have been selected. Create your free profile to join the
-                community.
-              </p>
-            </div>
-          ) : null}
-        </section>
-
         <section className={`${CLASSES.section} pb-16 pt-2`}>
           <div className="flex items-end justify-between gap-6">
             <div>
@@ -543,6 +497,52 @@ export default function HomeClient() {
               ) : null}
             </div>
           </div>
+        </section>
+
+        <section className={`${CLASSES.section} pb-4`}>
+          {showFoundingSpots ? (
+            <div className="rounded-3xl border border-[var(--ml-gold)]/25 bg-[var(--ml-gold)]/10 p-6 sm:p-8">
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">
+                Limited availability
+              </p>
+              <h2 className="mt-2 ml-font-heading text-3xl font-semibold text-zinc-100 sm:text-4xl">
+                Become a Founding Member ♣
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-200/90 sm:text-base">
+                The first 100 magicians to join Magicalive receive a permanent Founding Member
+                badge on their profile.{" "}
+                <span className="text-[var(--ml-gold)]">{foundingRemaining} spots remaining.</span>
+              </p>
+              <div className="mt-6 grid gap-3 text-sm text-zinc-200 sm:grid-cols-3">
+                <div>♣ Permanent badge on your profile</div>
+                <div>♣ Free forever — no premium required</div>
+                <div>♣ Be part of the founding community</div>
+              </div>
+              <div className="mt-6">
+                <Link href={createProfileHref} className={CLASSES.btnPrimary}>
+                  Claim your spot →
+                </Link>
+              </div>
+              <div className="mt-6">
+                <div className="mb-2 text-xs text-zinc-300">
+                  {foundingClaimed} of 100 spots claimed
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-[var(--ml-gold)] transition-all duration-300"
+                    style={{ width: `${foundingProgressPct}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : foundingRemaining === 0 ? (
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
+              <p className="text-sm text-zinc-300 sm:text-base">
+                Our 100 Founding Members have been selected. Create your free profile to join the
+                community.
+              </p>
+            </div>
+          ) : null}
         </section>
 
         <section className={`${CLASSES.section} py-12`}>
