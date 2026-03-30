@@ -6,8 +6,9 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useUser } from "@clerk/nextjs";
 import { CLASSES } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
+import { formatTime } from "@/lib/utils";
 
-type AdminTab = "articles" | "magicians" | "venues" | "users";
+type AdminTab = "articles" | "magicians" | "shows" | "venues" | "users";
 
 type ArticleAdminRow = {
   id: string;
@@ -58,6 +59,43 @@ const VENUE_SELECT_PLACEHOLDER = "";
 const VENUE_OTHER = "__other__";
 type PostEventKind = "show" | "lecture";
 
+const ADMIN_SKILL_LEVELS = ["Beginner", "Intermediate", "Advanced", "All levels"] as const;
+
+type ShowAdminRow = {
+  id: string;
+  magician_id: string | null;
+  name: string | null;
+  date: string | null;
+  time: string | null;
+  venue_name: string | null;
+  venue_id: string | null;
+  city: string | null;
+  state: string | null;
+  ticket_url: string | null;
+  is_public: boolean | null;
+  event_type: string | null;
+  skill_level: string | null;
+  max_attendees: number | null;
+  is_online: boolean | null;
+  includes_workbook: boolean | null;
+  includes_props: boolean | null;
+  is_cancelled: boolean | null;
+  profiles?: { display_name: string | null; avatar_url: string | null } | unknown[] | null;
+};
+
+function normalizeShowAdminProfiles(
+  p: ShowAdminRow["profiles"],
+): { display_name: string | null; avatar_url: string | null } | null {
+  if (p == null) return null;
+  if (Array.isArray(p)) {
+    const row = p[0] as { display_name?: string | null; avatar_url?: string | null } | undefined;
+    return row
+      ? { display_name: row.display_name ?? null, avatar_url: row.avatar_url ?? null }
+      : null;
+  }
+  return p as { display_name: string | null; avatar_url: string | null };
+}
+
 type AdminVenueOpt = { id: string; name: string | null; city: string | null; state: string | null };
 
 type VenueAdminRow = {
@@ -93,6 +131,7 @@ type UserAdminRow = {
 const TABS: Array<{ id: AdminTab; label: string }> = [
   { id: "articles", label: "Articles" },
   { id: "magicians", label: "Magicians" },
+  { id: "shows", label: "Shows" },
   { id: "venues", label: "Venues" },
   { id: "users", label: "Users" },
 ];
@@ -143,6 +182,32 @@ export default function AdminClient() {
   const [magicians, setMagicians] = useState<MagicianAdminRow[]>([]);
   const [venues, setVenues] = useState<VenueAdminRow[]>([]);
   const [users, setUsers] = useState<UserAdminRow[]>([]);
+  const [adminShows, setAdminShows] = useState<ShowAdminRow[]>([]);
+  const [adminShowVenues, setAdminShowVenues] = useState<AdminVenueOpt[]>([]);
+  const [showSearch, setShowSearch] = useState("");
+  const [showTypeFilter, setShowTypeFilter] = useState<"all" | PostEventKind>("all");
+  const [showDateFrom, setShowDateFrom] = useState("");
+  const [showDateTo, setShowDateTo] = useState("");
+  const [editingAdminShowId, setEditingAdminShowId] = useState<string | null>(null);
+  const [adminEditName, setAdminEditName] = useState("");
+  const [adminEditDate, setAdminEditDate] = useState("");
+  const [adminEditTime, setAdminEditTime] = useState("");
+  const [adminEditVenueSelect, setAdminEditVenueSelect] = useState<string>(VENUE_SELECT_PLACEHOLDER);
+  const [adminEditSelectedVenueId, setAdminEditSelectedVenueId] = useState<string | null>(null);
+  const [adminEditVenueName, setAdminEditVenueName] = useState("");
+  const [adminEditCity, setAdminEditCity] = useState("");
+  const [adminEditStateText, setAdminEditStateText] = useState("");
+  const [adminEditTicketUrl, setAdminEditTicketUrl] = useState("");
+  const [adminEditIsPublic, setAdminEditIsPublic] = useState(true);
+  const [adminEditEventType, setAdminEditEventType] = useState<PostEventKind>("show");
+  const [adminEditSkillLevel, setAdminEditSkillLevel] =
+    useState<(typeof ADMIN_SKILL_LEVELS)[number]>("All levels");
+  const [adminEditMaxAttendees, setAdminEditMaxAttendees] = useState("");
+  const [adminEditIsOnline, setAdminEditIsOnline] = useState(false);
+  const [adminEditWorkbook, setAdminEditWorkbook] = useState(false);
+  const [adminEditProps, setAdminEditProps] = useState(false);
+  const [adminShowSaveBusy, setAdminShowSaveBusy] = useState(false);
+  const [adminShowRowBusyId, setAdminShowRowBusyId] = useState<string | null>(null);
 
   const [dataLoading, setDataLoading] = useState(false);
   const [actionErr, setActionErr] = useState("");
@@ -237,6 +302,29 @@ export default function AdminClient() {
         const json = (await res.json()) as { ok?: boolean; magicians?: MagicianAdminRow[]; error?: string };
         if (!res.ok || !json.ok) throw new Error(json.error || "Failed to load magicians");
         setMagicians(json.magicians ?? []);
+      } else if (tab === "shows") {
+        const [{ data: showData, error: showErr }, { data: venData, error: venErr }] = await Promise.all([
+          supabase
+            .from("shows")
+            .select("*, profiles(display_name, avatar_url)")
+            .order("date", { ascending: false }),
+          supabase
+            .from("venues")
+            .select("id, name, city, state")
+            .eq("is_verified", true)
+            .order("name", { ascending: true }),
+        ]);
+        if (showErr) throw new Error(showErr.message);
+        if (venErr) console.error("[admin shows] venues:", venErr);
+        setAdminShows((showData ?? []) as ShowAdminRow[]);
+        setAdminShowVenues(
+          (venData ?? []).map((r) => ({
+            id: String((r as { id: string }).id),
+            name: (r as AdminVenueOpt).name,
+            city: (r as AdminVenueOpt).city,
+            state: (r as AdminVenueOpt).state,
+          })),
+        );
       } else if (tab === "venues") {
         const { data, error } = await supabase
           .from("venues")
@@ -277,6 +365,179 @@ export default function AdminClient() {
       (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
     );
   }, [verifiedVenues]);
+
+  const filteredAdminShows = useMemo(() => {
+    const q = showSearch.trim().toLowerCase();
+    const from = showDateFrom.trim();
+    const to = showDateTo.trim();
+    return adminShows.filter((s) => {
+      const prof = normalizeShowAdminProfiles(s.profiles);
+      const magName = (prof?.display_name ?? "").toLowerCase();
+      const sName = (s.name ?? "").toLowerCase();
+      if (q && !sName.includes(q) && !magName.includes(q)) return false;
+      const et = (s.event_type || "show").toLowerCase() === "lecture" ? "lecture" : "show";
+      if (showTypeFilter !== "all" && et !== showTypeFilter) return false;
+      const d = (s.date ?? "").trim();
+      if (from && d && d < from) return false;
+      if (to && d && d > to) return false;
+      return true;
+    });
+  }, [adminShows, showSearch, showTypeFilter, showDateFrom, showDateTo]);
+
+  const openAdminShowEdit = (s: ShowAdminRow) => {
+    setEditingAdminShowId(s.id);
+    setAdminEditName(s.name ?? "");
+    setAdminEditDate((s.date ?? "").slice(0, 10));
+    setAdminEditTime((s.time ?? "").slice(0, 5));
+    const vid = s.venue_id ? String(s.venue_id) : "";
+    const inList = vid && adminShowVenues.some((v) => v.id === vid);
+    if (inList) {
+      setAdminEditVenueSelect(vid);
+      setAdminEditSelectedVenueId(vid);
+    } else {
+      setAdminEditVenueSelect(VENUE_OTHER);
+      setAdminEditSelectedVenueId(null);
+    }
+    setAdminEditVenueName(s.venue_name ?? "");
+    setAdminEditCity(s.city ?? "");
+    setAdminEditStateText(s.state ?? "");
+    setAdminEditTicketUrl(s.ticket_url ?? "");
+    setAdminEditIsPublic(Boolean(s.is_public));
+    const kind: PostEventKind = s.event_type === "lecture" ? "lecture" : "show";
+    setAdminEditEventType(kind);
+    const sl = s.skill_level?.trim();
+    setAdminEditSkillLevel(
+      sl && (ADMIN_SKILL_LEVELS as readonly string[]).includes(sl)
+        ? (sl as (typeof ADMIN_SKILL_LEVELS)[number])
+        : "All levels",
+    );
+    setAdminEditMaxAttendees(s.max_attendees != null ? String(s.max_attendees) : "");
+    setAdminEditIsOnline(Boolean(s.is_online));
+    setAdminEditWorkbook(Boolean(s.includes_workbook));
+    setAdminEditProps(Boolean(s.includes_props));
+    setActionErr("");
+  };
+
+  const closeAdminShowEdit = () => {
+    setEditingAdminShowId(null);
+  };
+
+  const handleAdminEditVenuePick = (venueIdOrMeta: string) => {
+    setAdminEditVenueSelect(venueIdOrMeta);
+    if (venueIdOrMeta === VENUE_OTHER) {
+      setAdminEditSelectedVenueId(null);
+      return;
+    }
+    if (!venueIdOrMeta || venueIdOrMeta === VENUE_SELECT_PLACEHOLDER) {
+      setAdminEditSelectedVenueId(null);
+      return;
+    }
+    setAdminEditSelectedVenueId(venueIdOrMeta);
+    const opt = adminShowVenues.find((x) => String(x.id) === String(venueIdOrMeta));
+    if (opt) {
+      setAdminEditVenueName(opt.name ?? "");
+      setAdminEditCity(opt.city?.trim() ?? "");
+      setAdminEditStateText(opt.state?.trim() ?? "");
+    }
+  };
+
+  const saveAdminShowEdit = async () => {
+    if (!editingAdminShowId) return;
+    setActionErr("");
+    if (!adminEditName.trim() || !adminEditDate || !adminEditTime) {
+      setActionErr("Name, date, and time are required.");
+      return;
+    }
+    const online = adminEditEventType === "lecture" && adminEditIsOnline;
+    if (!online) {
+      if (adminEditVenueSelect === VENUE_SELECT_PLACEHOLDER) {
+        setActionErr("Select a venue or Other / not listed.");
+        return;
+      }
+      if (!adminEditVenueName.trim() || !adminEditCity.trim()) {
+        setActionErr("Venue name and city are required for in-person events.");
+        return;
+      }
+    }
+    const trimmedDate = adminEditDate.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
+      setActionErr("Invalid date.");
+      return;
+    }
+    let maxN: number | null = null;
+    if (adminEditMaxAttendees.trim()) {
+      maxN = Number.parseInt(adminEditMaxAttendees.trim(), 10);
+      if (!Number.isFinite(maxN) || maxN < 1) {
+        setActionErr("Max attendees must be a positive number.");
+        return;
+      }
+    }
+    const explicitVenueId =
+      online || adminEditVenueSelect === VENUE_OTHER || adminEditVenueSelect === VENUE_SELECT_PLACEHOLDER
+        ? null
+        : adminEditSelectedVenueId ?? (adminEditVenueSelect.trim() ? adminEditVenueSelect : null);
+
+    const editedFields = {
+      name: adminEditName.trim(),
+      date: trimmedDate,
+      time: adminEditTime,
+      venue_name: online ? "Online" : adminEditVenueName.trim(),
+      venue_id: explicitVenueId,
+      city: online ? "" : adminEditCity.trim(),
+      state: online ? null : adminEditStateText.trim() || null,
+      ticket_url: adminEditTicketUrl.trim() || null,
+      is_public: adminEditIsPublic,
+      event_type: adminEditEventType,
+      skill_level: adminEditEventType === "lecture" ? adminEditSkillLevel : null,
+      max_attendees: adminEditEventType === "lecture" && maxN != null ? maxN : null,
+      is_online: adminEditEventType === "lecture" ? adminEditIsOnline : false,
+      includes_workbook: adminEditEventType === "lecture" ? adminEditWorkbook : false,
+      includes_props: adminEditEventType === "lecture" ? adminEditProps : false,
+    };
+
+    setAdminShowSaveBusy(true);
+    try {
+      const { error } = await supabase.from("shows").update(editedFields).eq("id", editingAdminShowId);
+      if (error) throw new Error(error.message);
+      closeAdminShowEdit();
+      await fetchTab();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setAdminShowSaveBusy(false);
+    }
+  };
+
+  const adminCancelShow = async (showId: string) => {
+    if (!window.confirm("Mark this event as cancelled?")) return;
+    setActionErr("");
+    setAdminShowRowBusyId(showId);
+    try {
+      const { error } = await supabase.from("shows").update({ is_cancelled: true }).eq("id", showId);
+      if (error) throw new Error(error.message);
+      await fetchTab();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Could not cancel");
+    } finally {
+      setAdminShowRowBusyId(null);
+    }
+  };
+
+  const adminDeleteShow = async (showId: string) => {
+    if (!window.confirm("Permanently delete this show? This cannot be undone.")) return;
+    setActionErr("");
+    setAdminShowRowBusyId(showId);
+    try {
+      const { error } = await supabase.from("shows").delete().eq("id", showId);
+      if (error) throw new Error(error.message);
+      if (editingAdminShowId === showId) closeAdminShowEdit();
+      await fetchTab();
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Could not delete");
+    } finally {
+      setAdminShowRowBusyId(null);
+    }
+  };
 
   useEffect(() => {
     if (tab === "articles" && !dataLoading && articles.length === 0) {
@@ -1161,6 +1422,426 @@ export default function AdminClient() {
               </table>
             )}
             {!dataLoading && !magicians.length ? <p className="mt-4 text-sm text-zinc-500">No magicians.</p> : null}
+          </section>
+        ) : null}
+
+        {tab === "shows" ? (
+          <section className="mt-8 overflow-x-auto">
+            <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:flex-wrap sm:items-end">
+              <div className="min-w-[200px] flex-1">
+                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                  Search
+                </label>
+                <input
+                  type="search"
+                  value={showSearch}
+                  onChange={(e) => setShowSearch(e.target.value)}
+                  placeholder="Show or magician name…"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-[var(--ml-gold)]/40"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                  Event type
+                </label>
+                <select
+                  value={showTypeFilter}
+                  onChange={(e) => setShowTypeFilter(e.target.value as "all" | PostEventKind)}
+                  className="cursor-pointer rounded-xl border border-white/10 bg-white/5 py-2 pl-3 pr-8 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                >
+                  <option value="all" className="bg-zinc-900">
+                    All
+                  </option>
+                  <option value="show" className="bg-zinc-900">
+                    Show
+                  </option>
+                  <option value="lecture" className="bg-zinc-900">
+                    Lecture
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                  From
+                </label>
+                <input
+                  type="date"
+                  value={showDateFrom}
+                  onChange={(e) => setShowDateFrom(e.target.value)}
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                  To
+                </label>
+                <input
+                  type="date"
+                  value={showDateTo}
+                  onChange={(e) => setShowDateTo(e.target.value)}
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSearch("");
+                  setShowTypeFilter("all");
+                  setShowDateFrom("");
+                  setShowDateTo("");
+                }}
+                className={CLASSES.btnSecondarySm}
+              >
+                Clear filters
+              </button>
+            </div>
+            {dataLoading ? (
+              <p className="text-sm text-zinc-500">Loading shows…</p>
+            ) : (
+              <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 text-[10px] uppercase tracking-wider text-zinc-500">
+                    <th className="py-3 pr-4">Show</th>
+                    <th className="py-3 pr-4">Magician</th>
+                    <th className="py-3 pr-4">When</th>
+                    <th className="py-3 pr-4">Venue</th>
+                    <th className="py-3 pr-4">Type</th>
+                    <th className="py-3 pr-4">Visibility</th>
+                    <th className="py-3 pr-4">Status</th>
+                    <th className="py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAdminShows.map((s) => {
+                    const prof = normalizeShowAdminProfiles(s.profiles);
+                    const magName = prof?.display_name?.trim() || "—";
+                    const et = s.event_type === "lecture" ? "lecture" : "show";
+                    const cancelled = Boolean(s.is_cancelled);
+                    const busy = adminShowRowBusyId === s.id;
+                    return (
+                      <Fragment key={s.id}>
+                        <tr className="border-b border-white/5 align-top">
+                          <td className="py-3 pr-4 font-medium text-zinc-200">
+                            <Link
+                              href={`/events/${encodeURIComponent(s.id)}`}
+                              className="text-zinc-100 hover:text-[var(--ml-gold)] hover:underline"
+                            >
+                              {s.name?.trim() || "—"}
+                            </Link>
+                          </td>
+                          <td className="py-3 pr-4">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/5 text-[10px] font-semibold text-zinc-400">
+                                {prof?.avatar_url ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={prof.avatar_url} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                  magName.slice(0, 1).toUpperCase()
+                                )}
+                              </div>
+                              <span className="text-zinc-300">{magName}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4 whitespace-nowrap text-zinc-400">
+                            {fmtShort(s.date)}
+                            {s.time ? (
+                              <span className="text-zinc-500"> · {formatTime(s.time)}</span>
+                            ) : null}
+                          </td>
+                          <td className="py-3 pr-4 text-zinc-400">{s.venue_name?.trim() || "—"}</td>
+                          <td className="py-3 pr-4">
+                            <span
+                              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                                et === "lecture"
+                                  ? "border-violet-400/40 text-violet-200"
+                                  : "border-[var(--ml-gold)]/35 text-[var(--ml-gold)]"
+                              }`}
+                            >
+                              {et === "lecture" ? "Lecture" : "Show"}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-4">
+                            <span
+                              className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider ${
+                                s.is_public
+                                  ? "border-emerald-400/35 text-emerald-300"
+                                  : "border-zinc-500/35 text-zinc-500"
+                              }`}
+                            >
+                              {s.is_public ? "Public" : "Private"}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-4">
+                            {cancelled ? (
+                              <span className="rounded-full border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-300">
+                                Cancelled
+                              </span>
+                            ) : (
+                              <span className="text-zinc-600">—</span>
+                            )}
+                          </td>
+                          <td className="py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => openAdminShowEdit(s)}
+                                className={CLASSES.btnSecondarySm}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                disabled={busy || cancelled}
+                                onClick={() => void adminCancelShow(s.id)}
+                                className="rounded-lg border border-amber-500/35 px-2 py-1 text-[11px] font-semibold text-amber-200/90 transition hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-45"
+                              >
+                                Cancel show
+                              </button>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => void adminDeleteShow(s.id)}
+                                className="rounded-lg border border-red-500/40 px-2 py-1 text-[11px] font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-45"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {editingAdminShowId === s.id ? (
+                          <tr className="border-b border-white/10 bg-white/[0.02]">
+                            <td colSpan={8} className="px-4 py-5">
+                              <p className="mb-4 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]">
+                                Edit show / lecture
+                              </p>
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div className="sm:col-span-2">
+                                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Name *
+                                  </label>
+                                  <input
+                                    value={adminEditName}
+                                    onChange={(e) => setAdminEditName(e.target.value)}
+                                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Date *
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={adminEditDate}
+                                    onChange={(e) => setAdminEditDate(e.target.value)}
+                                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Time *
+                                  </label>
+                                  <input
+                                    type="time"
+                                    value={adminEditTime}
+                                    onChange={(e) => setAdminEditTime(e.target.value)}
+                                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                  />
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Venue *
+                                  </label>
+                                  <select
+                                    value={adminEditVenueSelect}
+                                    onChange={(e) => handleAdminEditVenuePick(e.target.value)}
+                                    disabled={adminEditEventType === "lecture" && adminEditIsOnline}
+                                    className="w-full cursor-pointer rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40 disabled:opacity-45"
+                                  >
+                                    <option value={VENUE_SELECT_PLACEHOLDER} className="bg-zinc-900">
+                                      Select a venue…
+                                    </option>
+                                    {adminShowVenues.map((v) => (
+                                      <option key={v.id} value={v.id} className="bg-zinc-900">
+                                        {v.name}
+                                        {v.city ? ` — ${v.city}` : ""}
+                                      </option>
+                                    ))}
+                                    <option value={VENUE_OTHER} className="bg-zinc-900">
+                                      Other / not listed
+                                    </option>
+                                  </select>
+                                </div>
+                                {adminEditVenueSelect === VENUE_OTHER ? (
+                                  <div className="sm:col-span-2">
+                                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                      Venue name *
+                                    </label>
+                                    <input
+                                      value={adminEditVenueName}
+                                      onChange={(e) => setAdminEditVenueName(e.target.value)}
+                                      className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                    />
+                                  </div>
+                                ) : null}
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    City *
+                                  </label>
+                                  <input
+                                    value={adminEditCity}
+                                    onChange={(e) => setAdminEditCity(e.target.value)}
+                                    disabled={adminEditEventType === "lecture" && adminEditIsOnline}
+                                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40 disabled:opacity-45"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    State
+                                  </label>
+                                  <input
+                                    value={adminEditStateText}
+                                    onChange={(e) => setAdminEditStateText(e.target.value)}
+                                    disabled={adminEditEventType === "lecture" && adminEditIsOnline}
+                                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40 disabled:opacity-45"
+                                  />
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Ticket URL
+                                  </label>
+                                  <input
+                                    type="url"
+                                    value={adminEditTicketUrl}
+                                    onChange={(e) => setAdminEditTicketUrl(e.target.value)}
+                                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2 sm:col-span-1">
+                                  <input
+                                    type="checkbox"
+                                    id={`admin-show-pub-${s.id}`}
+                                    checked={adminEditIsPublic}
+                                    onChange={(e) => setAdminEditIsPublic(e.target.checked)}
+                                  />
+                                  <label htmlFor={`admin-show-pub-${s.id}`} className="text-sm text-zinc-300">
+                                    Public listing
+                                  </label>
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Event type
+                                  </label>
+                                  <select
+                                    value={adminEditEventType}
+                                    onChange={(e) => setAdminEditEventType(e.target.value as PostEventKind)}
+                                    className="w-full cursor-pointer rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                  >
+                                    <option value="show" className="bg-zinc-900">
+                                      Show
+                                    </option>
+                                    <option value="lecture" className="bg-zinc-900">
+                                      Lecture
+                                    </option>
+                                  </select>
+                                </div>
+                                {adminEditEventType === "lecture" ? (
+                                  <>
+                                    <div>
+                                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                        Skill level
+                                      </label>
+                                      <select
+                                        value={adminEditSkillLevel}
+                                        onChange={(e) =>
+                                          setAdminEditSkillLevel(
+                                            e.target.value as (typeof ADMIN_SKILL_LEVELS)[number],
+                                          )
+                                        }
+                                        className="w-full cursor-pointer rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                      >
+                                        {ADMIN_SKILL_LEVELS.map((lvl) => (
+                                          <option key={lvl} value={lvl} className="bg-zinc-900">
+                                            {lvl}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                        Max attendees
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        value={adminEditMaxAttendees}
+                                        onChange={(e) => setAdminEditMaxAttendees(e.target.value)}
+                                        placeholder="Optional"
+                                        className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                      />
+                                    </div>
+                                    <div className="flex flex-col gap-2 sm:col-span-2">
+                                      <label className="inline-flex items-center gap-2 text-sm text-zinc-300">
+                                        <input
+                                          type="checkbox"
+                                          checked={adminEditIsOnline}
+                                          onChange={(e) => setAdminEditIsOnline(e.target.checked)}
+                                        />
+                                        Online lecture
+                                      </label>
+                                      <label className="inline-flex items-center gap-2 text-sm text-zinc-300">
+                                        <input
+                                          type="checkbox"
+                                          checked={adminEditWorkbook}
+                                          onChange={(e) => setAdminEditWorkbook(e.target.checked)}
+                                        />
+                                        Includes workbook
+                                      </label>
+                                      <label className="inline-flex items-center gap-2 text-sm text-zinc-300">
+                                        <input
+                                          type="checkbox"
+                                          checked={adminEditProps}
+                                          onChange={(e) => setAdminEditProps(e.target.checked)}
+                                        />
+                                        Includes props
+                                      </label>
+                                    </div>
+                                  </>
+                                ) : null}
+                              </div>
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  disabled={adminShowSaveBusy}
+                                  onClick={() => void saveAdminShowEdit()}
+                                  className={CLASSES.btnPrimarySm}
+                                >
+                                  {adminShowSaveBusy ? "Saving…" : "Save changes"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={adminShowSaveBusy}
+                                  onClick={closeAdminShowEdit}
+                                  className={CLASSES.btnSecondarySm}
+                                >
+                                  Close
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+            {!dataLoading && !adminShows.length ? (
+              <p className="mt-4 text-sm text-zinc-500">No shows yet.</p>
+            ) : null}
+            {!dataLoading && adminShows.length > 0 && !filteredAdminShows.length ? (
+              <p className="mt-4 text-sm text-zinc-500">No shows match your filters.</p>
+            ) : null}
           </section>
         ) : null}
 

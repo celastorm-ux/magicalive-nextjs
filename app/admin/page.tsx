@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import AdminClient from "./AdminClient";
 
 /**
- * Magicians tab (table, "+ Add magician", modal) is implemented in `./AdminClient.tsx`
- * — search for `tab === "magicians"` and state `showAddMagician`.
+ * Admin UI lives in `./AdminClient.tsx` — e.g. `tab === "magicians"` / `showAddMagician`,
+ * `tab === "shows"` (all shows, inline edit, filters).
  */
 
 export default function AdminPage() {
