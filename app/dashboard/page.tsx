@@ -3,7 +3,7 @@
 import { useClerk, useSessionList, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AvailabilityCalendar } from "@/components/AvailabilityCalendar";
 import { LocationPicker } from "@/components/LocationPicker";
 import { CLASSES } from "@/lib/constants";
@@ -227,9 +227,19 @@ export default function DashboardPage() {
     const { data: vens } = await supabase
       .from("venues")
       .select("id, name, city, state")
-      .or("is_verified.is.null,is_verified.eq.true")
+      .eq("is_verified", true)
       .order("name", { ascending: true });
-    setVenueOptions((vens ?? []) as VenueOption[]);
+    setVenueOptions(
+      (vens ?? []).map((v) => {
+        const r = v as VenueOption;
+        return {
+          id: String(r.id),
+          name: r.name,
+          city: r.city,
+          state: r.state,
+        };
+      }),
+    );
 
     const { data: br } = await supabase
       .from("booking_requests")
@@ -258,6 +268,39 @@ export default function DashboardPage() {
       setLoading(false);
     })();
   }, [isLoaded, user?.id, router]);
+
+  const handleVenueSelect = useCallback(
+    (venueId: string) => {
+      setVenueSelect(venueId);
+      if (venueId === VENUE_OTHER) {
+        setSelectedVenueId(null);
+        setVenueName("");
+        setShowCity("");
+        setShowPickCountry("");
+        setShowPickState("");
+        return;
+      }
+      if (!venueId || venueId === VENUE_SELECT_PLACEHOLDER) {
+        setSelectedVenueId(null);
+        setVenueName("");
+        setShowCity("");
+        setShowPickCountry("");
+        setShowPickState("");
+        return;
+      }
+      setSelectedVenueId(venueId);
+      const venue = venueOptions.find((v) => String(v.id) === String(venueId));
+      if (venue) {
+        setVenueName(venue.name ?? "");
+        const ct = venue.city?.trim() || "";
+        const co = findCountryForCity(ct) || "";
+        setShowCity(ct);
+        setShowPickCountry(co);
+        setShowPickState(pickerStateFromDatabase(co, venue.state));
+      }
+    },
+    [venueOptions],
+  );
 
   const upcomingShows = useMemo(() => {
     const today = new Date();
@@ -409,7 +452,14 @@ export default function DashboardPage() {
       const isLecture = postEventType === "lecture";
       const online = isLecture && lectureOnline;
 
-      const venueIdForInsert = online ? null : selectedVenueId || null;
+      const explicitVenueId =
+        online || venueSelect === VENUE_OTHER || venueSelect === VENUE_SELECT_PLACEHOLDER
+          ? null
+          : selectedVenueId ?? (venueSelect.trim() ? venueSelect : null);
+
+      const venueIdForInsert = explicitVenueId;
+
+      console.log("Submitting show with venue_id:", venueIdForInsert);
 
       const row = {
         magician_id: user.id,
@@ -435,6 +485,7 @@ export default function DashboardPage() {
       const { error } = await supabase.from("shows").insert(row);
 
       if (error) throw error;
+      console.log("Show inserted successfully with venue_id:", venueIdForInsert);
     } catch (error) {
       const msg =
         (error as { message?: string })?.message || String(error) || "Unknown error";
@@ -1288,37 +1339,7 @@ export default function DashboardPage() {
                     <select
                       className={inputClass}
                       value={venueSelect}
-                      onChange={(e) => {
-                        const venueIdOrMeta = e.target.value;
-                        setVenueSelect(venueIdOrMeta);
-                        if (venueIdOrMeta === VENUE_OTHER) {
-                          setSelectedVenueId(null);
-                          setVenueName("");
-                          setShowCity("");
-                          setShowPickCountry("");
-                          setShowPickState("");
-                        } else if (
-                          venueIdOrMeta &&
-                          venueIdOrMeta !== VENUE_SELECT_PLACEHOLDER
-                        ) {
-                          const opt = venueOptions.find((x) => x.id === venueIdOrMeta);
-                          if (opt) {
-                            setSelectedVenueId(opt.id);
-                            setVenueName(opt.name);
-                            const ct = opt.city?.trim() || "";
-                            const co = findCountryForCity(ct) || "";
-                            setShowCity(ct);
-                            setShowPickCountry(co);
-                            setShowPickState(pickerStateFromDatabase(co, opt.state));
-                          }
-                        } else {
-                          setSelectedVenueId(null);
-                          setVenueName("");
-                          setShowCity("");
-                          setShowPickCountry("");
-                          setShowPickState("");
-                        }
-                      }}
+                      onChange={(e) => handleVenueSelect(e.target.value)}
                     >
                       <option value={VENUE_SELECT_PLACEHOLDER} className="bg-zinc-900">
                         Select a venue…
