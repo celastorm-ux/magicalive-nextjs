@@ -91,6 +91,8 @@ function createIcs(show: ShowWithMagician) {
 
 type EventDetailClientProps = {
   event: ShowWithMagician;
+  /** Directory link when `venue_id` is missing but name matched a verified venue */
+  venuePageId?: string | null;
   moreByMagician: ShowWithMagician[];
   youMightLike: ShowWithMagician[];
   reviews: ReviewItem[];
@@ -98,6 +100,7 @@ type EventDetailClientProps = {
 
 export default function EventDetailClient({
   event,
+  venuePageId = null,
   moreByMagician,
   youMightLike,
   reviews,
@@ -115,6 +118,14 @@ export default function EventDetailClient({
   const maxAtt = event?.max_attendees != null && event.max_attendees > 0 ? event.max_attendees : null;
   const isCancelled = Boolean(event?.is_cancelled);
   const cancelReason = event?.cancellation_reason?.trim() || null;
+
+  const venueHref = useMemo(() => {
+    const id = event.venue_id?.trim();
+    if (id) return `/venues/${encodeURIComponent(id)}`;
+    const resolved = venuePageId?.trim();
+    if (resolved) return `/venues/${encodeURIComponent(resolved)}`;
+    return null;
+  }, [event.venue_id, venuePageId]);
 
   const onCopyLink = async () => {
     await navigator.clipboard.writeText(window.location.href);
@@ -195,13 +206,13 @@ export default function EventDetailClient({
             <p className="mt-2 text-sm text-zinc-300">
               {isLecture && event.is_online ? (
                 "Online session"
-              ) : event.venue_id && event.venue_name ? (
+              ) : venueHref ? (
                 <>
                   <Link
-                    href={`/venues/${encodeURIComponent(event.venue_id)}`}
+                    href={venueHref}
                     className="text-[var(--ml-gold)]/90 transition hover:text-[var(--ml-gold)] hover:underline"
                   >
-                    {event.venue_name}
+                    {event.venue_name?.trim() || "View venue"}
                   </Link>
                   {(event.city || event.state) && (
                     <span>
@@ -232,12 +243,12 @@ export default function EventDetailClient({
               ) : (
                 <>
                   <p>
-                    {event.venue_id && event.venue_name ? (
+                    {venueHref ? (
                       <Link
-                        href={`/venues/${encodeURIComponent(event.venue_id)}`}
+                        href={venueHref}
                         className="text-[var(--ml-gold)]/90 transition hover:text-[var(--ml-gold)] hover:underline"
                       >
-                        {event.venue_name}
+                        {event.venue_name?.trim() || "View venue"}
                       </Link>
                     ) : (
                       event.venue_name || "Venue TBA"

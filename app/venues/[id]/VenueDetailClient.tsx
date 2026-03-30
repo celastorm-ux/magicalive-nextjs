@@ -38,6 +38,7 @@ export type ShowUpcoming = {
   time: string | null;
   ticket_url: string | null;
   magician_id: string | null;
+  is_cancelled?: boolean | null;
   profiles: ShowProfile | null;
 };
 
@@ -82,15 +83,16 @@ function trimmedText(v: unknown): string | null {
 
 function formatShowDate(dateStr: string | null) {
   if (!dateStr) return "Date TBA";
-  const d = new Date(dateStr);
+  const d = new Date(`${dateStr}T12:00:00`);
   if (Number.isNaN(d.getTime())) return "Date TBA";
   return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
+    weekday: "long",
+    month: "long",
     day: "numeric",
     year: "numeric",
   });
 }
+
 
 type VenueDetailClientProps = {
   venue: VenueRow;
@@ -262,51 +264,78 @@ export default function VenueDetailClient({
                     const magName = s.profiles?.display_name?.trim() || "Magician";
                     const magId = s.magician_id || s.profiles?.id;
                     const ticket = s.ticket_url?.trim();
+                    const cancelled = Boolean(s.is_cancelled);
+                    const avatarUrl = s.profiles?.avatar_url?.trim();
                     return (
                       <li
                         key={s.id}
-                        className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between"
+                        className={`flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between ${
+                          cancelled ? "opacity-90" : ""
+                        }`}
                       >
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium uppercase tracking-wider text-[var(--ml-gold)]">
-                            {formatShowDate(s.date)}
-                            {s.time ? ` · ${formatTime(s.time)}` : ""}
-                          </p>
-                          <Link
-                            href={`/events/${encodeURIComponent(s.id)}`}
-                            className="mt-1 block ml-font-heading text-lg font-semibold text-zinc-100 transition hover:text-[var(--ml-gold)]"
-                          >
-                            {s.name}
-                          </Link>
-                          {magId ? (
+                        <div className="flex min-w-0 flex-1 gap-4">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-violet-900/80 to-zinc-900 text-sm font-semibold text-zinc-200">
+                            {avatarUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              initials(magName)
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-xs font-medium text-zinc-500">
+                                {formatShowDate(s.date)}
+                              </p>
+                              {s.time ? (
+                                <span className="text-xs font-medium text-zinc-500">
+                                  · {formatTime(s.time)}
+                                </span>
+                              ) : null}
+                              {cancelled ? (
+                                <span className="rounded-full border border-red-500/45 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-300">
+                                  Cancelled
+                                </span>
+                              ) : null}
+                            </div>
                             <Link
-                              href={`/profile/magician?id=${encodeURIComponent(magId)}`}
-                              className="mt-1 inline-block text-sm text-zinc-500 transition hover:text-[var(--ml-gold)]/80 hover:underline"
+                              href={`/events/${encodeURIComponent(s.id)}`}
+                              className="mt-1 block ml-font-heading text-lg font-semibold text-[var(--ml-gold)] transition hover:text-[var(--ml-gold-hover)] hover:underline"
                             >
-                              {magName}
+                              {s.name}
                             </Link>
+                            {magId ? (
+                              <Link
+                                href={`/profile/magician?id=${encodeURIComponent(magId)}`}
+                                className="mt-1 inline-block text-sm font-medium text-zinc-300 transition hover:text-[var(--ml-gold)] hover:underline"
+                              >
+                                {magName}
+                              </Link>
+                            ) : (
+                              <p className="mt-1 text-sm text-zinc-500">{magName}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+                          {ticket ? (
+                            <a
+                              href={ticket}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={CLASSES.btnPrimarySm}
+                            >
+                              Tickets
+                            </a>
                           ) : (
-                            <p className="mt-1 text-sm text-zinc-500">{magName}</p>
+                            <span className="text-xs text-zinc-600">No ticket link</span>
                           )}
                         </div>
-                        {ticket ? (
-                          <a
-                            href={ticket}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={CLASSES.btnPrimarySm}
-                          >
-                            Tickets
-                          </a>
-                        ) : (
-                          <span className="text-xs text-zinc-600">No ticket link</span>
-                        )}
                       </li>
                     );
                   })
                 ) : (
                   <li className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-12 text-center text-sm text-zinc-500">
-                    No upcoming public shows listed.
+                    No upcoming shows at this venue
                   </li>
                 )}
               </ul>

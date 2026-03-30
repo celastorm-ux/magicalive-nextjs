@@ -154,20 +154,13 @@ export default function VenuesPage() {
       const today = new Date().toISOString().split("T")[0];
       const { data: showRows, error: sErr } = await supabase
         .from("shows")
-        .select("venue_id")
+        .select("venue_id, venue_name")
         .gte("date", today)
         .eq("is_public", true)
         .eq("is_cancelled", false);
 
       if (sErr) {
         console.error("[venues] fetch shows:", sErr);
-      }
-
-      const countByVenueId: Record<string, number> = {};
-      for (const s of showRows ?? []) {
-        const vid = (s as { venue_id: string | null }).venue_id;
-        if (!vid) continue;
-        countByVenueId[vid] = (countByVenueId[vid] ?? 0) + 1;
       }
 
       const rows = (venueRows ?? []) as VenueRow[];
@@ -178,12 +171,24 @@ export default function VenuesPage() {
         if (!id) continue;
         const cityStr = row.city?.trim() || "—";
         const h = hashId(id);
+        const venueNameNeedle = (row.name != null ? String(row.name) : "").trim().toLowerCase();
+        let upcomingCount = 0;
+        for (const s of showRows ?? []) {
+          const r = s as { venue_id: string | null; venue_name: string | null };
+          if (r.venue_id === id) {
+            upcomingCount += 1;
+            continue;
+          }
+          if (!venueNameNeedle) continue;
+          const showVenueName = (r.venue_name ?? "").trim().toLowerCase();
+          if (showVenueName.includes(venueNameNeedle)) upcomingCount += 1;
+        }
         mapped.push({
           ...row,
           id,
           name: row.name != null ? String(row.name) : "—",
           cityKey: cityStr,
-          upcomingShows: countByVenueId[id] ?? 0,
+          upcomingShows: upcomingCount,
           gradient: CARD_GRADIENTS[h % CARD_GRADIENTS.length]!,
           emoji: EMOJIS[h % EMOJIS.length]!,
         });
@@ -620,10 +625,13 @@ export default function VenuesPage() {
                         )}
                       </div>
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                        <span className="text-sm font-semibold text-emerald-400">
-                          {v?.upcomingShows ?? 0} upcoming{" "}
-                          {(v?.upcomingShows ?? 0) === 1 ? "show" : "shows"}
-                        </span>
+                        {(v?.upcomingShows ?? 0) > 0 ? (
+                          <span className="text-sm font-semibold text-emerald-400">
+                            {v.upcomingShows} upcoming {v.upcomingShows === 1 ? "show" : "shows"}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-zinc-600">No upcoming shows</span>
+                        )}
                         <Link
                           href={`/venues/${encodeURIComponent(v?.id ?? "")}`}
                           onClick={(e) => e.stopPropagation()}

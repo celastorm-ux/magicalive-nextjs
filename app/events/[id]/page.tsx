@@ -4,6 +4,7 @@ import { siteBaseUrl } from "@/lib/magicalive-resend";
 import { buildMetadata } from "@/lib/seo";
 import { getEventDetailBundle } from "@/lib/server/detail-pages";
 import { formatShowDateLongEnUS } from "@/lib/show-dates";
+import { supabase } from "@/lib/supabase";
 import EventDetailClient, { type ReviewItem, type ShowWithMagician } from "./EventDetailClient";
 
 type PageParams = Promise<{ id: string }>;
@@ -71,6 +72,33 @@ export default async function EventDetailPage({ params }: { params: PageParams }
   const ticketUrl = ev.ticket_url?.trim() || undefined;
   const performerName = ev.profiles?.display_name?.trim() || "Magician";
 
+  let venuePageId: string | null = ev.venue_id?.trim() || null;
+  const venueLabel = ev.venue_name?.trim() || "";
+  if (!venuePageId && venueLabel && venueLabel.toLowerCase() !== "online") {
+    const tn = venueLabel;
+    const { data: exact } = await supabase
+      .from("venues")
+      .select("id")
+      .eq("is_verified", true)
+      .ilike("name", tn)
+      .limit(1)
+      .maybeSingle();
+    if (exact && typeof (exact as { id: unknown }).id === "string") {
+      venuePageId = (exact as { id: string }).id;
+    } else {
+      const { data: fuzzy } = await supabase
+        .from("venues")
+        .select("id")
+        .eq("is_verified", true)
+        .ilike("name", `%${tn}%`)
+        .limit(1)
+        .maybeSingle();
+      if (fuzzy && typeof (fuzzy as { id: unknown }).id === "string") {
+        venuePageId = (fuzzy as { id: string }).id;
+      }
+    }
+  }
+
   const eventSchema: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Event",
@@ -100,6 +128,7 @@ export default async function EventDetailPage({ params }: { params: PageParams }
       <JsonLd data={eventSchema} />
       <EventDetailClient
         event={ev}
+        venuePageId={venuePageId}
         moreByMagician={bundle.moreByMagician as ShowWithMagician[]}
         youMightLike={bundle.youMightLike as ShowWithMagician[]}
         reviews={bundle.reviews as ReviewItem[]}

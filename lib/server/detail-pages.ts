@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { supabase } from "@/lib/supabase";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
 export type MagicianProfileBundle = {
@@ -88,10 +89,16 @@ function normalizeVenueContactRow(row: Record<string, unknown>): Record<string, 
   };
 }
 
+/** PostgREST `or()` — avoid commas/parens in pattern breaking the filter string. */
+function venueShowOrFilter(venueId: string, venueName: string): string {
+  const safeName = venueName.replace(/[,()]/g, " ").trim();
+  if (!safeName.length) return `venue_id.eq.${venueId}`;
+  return `venue_id.eq.${venueId},venue_name.ilike.%${safeName}%`;
+}
+
 export const getVenueDetailBundle = cache(async (venueId: string): Promise<VenueDetailBundle | null> => {
   if (!venueId.trim()) return null;
-  const db = await getRouteSupabase();
-  const { data: vRow, error: vErr } = await db.from("venues").select("*").eq("id", venueId).single();
+  const { data: vRow, error: vErr } = await supabase.from("venues").select("*").eq("id", venueId).single();
   if (vErr || !vRow) {
     console.error("[getVenueDetailBundle] venues select error:", vErr?.message ?? "no row", vErr);
     return { venue: null, upcomingShows: [], pastCount: 0, totalShows: 0, magicians: [] };
@@ -103,37 +110,60 @@ export const getVenueDetailBundle = cache(async (venueId: string): Promise<Venue
   }
 
   const venueNormalized = normalizeVenueContactRow(rawVenue);
+  const venueName = String(rawVenue.name ?? "").trim();
   const today = new Date().toISOString().split("T")[0]!;
-  const { data: upcoming } = await db
-    .from("shows")
-    .select("id, name, date, time, ticket_url, magician_id, profiles(id, display_name, avatar_url)")
-    .eq("venue_id", venueId)
-    .gte("date", today)
-    .eq("is_public", true)
-    .eq("is_cancelled", false)
-    .order("date", { ascending: true });
 
-  const upcomingShows = ((upcoming ?? []) as Array<Record<string, unknown>>).map((s) => ({
+  const upcomingSelect =
+    "id, name, date, time, ticket_url, magician_id, is_cancelled, profiles(id, display_name, avatar_url)";
+
+  const [{ data: showsByVenueId }, { data: showsByName }] = await Promise.all([
+    supabase
+      .from("shows")
+      .select(upcomingSelect)
+      .eq("venue_id", venueId)
+      .eq("is_public", true)
+      .gte("date", today)
+      .order("date", { ascending: true }),
+    venueName.length > 0
+      ? supabase
+          .from("shows")
+          .select(upcomingSelect)
+          .ilike("venue_name", `%${venueName}%`)
+          .eq("is_public", true)
+          .gte("date", today)
+          .order("date", { ascending: true })
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const allUpcoming = [
+    ...(showsByVenueId ?? []),
+    ...((showsByName ?? []) as Array<Record<string, unknown>>),
+  ] as Array<Record<string, unknown>>;
+  const uniqueRaw = allUpcoming.filter(
+    (show, index, self) => index === self.findIndex((s) => String(s.id) === String(show.id)),
+  );
+  uniqueRaw.sort((a, b) => String(a.date ?? "").localeCompare(String(b.date ?? "")));
+
+  const upcomingShows = uniqueRaw.map((s) => ({
     ...s,
     profiles: normalizeShowProfile(s.profiles as Parameters<typeof normalizeShowProfile>[0]),
   }));
 
-  const { count: pastC } = await db
-    .from("shows")
-    .select("*", { count: "exact", head: true })
-    .eq("venue_id", venueId)
-    .lt("date", today);
+  const orFilter = venueShowOrFilter(venueId, venueName);
 
-  const { count: totalC } = await db
-    .from("shows")
-    .select("*", { count: "exact", head: true })
-    .eq("venue_id", venueId);
-
-  const { data: magRows } = await db
-    .from("shows")
-    .select("magician_id, profiles(id, display_name, avatar_url)")
-    .eq("venue_id", venueId)
-    .not("magician_id", "is", null);
+  const [{ count: pastC }, { count: totalC }, { data: magRows }] = await Promise.all([
+    supabase
+      .from("shows")
+      .select("*", { count: "exact", head: true })
+      .or(orFilter)
+      .lt("date", today),
+    supabase.from("shows").select("*", { count: "exact", head: true }).or(orFilter),
+    supabase
+      .from("shows")
+      .select("magician_id, profiles(id, display_name, avatar_url)")
+      .or(orFilter)
+      .not("magician_id", "is", null),
+  ]);
 
   const byId = new Map<string, { id: string; display_name: string | null; avatar_url: string | null }>();
   for (const row of (magRows ?? []) as Array<{ magician_id: string | null; profiles: unknown }>) {

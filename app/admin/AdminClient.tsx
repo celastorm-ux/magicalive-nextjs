@@ -534,11 +534,22 @@ export default function AdminClient() {
     setPendingVenueBusyId(venueId);
     const venue = venues.find((v) => v.id === venueId);
     try {
-      const { error } = await supabase.from("venues").update({ is_verified: true }).eq("id", venueId);
+      console.log("Approving venue with id:", venueId);
+
+      const { data: updateData, error } = await supabase
+        .from("venues")
+        .update({ is_verified: true })
+        .eq("id", venueId)
+        .select();
+
+      console.log("Update result data:", updateData);
+      console.log("Update result error:", error);
+      console.log("Error message:", error?.message);
+      console.log("Error code:", error?.code);
+      console.log("Error details:", error?.details);
 
       if (error) {
-        console.error("Approve error:", error);
-        alert("Could not approve venue: " + error.message);
+        alert("Error: " + error.message);
         return;
       }
 
@@ -598,7 +609,7 @@ export default function AdminClient() {
 
       setVenueApprovedBanner(`Venue approved and now live!${geoSuffix}`);
       window.setTimeout(() => setVenueApprovedBanner(null), 8000);
-      alert("Venue approved and now live!");
+      alert("Done - check console for results");
     } catch (err) {
       console.error("Approve error:", err);
       alert("Something went wrong");

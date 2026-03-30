@@ -47,8 +47,8 @@ export default async function VenueDetailPage({ params }: { params: PageParams }
   const venue = bundle.venue as VenueRow;
   const base = siteBaseUrl();
 
-  /* Venue row is loaded in getVenueDetailBundle via:
-     db.from('venues').select('*').eq('id', venueId).single() */
+  /* Venue + upcoming shows: getVenueDetailBundle (lib/server/detail-pages.ts) using
+     @/lib/supabase — upcoming merges shows by venue_id and by ilike(venue_name, venue.name). */
 
   const street = venue.address?.trim() || venue.full_address?.trim() || undefined;
 

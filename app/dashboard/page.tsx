@@ -168,6 +168,7 @@ export default function DashboardPage() {
   const [showDate, setShowDate] = useState("");
   const [showTime, setShowTime] = useState("");
   const [venueSelect, setVenueSelect] = useState<string>(VENUE_SELECT_PLACEHOLDER);
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [venueName, setVenueName] = useState("");
   const [showCity, setShowCity] = useState("");
   const [showPickCountry, setShowPickCountry] = useState("");
@@ -408,11 +409,7 @@ export default function DashboardPage() {
       const isLecture = postEventType === "lecture";
       const online = isLecture && lectureOnline;
 
-      const venueIdForInsert = online
-        ? null
-        : venueSelect !== VENUE_OTHER && venueSelect !== VENUE_SELECT_PLACEHOLDER
-          ? venueSelect
-          : null;
+      const venueIdForInsert = online ? null : selectedVenueId || null;
 
       const row = {
         magician_id: user.id,
@@ -451,6 +448,7 @@ export default function DashboardPage() {
     setShowDate("");
     setShowTime("");
     setVenueSelect(VENUE_SELECT_PLACEHOLDER);
+    setSelectedVenueId(null);
     setVenueName("");
     setShowCity("");
     setShowPickCountry("");
@@ -1291,24 +1289,30 @@ export default function DashboardPage() {
                       className={inputClass}
                       value={venueSelect}
                       onChange={(e) => {
-                        const v = e.target.value;
-                        setVenueSelect(v);
-                        if (v === VENUE_OTHER) {
+                        const venueIdOrMeta = e.target.value;
+                        setVenueSelect(venueIdOrMeta);
+                        if (venueIdOrMeta === VENUE_OTHER) {
+                          setSelectedVenueId(null);
                           setVenueName("");
                           setShowCity("");
                           setShowPickCountry("");
                           setShowPickState("");
-                        } else if (v && v !== VENUE_SELECT_PLACEHOLDER) {
-                          const opt = venueOptions.find((x) => x.id === v);
+                        } else if (
+                          venueIdOrMeta &&
+                          venueIdOrMeta !== VENUE_SELECT_PLACEHOLDER
+                        ) {
+                          const opt = venueOptions.find((x) => x.id === venueIdOrMeta);
                           if (opt) {
+                            setSelectedVenueId(opt.id);
+                            setVenueName(opt.name);
                             const ct = opt.city?.trim() || "";
                             const co = findCountryForCity(ct) || "";
-                            setVenueName(opt.name);
                             setShowCity(ct);
                             setShowPickCountry(co);
                             setShowPickState(pickerStateFromDatabase(co, opt.state));
                           }
                         } else {
+                          setSelectedVenueId(null);
                           setVenueName("");
                           setShowCity("");
                           setShowPickCountry("");
