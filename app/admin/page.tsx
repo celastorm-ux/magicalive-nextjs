@@ -3,7 +3,7 @@ import AdminClient from "./AdminClient";
 
 /**
  * Admin UI lives in `./AdminClient.tsx` — e.g. `tab === "magicians"` / `showAddMagician`,
- * `tab === "shows"` (all shows, inline edit, filters).
+ * `tab === "shows"` (inline edit includes `editDescription` after venue fields).
  */
 
 export default function AdminPage() {
