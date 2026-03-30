@@ -87,6 +87,45 @@ const inputClass =
 const labelClass =
   "mb-2 block text-[10px] font-medium uppercase tracking-widest text-zinc-500";
 
+const MAX_PROFILE_HANDLE_LEN = 30;
+
+const HANDLE_TAKEN_MSG =
+  "This handle is already taken. Please choose a different one.";
+
+/** Lowercase; strip @; only a-z, 0-9, underscore; max 30 chars. */
+function sanitizeMagicianHandle(raw: string): string {
+  return raw
+    .replace(/^@+/u, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, MAX_PROFILE_HANDLE_LEN);
+}
+
+function baseHandleFromDisplayName(displayName: string): string {
+  const base = displayName
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 15);
+  return base || "magician";
+}
+
+async function pickUnusedMagicianHandle(displayName: string): Promise<string> {
+  const base = baseHandleFromDisplayName(displayName.trim());
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const suffix = Math.floor(Math.random() * 9999);
+    let candidate = `${base}${suffix}`;
+    candidate = sanitizeMagicianHandle(candidate);
+    const { data } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("handle", candidate)
+      .maybeSingle();
+    if (!data) return candidate;
+  }
+  return sanitizeMagicianHandle(`mag${Date.now()}${Math.floor(Math.random() * 999)}`) || `mag${Date.now()}`.slice(0, MAX_PROFILE_HANDLE_LEN);
+}
+
 export default function CreateProfileClient() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
@@ -150,6 +189,10 @@ export default function CreateProfileClient() {
   const [publishLoading, setPublishLoading] = useState(false);
   const [publishError, setPublishError] = useState("");
 
+  type HandleAvailStatus = "idle" | "checking" | "available" | "taken";
+  const [handleAvailStatus, setHandleAvailStatus] = useState<HandleAvailStatus>("idle");
+  const handleAvailSeqRef = useRef(0);
+
   const credIdRef = useRef(2);
   const [credRowIds, setCredRowIds] = useState([0, 1]);
   const magAvatarInputRef = useRef<HTMLInputElement | null>(null);
@@ -207,6 +250,31 @@ export default function CreateProfileClient() {
     ).dependencies?.["@clerk/nextjs"];
     console.log("@clerk/nextjs (package.json):", clerkDep ?? "(not listed)");
   }, []);
+
+  useEffect(() => {
+    const normalized = sanitizeMagicianHandle(handle);
+    if (!normalized) {
+      handleAvailSeqRef.current += 1;
+      setHandleAvailStatus("idle");
+      return;
+    }
+    const seq = ++handleAvailSeqRef.current;
+    const timer = setTimeout(() => {
+      void (async () => {
+        if (seq !== handleAvailSeqRef.current) return;
+        setHandleAvailStatus("checking");
+        const { data } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("handle", normalized)
+          .maybeSingle();
+        if (seq !== handleAvailSeqRef.current) return;
+        if (data && data.id !== user?.id) setHandleAvailStatus("taken");
+        else setHandleAvailStatus("available");
+      })();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [handle, user?.id]);
 
   const goToM = useCallback((n: number) => {
     setMStep(n);
@@ -360,7 +428,7 @@ export default function CreateProfileClient() {
   ]);
 
   const saveMagicianProfileToSupabase = useCallback(
-    async (ClerkUserId: string) => {
+    async (ClerkUserId: string, profileHandle: string) => {
       let avatarUrl: string | null = null;
       if (magAvatarFile && ClerkUserId) {
         const rawExt = magAvatarFile.name.split(".").pop()?.toLowerCase();
@@ -392,7 +460,7 @@ export default function CreateProfileClient() {
       const { error } = await supabase.from("profiles").insert({
         id: String(ClerkUserId),
         display_name: displayName.trim(),
-        handle: handle.replace(/^@/, "").trim(),
+        handle: profileHandle,
         email: emailForRow,
         location: formatLocation(magLocCity, magLocState, magLocCountry).trim() || null,
         age: Number.isFinite(ageNum) ? ageNum : null,
@@ -423,7 +491,6 @@ export default function CreateProfileClient() {
       availableFor,
       user,
       displayName,
-      handle,
       magLocCity,
       magLocState,
       magLocCountry,
@@ -454,7 +521,25 @@ export default function CreateProfileClient() {
     }
     setPublishLoading(true);
     try {
-      await saveMagicianProfileToSupabase(String(user.id));
+      const sanitized = sanitizeMagicianHandle(handle);
+      let finalHandle: string;
+      if (sanitized) {
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("handle", sanitized)
+          .maybeSingle();
+        if (existing && existing.id !== String(user.id)) {
+          setPublishError(HANDLE_TAKEN_MSG);
+          return;
+        }
+        finalHandle = sanitized;
+      } else {
+        finalHandle = await pickUnusedMagicianHandle(
+          displayName.trim() || "Magician",
+        );
+      }
+      await saveMagicianProfileToSupabase(String(user.id), finalHandle);
       router.push("/profile");
     } catch (insertErr: unknown) {
       const msg =
@@ -465,13 +550,25 @@ export default function CreateProfileClient() {
           ? (insertErr as { message: string }).message
           : String(insertErr);
       console.error("Supabase profiles.insert error:", insertErr);
+      const handleDuplicate =
+        msg.includes("profiles_handle_key") ||
+        (msg.includes("duplicate key") && msg.includes("handle"));
       setPublishError(
-        msg || "Could not save profile. Please try again.",
+        handleDuplicate
+          ? HANDLE_TAKEN_MSG
+          : msg || "Could not save profile. Please try again.",
       );
     } finally {
       setPublishLoading(false);
     }
-  }, [isLoaded, user, saveMagicianProfileToSupabase, router]);
+  }, [
+    isLoaded,
+    user,
+    handle,
+    displayName,
+    saveMagicianProfileToSupabase,
+    router,
+  ]);
 
   const toggleTag = useCallback((tag: string) => {
     setSelectedTags((prev) => {
@@ -856,16 +953,45 @@ export default function CreateProfileClient() {
           </p>
           <div className="mb-[18px]">
             <label className={labelClass}>Handle / username</label>
-            <input
-              type="text"
-              className={inputClass}
-              placeholder="@yourhandle — no spaces"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-            />
-            <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">
-              Your profile will live at magicalive.com/@yourhandle
-            </p>
+            <div className="relative">
+              <input
+                type="text"
+                className={`${inputClass} pr-11`}
+                placeholder="@yourhandle — letters, numbers, underscores"
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+                maxLength={48}
+                autoComplete="username"
+              />
+              {handleAvailStatus !== "idle" ? (
+                <span
+                  className="pointer-events-none absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-sm leading-none"
+                  aria-hidden
+                >
+                  {handleAvailStatus === "checking" ? (
+                    <span className="inline-block size-3.5 animate-spin rounded-full border-2 border-zinc-600 border-t-[var(--ml-gold)]" />
+                  ) : null}
+                  {handleAvailStatus === "available" ? (
+                    <span className="text-emerald-400">✓</span>
+                  ) : null}
+                  {handleAvailStatus === "taken" ? (
+                    <span className="text-red-400">✗</span>
+                  ) : null}
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-start justify-between gap-2">
+              <p className="min-w-0 flex-1 text-[11px] leading-snug text-zinc-500">
+                Your profile will live at magicalive.com/@yourhandle. Leave blank to auto-generate
+                from your display name.
+              </p>
+              {handleAvailStatus === "checking" &&
+              sanitizeMagicianHandle(handle) !== "" ? (
+                <span className="shrink-0 text-[11px] font-medium text-zinc-500">
+                  Checking...
+                </span>
+              ) : null}
+            </div>
           </div>
           <div className="mb-[18px]">
             <LocationPicker
@@ -1505,7 +1631,9 @@ export default function CreateProfileClient() {
                     mStep === 2 &&
                     (!magLocCountry.trim() ||
                       !magLocCity.trim() ||
-                      (countryUsesStatePicker(magLocCountry) && !magLocState.trim())))
+                      (countryUsesStatePicker(magLocCountry) && !magLocState.trim()) ||
+                      (sanitizeMagicianHandle(handle) !== "" &&
+                        handleAvailStatus === "taken")))
                 }
                 className={`${CLASSES.btnPrimary} px-7 py-2.5 text-xs uppercase tracking-wider disabled:opacity-60`}
               >
