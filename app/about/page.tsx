@@ -66,19 +66,6 @@ async function AboutStory() {
           <p className="mt-4 text-sm text-zinc-500">Founded in Los Angeles, CA</p>
         </header>
 
-        <div className="relative left-1/2 z-0 mt-10 w-screen max-w-[100vw] -translate-x-1/2" aria-hidden>
-          <div
-            className="relative min-h-[240px] overflow-hidden bg-[#0a0908] sm:min-h-[320px]"
-            style={{
-              backgroundImage:
-                "radial-gradient(ellipse 90% 70% at 50% 0%, rgba(245,204,113,0.1), transparent 50%), radial-gradient(circle at 20% 90%, rgba(60,40,20,0.45), transparent 42%), radial-gradient(ellipse 55% 40% at 85% 30%, rgba(245,204,113,0.06), transparent 55%)",
-            }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/75 to-black" />
-            <div className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:repeating-linear-gradient(90deg,transparent,transparent_2px,rgba(255,255,255,0.04)_2px,rgba(255,255,255,0.04)_4px)]" />
-          </div>
-        </div>
-
         <section className="mx-auto mt-16 max-w-3xl">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">The moment it started</p>
           <h2 className="ml-font-heading mt-3 text-3xl font-semibold text-zinc-50 sm:text-4xl">
