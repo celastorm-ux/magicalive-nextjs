@@ -21,6 +21,15 @@ type FeaturedMagician = {
   onlineNow?: boolean;
 };
 
+type HomeArticle = {
+  id: string;
+  title: string | null;
+  excerpt: string | null;
+  category: string | null;
+  published_at: string | null;
+  read_time: string | null;
+};
+
 type UpcomingEvent = {
   id: string;
   date: string;
@@ -48,6 +57,7 @@ export default function HomeClient() {
   const [featuredMagicians, setFeaturedMagicians] = useState<FeaturedMagician[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
+  const [recentArticles, setRecentArticles] = useState<HomeArticle[]>([]);
   const [foundingRemaining, setFoundingRemaining] = useState<number | null>(null);
   const [foundingBannerDismissed, setFoundingBannerDismissed] = useState(false);
   const [passwordResetBanner, setPasswordResetBanner] = useState(false);
@@ -165,6 +175,18 @@ export default function HomeClient() {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVis);
     };
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from("articles")
+        .select("id, title, excerpt, category, published_at, read_time")
+        .eq("status", "published")
+        .order("published_at", { ascending: false })
+        .limit(3);
+      setRecentArticles((data as HomeArticle[] | null) ?? []);
+    })();
   }, []);
 
   useEffect(() => {
@@ -333,29 +355,35 @@ export default function HomeClient() {
             <div className={CLASSES.cardGlass}>
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,var(--ml-gold-glow-mid),rgba(0,0,0,0)_55%)]" />
               <div className="relative">
-                <h2 className={`${CLASSES.headingSub} mt-0`}>
-                  Tonight’s spotlight
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Find performers who are available now, discover what’s on, and build your watchlist of acts you love.
-                </p>
-
-                <div className="mt-6 space-y-3">
-                  {[
-                    { label: "Online now", value: "63 performers" },
-                    { label: "Trending this week", value: "Mentalism" },
-                    { label: "Most booked city", value: "New York" },
-                  ].map((row) => (
-                    <div key={row.label} className={CLASSES.cardRow}>
-                      <div className="text-sm text-zinc-300">{row.label}</div>
-                      <div className="text-sm font-semibold text-[var(--ml-gold)]">
-                        {row.value}
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <h2 className={`${CLASSES.headingSub} mt-0`}>From the community</h2>
+                  <Link href="/articles" className="text-xs font-medium text-[var(--ml-gold)] transition hover:underline">
+                    All articles →
+                  </Link>
                 </div>
-
-                <div className={`${CLASSES.cardCta} mt-6`}>
+                <div className="mt-4 space-y-3">
+                  {recentArticles.length ? (
+                    recentArticles.map((a) => (
+                      <Link
+                        key={a.id}
+                        href={`/articles/${encodeURIComponent(a.id)}`}
+                        className={`${CLASSES.cardRow} transition hover:border-[var(--ml-gold)]/35`}
+                      >
+                        <p className="truncate text-sm font-medium text-zinc-100">
+                          {a.title?.trim() || "Untitled"}
+                        </p>
+                        {a.category ? (
+                          <span className="ml-3 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]/80">
+                            {a.category}
+                          </span>
+                        ) : null}
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-sm text-zinc-500">No articles yet.</p>
+                  )}
+                </div>
+                <div className={`${CLASSES.cardCta} mt-5`}>
                   <div>
                     <div className="text-sm font-semibold text-zinc-100">
                       Are you a magician?
