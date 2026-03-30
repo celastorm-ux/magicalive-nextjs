@@ -238,10 +238,12 @@ export default function AdminClient() {
         if (!res.ok || !json.ok) throw new Error(json.error || "Failed to load magicians");
         setMagicians(json.magicians ?? []);
       } else if (tab === "venues") {
-        const res = await fetch("/api/admin/venues");
-        const json = (await res.json()) as { ok?: boolean; venues?: VenueAdminRow[]; error?: string };
-        if (!res.ok || !json.ok) throw new Error(json.error || "Failed to load venues");
-        setVenues(json.venues ?? []);
+        const { data, error } = await supabase
+          .from("venues")
+          .select("*")
+          .order("name", { ascending: true });
+        if (error) throw new Error(error.message);
+        setVenues((data as VenueAdminRow[]) ?? []);
       } else if (tab === "users") {
         const res = await fetch("/api/admin/users");
         const json = (await res.json()) as { ok?: boolean; users?: UserAdminRow[]; error?: string };
@@ -264,23 +266,17 @@ export default function AdminClient() {
     return articles.filter((a) => (a.status || "").toLowerCase() === articleFilter);
   }, [articles, articleFilter]);
 
-  const pendingVenues = useMemo(
-    () => venues.filter((v) => v.is_verified === false),
-    [venues],
-  );
+  const pendingVenues = useMemo(() => venues.filter((v) => !v.is_verified), [venues]);
 
-  const verifiedVenuesForTable = useMemo(
-    () => venues.filter((v) => v.is_verified !== false),
-    [venues],
-  );
+  const verifiedVenues = useMemo(() => venues.filter((v) => v.is_verified), [venues]);
 
   const venuesMissingCoords = useMemo(() => venues.filter((v) => v.latitude == null).length, [venues]);
 
   const sortedVenues = useMemo(() => {
-    return [...verifiedVenuesForTable].sort(
+    return [...verifiedVenues].sort(
       (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
     );
-  }, [verifiedVenuesForTable]);
+  }, [verifiedVenues]);
 
   useEffect(() => {
     if (tab === "articles" && !dataLoading && articles.length === 0) {
@@ -532,26 +528,24 @@ export default function AdminClient() {
     }, 900);
   };
 
-  const approveVenue = async (venue: VenueAdminRow) => {
+  const approveVenue = async (venueId: string) => {
     setActionErr("");
     setVenueApprovedBanner(null);
-    setPendingVenueBusyId(venue.id);
+    setPendingVenueBusyId(venueId);
+    const venue = venues.find((v) => v.id === venueId);
     try {
-      const { error } = await supabase
-        .from("venues")
-        .update({ is_verified: true })
-        .eq("id", venue.id);
+      const { error } = await supabase.from("venues").update({ is_verified: true }).eq("id", venueId);
+
       if (error) {
-        setActionErr(error.message || "Could not approve venue");
+        console.error("Approve error:", error);
+        alert("Could not approve venue: " + error.message);
         return;
       }
 
-      let nextLat: number | string | null = venue.latitude;
-      let nextLng: number | string | null = venue.longitude;
-      let geoSuffix = "";
+      console.log("Venue approved:", venueId);
 
-      const needsGeocode = venue.latitude == null || venue.longitude == null;
-      if (needsGeocode) {
+      let geoSuffix = "";
+      if (venue && (venue.latitude == null || venue.longitude == null)) {
         try {
           const geoRes = await fetch("/api/admin/geocode-venue", {
             method: "POST",
@@ -577,10 +571,8 @@ export default function AdminClient() {
                 latitude: geoJson.lat,
                 longitude: geoJson.lon,
               })
-              .eq("id", venue.id);
+              .eq("id", venueId);
             if (!coordErr) {
-              nextLat = geoJson.lat;
-              nextLng = geoJson.lon;
               geoSuffix = " Coordinates added from OpenStreetMap.";
             }
           }
@@ -589,21 +581,27 @@ export default function AdminClient() {
         }
       }
 
-      setVenues((prev) =>
-        prev.map((v) =>
-          v.id === venue.id
-            ? {
-                ...v,
-                is_verified: true,
-                latitude: nextLat,
-                longitude: nextLng,
-              }
-            : v,
-        ),
-      );
+      const { data: updatedVenues, error: refetchErr } = await supabase
+        .from("venues")
+        .select("*")
+        .order("name", { ascending: true });
 
-      setVenueApprovedBanner(`Approved.${geoSuffix}`);
+      if (refetchErr) {
+        console.error("Refetch venues error:", refetchErr);
+        setActionErr(refetchErr.message);
+        return;
+      }
+
+      if (updatedVenues) {
+        setVenues(updatedVenues as VenueAdminRow[]);
+      }
+
+      setVenueApprovedBanner(`Venue approved and now live!${geoSuffix}`);
       window.setTimeout(() => setVenueApprovedBanner(null), 8000);
+      alert("Venue approved and now live!");
+    } catch (err) {
+      console.error("Approve error:", err);
+      alert("Something went wrong");
     } finally {
       setPendingVenueBusyId(null);
     }
@@ -1202,7 +1200,7 @@ export default function AdminClient() {
                           <button
                             type="button"
                             disabled={pendingVenueBusyId !== null}
-                            onClick={() => void approveVenue(v)}
+                            onClick={() => void approveVenue(v.id)}
                             className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-45"
                           >
                             Approve
@@ -1319,7 +1317,7 @@ export default function AdminClient() {
                 </p>
                 <p>
                   Verified:{" "}
-                  <span className="font-semibold text-zinc-200">{verifiedVenuesForTable.length}</span>
+                  <span className="font-semibold text-zinc-200">{verifiedVenues.length}</span>
                 </p>
                 <p>
                   Pending:{" "}
