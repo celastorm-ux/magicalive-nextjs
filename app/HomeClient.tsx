@@ -427,7 +427,7 @@ export default function HomeClient() {
               <div className="hidden sm:block text-right">Tickets</div>
             </div>
 
-            <div className="divide-y divide-white/10">
+            <div className="max-h-[420px] divide-y divide-white/10 overflow-y-auto">
               {upcomingEvents.map((e) => (
                 (() => {
                   const ticketLink = e.ticket_url?.trim() || null;
