@@ -543,107 +543,132 @@ export default function VenuesPage() {
               </button>
             </div>
           ) : (
-            <ul className="grid w-full max-sm:grid-cols-1 gap-4 sm:[grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
-              {(filtered ?? []).map((v) => (
-                <li key={v.id} className="min-w-0">
-                  <div
-                    ref={(el) => {
-                      if (v?.id) cardRefs.current[v.id] = el;
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => {
-                      if (!v?.id) return;
-                      setSelectedId(v.id);
-                      scrollToCard(v.id);
-                    }}
-                    onKeyDown={(e) => {
-                      if (!v?.id) return;
-                      if (e.key === "Enter" || e.key === " ") {
+            <ul className="grid w-full max-sm:grid-cols-1 gap-4 [grid-auto-rows:1fr] items-stretch sm:[grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+              {(filtered ?? []).map((v) => {
+                const allTags = v?.tags ?? [];
+                const tagsShown = allTags.slice(0, 4);
+                const tagsExtra = allTags.length - tagsShown.length;
+                return (
+                  <li key={v.id} className="flex min-h-0 min-w-0">
+                    <div
+                      ref={(el) => {
+                        if (v?.id) cardRefs.current[v.id] = el;
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        if (!v?.id) return;
                         setSelectedId(v.id);
                         scrollToCard(v.id);
-                      }
-                    }}
-                    className={`cursor-pointer overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
-                      selectedId === v?.id
-                        ? "border-[var(--ml-gold)]/60 shadow-[0_0_32px_-8px_rgba(245,204,113,0.2)]"
-                        : "border-white/10 hover:border-white/20"
-                    }`}
-                  >
-                    <div className={`h-32 bg-gradient-to-br sm:h-36 ${v?.gradient ?? CARD_GRADIENTS[0]}`} />
-                    <div className="p-5">
-                      <h2 className="ml-font-heading text-xl font-semibold text-zinc-50">
-                        {v?.name ?? "—"}
-                      </h2>
-                      <p className="mt-1 text-sm text-zinc-500">
-                        {v?.city || "—"} · {v?.venue_type || "Venue"}
-                      </p>
-                      <p className="mt-2 text-xs text-zinc-600">
-                        Capacity {(v?.capacity ?? 0).toLocaleString()} · Est.{" "}
-                        {v?.established_year ?? "—"}
-                      </p>
-                      {v?.description?.trim() ? (
-                        <p className="mt-2 line-clamp-2 text-sm text-zinc-500">
-                          {v.description.trim()}
-                        </p>
-                      ) : null}
-                      {v?.website?.trim() ? (
-                        <a
-                          href={
-                            v.website!.trim().startsWith("http")
-                              ? v.website!.trim()
-                              : `https://${v.website!.trim()}`
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          style={{
-                            fontSize: "11px",
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
-                            color: "#c9a84c",
-                            border: "0.5px solid #8a6f2e",
-                            padding: "5px 12px",
-                            borderRadius: "2px",
-                            textDecoration: "none",
-                            display: "inline-block",
-                            marginTop: "8px",
-                          }}
-                        >
-                          Visit website ↗
-                        </a>
-                      ) : null}
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {(v?.tags ?? []).length ? (
-                          (v.tags ?? []).map((t) => (
-                            <span key={t} className={CLASSES.tag}>
-                              {t}
+                      }}
+                      onKeyDown={(e) => {
+                        if (!v?.id) return;
+                        if (e.key === "Enter" || e.key === " ") {
+                          setSelectedId(v.id);
+                          scrollToCard(v.id);
+                        }
+                      }}
+                      className={`flex h-full w-full min-h-0 cursor-pointer flex-col overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
+                        selectedId === v?.id
+                          ? "border-[var(--ml-gold)]/60 shadow-[0_0_32px_-8px_rgba(245,204,113,0.2)]"
+                          : "border-white/10 hover:border-white/20"
+                      }`}
+                    >
+                      <div
+                        className={`h-[160px] w-full shrink-0 bg-gradient-to-br ${v?.gradient ?? CARD_GRADIENTS[0]}`}
+                      />
+                      <div className="flex min-h-0 flex-1 flex-col p-5">
+                        <div className="flex min-h-0 flex-1 flex-col">
+                          <h2 className="ml-font-heading text-xl font-semibold text-zinc-50">
+                            {v?.name ?? "—"}
+                          </h2>
+                          <p className="mt-1 text-sm text-zinc-500">
+                            {v?.city || "—"} · {v?.venue_type || "Venue"}
+                          </p>
+                          <p className="mt-2 text-xs text-zinc-600">
+                            Capacity {(v?.capacity ?? 0).toLocaleString()} · Est.{" "}
+                            {v?.established_year ?? "—"}
+                          </p>
+                          {v?.description?.trim() ? (
+                            <p
+                              className="mt-2 line-clamp-3 overflow-hidden text-sm text-zinc-500"
+                              style={{
+                                display: "-webkit-box",
+                                WebkitLineClamp: 3,
+                                WebkitBoxOrient: "vertical",
+                              }}
+                            >
+                              {v.description.trim()}
+                            </p>
+                          ) : null}
+                          {v?.website?.trim() ? (
+                            <a
+                              href={
+                                v.website!.trim().startsWith("http")
+                                  ? v.website!.trim()
+                                  : `https://${v.website!.trim()}`
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                fontSize: "11px",
+                                letterSpacing: "0.08em",
+                                textTransform: "uppercase",
+                                color: "#c9a84c",
+                                border: "0.5px solid #8a6f2e",
+                                padding: "5px 12px",
+                                borderRadius: "2px",
+                                textDecoration: "none",
+                                display: "inline-block",
+                                marginTop: "8px",
+                              }}
+                            >
+                              Visit website ↗
+                            </a>
+                          ) : null}
+                          <div className="mt-3 max-h-[4.5rem] min-h-0 overflow-hidden">
+                            <div className="flex flex-wrap gap-2">
+                              {allTags.length ? (
+                                <>
+                                  {tagsShown.map((t) => (
+                                    <span key={t} className={CLASSES.tag}>
+                                      {t}
+                                    </span>
+                                  ))}
+                                  {tagsExtra > 0 ? (
+                                    <span className="rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                                      +{tagsExtra} more
+                                    </span>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <span className="text-xs text-zinc-600">No tags</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
+                          {(v?.upcomingShows ?? 0) > 0 ? (
+                            <span className="text-sm font-semibold text-emerald-400">
+                              {v.upcomingShows} upcoming {v.upcomingShows === 1 ? "show" : "shows"}
                             </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-zinc-600">No tags</span>
-                        )}
-                      </div>
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                        {(v?.upcomingShows ?? 0) > 0 ? (
-                          <span className="text-sm font-semibold text-emerald-400">
-                            {v.upcomingShows} upcoming {v.upcomingShows === 1 ? "show" : "shows"}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-zinc-600">No upcoming shows</span>
-                        )}
-                        <Link
-                          href={`/venues/${encodeURIComponent(v?.id ?? "")}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className={CLASSES.btnPrimarySm}
-                        >
-                          View venue
-                        </Link>
+                          ) : (
+                            <span className="text-sm text-zinc-600">No upcoming shows</span>
+                          )}
+                          <Link
+                            href={`/venues/${encodeURIComponent(v?.id ?? "")}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className={CLASSES.btnPrimarySm}
+                          >
+                            View venue
+                          </Link>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
