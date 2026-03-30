@@ -109,12 +109,13 @@ export default function EventDetailClient({
 
   const eventDate = useMemo(() => formatShowDateLongEnUS(event?.date ?? null), [event?.date]);
   const magicianName = event?.profiles?.display_name?.trim() || "Magician";
-  const aboutShow =
-    event?.description?.trim() ||
-    event?.short_description?.trim() ||
-    `An evening with ${magicianName}`;
-  const ticketLink = event?.ticket_url?.trim() || null;
   const isLecture = event?.event_type === "lecture";
+  const aboutShow = event?.description?.trim()
+    ? event.description.trim()
+    : isLecture
+      ? `A lecture by ${magicianName}`
+      : `An evening with ${magicianName}`;
+  const ticketLink = event?.ticket_url?.trim() || null;
   const maxAtt = event?.max_attendees != null && event.max_attendees > 0 ? event.max_attendees : null;
   const isCancelled = Boolean(event?.is_cancelled);
   const cancelReason = event?.cancellation_reason?.trim() || null;

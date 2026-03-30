@@ -34,6 +34,7 @@ type EventRow = {
   max_attendees?: number | null;
   is_online?: boolean | null;
   is_cancelled?: boolean | null;
+  description?: string | null;
   profiles: {
     id: string | null;
     display_name: string | null;
@@ -588,6 +589,9 @@ export default function EventsPage() {
                                   >
                                     {e.name}
                                   </Link>
+                                  {e.description?.trim() ? (
+                                    <p className="line-clamp-1 text-sm text-zinc-500">{e.description.trim()}</p>
+                                  ) : null}
                                   <p className="text-sm text-zinc-500">{venueLine(e)}</p>
                                   {lecture ? renderLectureBadges(e) : null}
                                   <div className="mt-1 flex items-center gap-2 text-xs text-[var(--ml-gold)]/75">
@@ -619,6 +623,9 @@ export default function EventsPage() {
                                 >
                                   {e.name}
                                 </Link>
+                                {e.description?.trim() ? (
+                                  <p className="mt-0.5 line-clamp-1 text-sm text-zinc-500">{e.description.trim()}</p>
+                                ) : null}
                                 <p className="mt-0.5 text-sm text-zinc-400">{venueLine(e)}</p>
                                 {lecture ? renderLectureBadges(e) : null}
                                 <div className="mt-1 flex items-center gap-2 text-xs text-[var(--ml-gold)]/75">

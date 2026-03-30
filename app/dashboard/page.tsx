@@ -57,6 +57,7 @@ type ShowRow = {
   is_online?: boolean | null;
   is_cancelled?: boolean | null;
   cancellation_reason?: string | null;
+  description?: string | null;
 };
 
 type VenueOption = {
@@ -98,6 +99,7 @@ const VENUE_OTHER = "__other__";
 
 type PostEventKind = "show" | "lecture";
 const SKILL_LEVELS = ["Beginner", "Intermediate", "Advanced", "All levels"] as const;
+const SHOW_DESCRIPTION_MAX = 500;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm font-normal text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-[var(--ml-gold)]/50 focus:bg-white/10";
@@ -162,6 +164,7 @@ export default function DashboardPage() {
   const [editShowPickCountry, setEditShowPickCountry] = useState("");
   const [editShowPickState, setEditShowPickState] = useState("");
   const [editTicketUrl, setEditTicketUrl] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const [editIsPublic, setEditIsPublic] = useState(true);
 
   const [showName, setShowName] = useState("");
@@ -174,6 +177,7 @@ export default function DashboardPage() {
   const [showPickCountry, setShowPickCountry] = useState("");
   const [showPickState, setShowPickState] = useState("");
   const [ticketUrl, setTicketUrl] = useState("");
+  const [showDescription, setShowDescription] = useState("");
   const [isPublic, setIsPublic] = useState(true);
 
   const [postEventType, setPostEventType] = useState<PostEventKind>("show");
@@ -480,6 +484,7 @@ export default function DashboardPage() {
         includes_props: isLecture ? lectureIncludesProps : false,
         max_attendees: isLecture && maxParsed != null && Number.isFinite(maxParsed) ? maxParsed : null,
         is_online: isLecture ? lectureOnline : false,
+        description: showDescription.trim().slice(0, SHOW_DESCRIPTION_MAX) || null,
       };
 
       const { error } = await supabase.from("shows").insert(row);
@@ -505,6 +510,7 @@ export default function DashboardPage() {
     setShowPickCountry("");
     setShowPickState("");
     setTicketUrl("");
+    setShowDescription("");
     setIsPublic(true);
     setPostEventType("show");
     setLectureSkillLevel("All levels");
@@ -577,6 +583,7 @@ export default function DashboardPage() {
     setEditShowPickCountry(co);
     setEditShowPickState(pickerStateFromDatabase(co, s.state));
     setEditTicketUrl(s.ticket_url ?? "");
+    setEditDescription((s.description ?? "").slice(0, SHOW_DESCRIPTION_MAX));
     setEditIsPublic(Boolean(s.is_public));
     setEditVenueSelect(s.venue_id ?? VENUE_OTHER);
     const slRaw = s.skill_level?.trim();
@@ -659,6 +666,7 @@ export default function DashboardPage() {
       max_attendees:
         editEventType === "lecture" && maxEdit != null && Number.isFinite(maxEdit) ? maxEdit : null,
       is_online: editEventType === "lecture" ? editIsOnline : false,
+      description: editDescription.trim().slice(0, SHOW_DESCRIPTION_MAX) || null,
     };
 
     const { error } = await supabase.from("shows").update(updatePayload).eq("id", editingShowId);
@@ -1003,6 +1011,29 @@ export default function DashboardPage() {
                 </div>
               </>
             ) : null}
+            <div className="sm:col-span-2">
+              <label className={labelClass}>
+                {editEventType === "lecture" ? "About this lecture" : "About this show"}{" "}
+                <span className="font-normal normal-case tracking-normal text-zinc-600">
+                  (optional, max {SHOW_DESCRIPTION_MAX} characters)
+                </span>
+              </label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value.slice(0, SHOW_DESCRIPTION_MAX))}
+                rows={4}
+                maxLength={SHOW_DESCRIPTION_MAX}
+                placeholder={
+                  editEventType === "lecture"
+                    ? "What will attendees learn? What topics will be covered?..."
+                    : "Describe what audiences can expect from this performance..."
+                }
+                className={`${inputClass} min-h-[100px] resize-y`}
+              />
+              <p className="mt-1 text-right text-xs text-zinc-500">
+                {editDescription.length}/{SHOW_DESCRIPTION_MAX}
+              </p>
+            </div>
             {editEventType === "show" || (editEventType === "lecture" && !editIsOnline) ? (
               <div className="sm:col-span-2">
                 <label className={labelClass}>Ticket URL</label>
@@ -1383,6 +1414,29 @@ export default function DashboardPage() {
                   ) : null}
                 </>
               ) : null}
+              <div className="sm:col-span-2">
+                <label className={labelClass}>
+                  {postEventType === "lecture" ? "About this lecture" : "About this show"}{" "}
+                  <span className="font-normal normal-case tracking-normal text-zinc-600">
+                    (optional, max {SHOW_DESCRIPTION_MAX} characters)
+                  </span>
+                </label>
+                <textarea
+                  value={showDescription}
+                  onChange={(e) => setShowDescription(e.target.value.slice(0, SHOW_DESCRIPTION_MAX))}
+                  rows={4}
+                  maxLength={SHOW_DESCRIPTION_MAX}
+                  placeholder={
+                    postEventType === "lecture"
+                      ? "What will attendees learn? What topics will be covered?..."
+                      : "Describe what audiences can expect from this performance..."
+                  }
+                  className={`${inputClass} min-h-[100px] resize-y`}
+                />
+                <p className="mt-1 text-right text-xs text-zinc-500">
+                  {showDescription.length}/{SHOW_DESCRIPTION_MAX}
+                </p>
+              </div>
               {postEventType === "show" || (postEventType === "lecture" && !lectureOnline) ? (
                 <div className="sm:col-span-2">
                   <label className={labelClass}>Ticket URL</label>

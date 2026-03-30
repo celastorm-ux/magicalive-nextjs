@@ -78,6 +78,7 @@ type ShowRow = {
   is_online?: boolean | null;
   is_cancelled?: boolean | null;
   cancellation_reason?: string | null;
+  description?: string | null;
 };
 
 type ReviewRow = {
@@ -935,6 +936,11 @@ export default function MagicianProfileClient({
                               >
                                 {show.name}
                               </Link>
+                              {show.description?.trim() ? (
+                                <p className="mt-1 line-clamp-2 text-sm leading-snug text-zinc-500">
+                                  {show.description.trim()}
+                                </p>
+                              ) : null}
                               <div className="mt-0.5 text-sm text-zinc-500">
                                 {show.venue_id && show.venue_name?.trim() ? (
                                   <Link
@@ -990,6 +996,11 @@ export default function MagicianProfileClient({
                             >
                               {show.name}
                             </Link>
+                            {show.description?.trim() ? (
+                              <p className="mt-1 line-clamp-2 text-sm leading-snug text-zinc-500">
+                                {show.description.trim()}
+                              </p>
+                            ) : null}
                             {show.skill_level ? (
                               <p className="mt-1 text-xs font-medium text-violet-300/90">Level: {show.skill_level}</p>
                             ) : null}

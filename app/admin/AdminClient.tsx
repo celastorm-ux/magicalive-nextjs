@@ -60,6 +60,7 @@ const VENUE_OTHER = "__other__";
 type PostEventKind = "show" | "lecture";
 
 const ADMIN_SKILL_LEVELS = ["Beginner", "Intermediate", "Advanced", "All levels"] as const;
+const ADMIN_SHOW_DESCRIPTION_MAX = 500;
 
 type ShowAdminRow = {
   id: string;
@@ -80,6 +81,7 @@ type ShowAdminRow = {
   includes_workbook: boolean | null;
   includes_props: boolean | null;
   is_cancelled: boolean | null;
+  description?: string | null;
   profiles?: { display_name: string | null; avatar_url: string | null } | unknown[] | null;
 };
 
@@ -198,6 +200,7 @@ export default function AdminClient() {
   const [adminEditCity, setAdminEditCity] = useState("");
   const [adminEditStateText, setAdminEditStateText] = useState("");
   const [adminEditTicketUrl, setAdminEditTicketUrl] = useState("");
+  const [adminEditDescription, setAdminEditDescription] = useState("");
   const [adminEditIsPublic, setAdminEditIsPublic] = useState(true);
   const [adminEditEventType, setAdminEditEventType] = useState<PostEventKind>("show");
   const [adminEditSkillLevel, setAdminEditSkillLevel] =
@@ -402,6 +405,7 @@ export default function AdminClient() {
     setAdminEditCity(s.city ?? "");
     setAdminEditStateText(s.state ?? "");
     setAdminEditTicketUrl(s.ticket_url ?? "");
+    setAdminEditDescription((s.description ?? "").slice(0, ADMIN_SHOW_DESCRIPTION_MAX));
     setAdminEditIsPublic(Boolean(s.is_public));
     const kind: PostEventKind = s.event_type === "lecture" ? "lecture" : "show";
     setAdminEditEventType(kind);
@@ -493,6 +497,7 @@ export default function AdminClient() {
       is_online: adminEditEventType === "lecture" ? adminEditIsOnline : false,
       includes_workbook: adminEditEventType === "lecture" ? adminEditWorkbook : false,
       includes_props: adminEditEventType === "lecture" ? adminEditProps : false,
+      description: adminEditDescription.trim().slice(0, ADMIN_SHOW_DESCRIPTION_MAX) || null,
     };
 
     setAdminShowSaveBusy(true);
@@ -1705,6 +1710,31 @@ export default function AdminClient() {
                                     disabled={adminEditEventType === "lecture" && adminEditIsOnline}
                                     className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40 disabled:opacity-45"
                                   />
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    {adminEditEventType === "lecture" ? "About this lecture" : "About this show"}{" "}
+                                    <span className="font-normal normal-case text-zinc-600">
+                                      (optional, max {ADMIN_SHOW_DESCRIPTION_MAX})
+                                    </span>
+                                  </label>
+                                  <textarea
+                                    value={adminEditDescription}
+                                    onChange={(e) =>
+                                      setAdminEditDescription(e.target.value.slice(0, ADMIN_SHOW_DESCRIPTION_MAX))
+                                    }
+                                    rows={4}
+                                    maxLength={ADMIN_SHOW_DESCRIPTION_MAX}
+                                    placeholder={
+                                      adminEditEventType === "lecture"
+                                        ? "What will attendees learn? What topics will be covered?..."
+                                        : "Describe what audiences can expect from this performance..."
+                                    }
+                                    className="min-h-[100px] w-full resize-y rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                  />
+                                  <p className="mt-1 text-right text-xs text-zinc-500">
+                                    {adminEditDescription.length}/{ADMIN_SHOW_DESCRIPTION_MAX}
+                                  </p>
                                 </div>
                                 <div className="sm:col-span-2">
                                   <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
