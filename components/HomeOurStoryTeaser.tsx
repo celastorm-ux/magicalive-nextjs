@@ -40,8 +40,8 @@ export function HomeOurStoryTeaser() {
           <div className="border-l-2 border-[var(--ml-gold)]/45 pl-6 sm:pl-8">
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">Our story</p>
             <h2 className="ml-font-heading mt-4 text-3xl font-semibold leading-tight tracking-tight text-zinc-50 sm:text-4xl md:text-[2.35rem]">
-              Built by a magician who couldn&apos;t find a{" "}
-              <span className="text-[var(--ml-gold)] italic">show</span>
+              A simple question with{" "}
+              <span className="text-[var(--ml-gold)] italic">no answer</span>
             </h2>
             <div className="mt-6 space-y-4 text-sm leading-relaxed text-zinc-400 sm:text-base">
               <p>
