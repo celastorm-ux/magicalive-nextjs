@@ -130,7 +130,7 @@ export default function HomeClient() {
         .eq("is_cancelled", false)
         .gte("date", todayYmdLocal())
         .order("date", { ascending: true })
-        .limit(4);
+        .limit(20);
       if (cancelled) return;
       const rows = (
         (shows ?? []) as Array<{
