@@ -16,10 +16,10 @@ import { supabase } from "@/lib/supabase";
 
 const TABS = [
   "About",
-  "Media",
   "Shows",
   "Reviews",
   "Articles",
+  "Media",
   "History",
 ] as const;
 type Tab = (typeof TABS)[number];
@@ -916,34 +916,14 @@ export default function MagicianProfileClient({
                 </div>
               )}
               {tab === "Shows" && (
-                <div className="space-y-4">
-                  <div className="flex gap-2 border-b border-white/10">
-                    <button
-                      type="button"
-                      onClick={() => setShowsListKind("shows")}
-                      className={`border-b-2 px-4 py-2 text-sm font-semibold transition ${
-                        showsListKind === "shows"
-                          ? "border-[var(--ml-gold)] text-[var(--ml-gold)]"
-                          : "border-transparent text-zinc-500 hover:text-zinc-300"
-                      }`}
-                    >
+                <div className="space-y-8">
+                  {/* Shows */}
+                  <section>
+                    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--ml-gold)]">
                       Shows
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowsListKind("lectures")}
-                      className={`border-b-2 px-4 py-2 text-sm font-semibold transition ${
-                        showsListKind === "lectures"
-                          ? "border-violet-400 text-violet-200"
-                          : "border-transparent text-zinc-500 hover:text-zinc-300"
-                      }`}
-                    >
-                      Lectures
-                    </button>
-                  </div>
-                  <ul className="divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.02]">
-                    {showsListKind === "shows" ? (
-                      upcomingShowEvents.length ? (
+                    </h3>
+                    <ul className="divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.02]">
+                      {upcomingShowEvents.length ? (
                         upcomingShowEvents.map((show) => (
                           <li
                             key={show.id}
@@ -997,90 +977,100 @@ export default function MagicianProfileClient({
                         ))
                       ) : (
                         <li className="px-5 py-10 text-center text-sm text-zinc-500">No upcoming shows</li>
-                      )
-                    ) : upcomingLectures.length ? (
-                      upcomingLectures.map((show) => (
-                        <li
-                          key={show.id}
-                          className="flex flex-col gap-3 border-l-2 border-l-violet-500/40 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
-                        >
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="rounded-full border border-violet-400/35 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200">
-                                Lecture
+                      )}
+                    </ul>
+                  </section>
+
+                  {/* Lectures */}
+                  <section>
+                    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-violet-300">
+                      Lectures
+                    </h3>
+                    <ul className="divide-y divide-white/10 rounded-2xl border border-violet-500/20 bg-violet-950/[0.08]">
+                      {upcomingLectures.length ? (
+                        upcomingLectures.map((show) => (
+                          <li
+                            key={show.id}
+                            className="flex flex-col gap-3 border-l-2 border-l-violet-500/40 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+                          >
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full border border-violet-400/35 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200">
+                                  Lecture
+                                </span>
+                                <p className="text-sm font-semibold text-violet-200/90">
+                                  {show.date ? formatShowDateLongEnUS(show.date) : "Date TBA"}
+                                  {show.time ? ` · ${formatTime(show.time)}` : ""}
+                                </p>
+                              </div>
+                              <Link
+                                href={`/events/${encodeURIComponent(show.id)}`}
+                                className="mt-1 inline-flex ml-font-heading text-lg font-semibold text-zinc-100 transition hover:underline"
+                              >
+                                {show.name}
+                              </Link>
+                              {show.description?.trim() ? (
+                                <p className="mt-1 line-clamp-2 text-sm leading-snug text-zinc-500">
+                                  {show.description.trim()}
+                                </p>
+                              ) : null}
+                              {show.skill_level ? (
+                                <p className="mt-1 text-xs font-medium text-violet-300/90">Level: {show.skill_level}</p>
+                              ) : null}
+                              <div className="mt-0.5 text-sm text-zinc-500">
+                                {show.is_online ? (
+                                  <span className="text-sky-300/90">Online</span>
+                                ) : show.venue_id && show.venue_name?.trim() ? (
+                                  <Link
+                                    href={`/venues/${encodeURIComponent(show.venue_id)}`}
+                                    className="text-[var(--ml-gold)]/85 transition hover:text-[var(--ml-gold)] hover:underline"
+                                  >
+                                    {show.venue_name}
+                                  </Link>
+                                ) : (
+                                  <span>{show.venue_name || "Venue TBA"}</span>
+                                )}
+                                {!show.is_online && show.city ? <span>{` · ${show.city}`}</span> : null}
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {show.max_attendees != null && show.max_attendees > 0 ? (
+                                  <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-400">
+                                    Max {show.max_attendees}
+                                  </span>
+                                ) : null}
+                                {show.includes_workbook ? (
+                                  <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-100">
+                                    Workbook
+                                  </span>
+                                ) : null}
+                                {show.includes_props ? (
+                                  <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-100">
+                                    Props
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                            {show.ticket_url?.trim() ? (
+                              <a
+                                href={show.ticket_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={CLASSES.btnPrimarySm}
+                              >
+                                Register
+                              </a>
+                            ) : (
+                              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                                Free / enquire
                               </span>
-                              <p className="text-sm font-semibold text-violet-200/90">
-                                {show.date ? formatShowDateLongEnUS(show.date) : "Date TBA"}
-                                {show.time ? ` · ${formatTime(show.time)}` : ""}
-                              </p>
-                            </div>
-                            <Link
-                              href={`/events/${encodeURIComponent(show.id)}`}
-                              className="mt-1 inline-flex ml-font-heading text-lg font-semibold text-zinc-100 transition hover:underline"
-                            >
-                              {show.name}
-                            </Link>
-                            {show.description?.trim() ? (
-                              <p className="mt-1 line-clamp-2 text-sm leading-snug text-zinc-500">
-                                {show.description.trim()}
-                              </p>
-                            ) : null}
-                            {show.skill_level ? (
-                              <p className="mt-1 text-xs font-medium text-violet-300/90">Level: {show.skill_level}</p>
-                            ) : null}
-                            <div className="mt-0.5 text-sm text-zinc-500">
-                              {show.is_online ? (
-                                <span className="text-sky-300/90">Online</span>
-                              ) : show.venue_id && show.venue_name?.trim() ? (
-                                <Link
-                                  href={`/venues/${encodeURIComponent(show.venue_id)}`}
-                                  className="text-[var(--ml-gold)]/85 transition hover:text-[var(--ml-gold)] hover:underline"
-                                >
-                                  {show.venue_name}
-                                </Link>
-                              ) : (
-                                <span>{show.venue_name || "Venue TBA"}</span>
-                              )}
-                              {!show.is_online && show.city ? <span>{` · ${show.city}`}</span> : null}
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              {show.max_attendees != null && show.max_attendees > 0 ? (
-                                <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-400">
-                                  Max {show.max_attendees}
-                                </span>
-                              ) : null}
-                              {show.includes_workbook ? (
-                                <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-100">
-                                  Workbook
-                                </span>
-                              ) : null}
-                              {show.includes_props ? (
-                                <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-100">
-                                  Props
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-                          {show.ticket_url?.trim() ? (
-                            <a
-                              href={show.ticket_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={CLASSES.btnPrimarySm}
-                            >
-                              Register
-                            </a>
-                          ) : (
-                            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                              Free / enquire
-                            </span>
-                          )}
-                        </li>
-                      ))
-                    ) : (
-                      <li className="px-5 py-10 text-center text-sm text-zinc-500">No upcoming lectures</li>
-                    )}
-                  </ul>
+                            )}
+                          </li>
+                        ))
+                      ) : (
+                        <li className="px-5 py-10 text-center text-sm text-zinc-500">No upcoming lectures</li>
+                      )}
+                    </ul>
+                  </section>
 
                   {cancelledShows.length ? (
                     <section className="mt-10">
