@@ -283,7 +283,7 @@ export default function HomeClient() {
               </p>
 
               <h1 className={`${CLASSES.headingHero} mt-6`}>
-                Where magic finds its audience
+                Where the audience finds its magic
               </h1>
 
               <p className={`${CLASSES.bodyLead} mt-5 max-w-2xl`}>
