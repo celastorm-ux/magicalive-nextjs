@@ -2,7 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HomeOurStoryTeaser } from "@/components/HomeOurStoryTeaser";
 import { CLASSES } from "@/lib/constants";
 import { formatShowDateShortEnUS, todayYmdLocal } from "@/lib/show-dates";
@@ -19,6 +19,7 @@ type FeaturedMagician = {
   rating: number;
   reviews: number;
   onlineNow?: boolean;
+  avatarUrl?: string | null;
 };
 
 type HomeArticle = {
@@ -28,10 +29,12 @@ type HomeArticle = {
   category: string | null;
   published_at: string | null;
   read_time: string | null;
+  cover_image_url: string | null;
 };
 
 type UpcomingEvent = {
   id: string;
+  rawDate: string;
   date: string;
   time: string | null;
   name: string;
@@ -43,6 +46,64 @@ type UpcomingEvent = {
   event_type: string;
   is_online: boolean;
 };
+
+function CountUpStat({ value, label }: { value: string; label: string }) {
+  const match = value.match(/^(\d+)(.*)$/);
+  const target = match ? parseInt(match[1]!, 10) : 0;
+  const suffix = match ? match[2] : value;
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const duration = 1400;
+    const start = Date.now();
+    const tick = () => {
+      const progress = Math.min((Date.now() - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(eased * target));
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [target]);
+
+  return (
+    <div className={`${CLASSES.card} px-4 py-4`}>
+      <div className="ml-font-heading text-2xl font-semibold text-zinc-50">
+        {count}{suffix}
+      </div>
+      <div className={`${CLASSES.labelCaps} mt-1`}>{label}</div>
+    </div>
+  );
+}
+
+function FadeInSection({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry?.isIntersecting) { setVisible(true); observer.disconnect(); } },
+      { threshold: 0.08 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(20px)",
+        transition: `opacity 0.55s ease ${delay}ms, transform 0.55s ease ${delay}ms`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -58,6 +119,7 @@ export default function HomeClient() {
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [recentArticles, setRecentArticles] = useState<HomeArticle[]>([]);
+  const [articlesLoading, setArticlesLoading] = useState(true);
   const [foundingRemaining, setFoundingRemaining] = useState<number | null>(null);
   const [foundingBannerDismissed, setFoundingBannerDismissed] = useState(false);
   const [passwordResetBanner, setPasswordResetBanner] = useState(false);
@@ -110,6 +172,7 @@ export default function HomeClient() {
               rating: Number(row.rating ?? 0),
               reviews: Number(row.review_count ?? 0),
               onlineNow: Boolean(row.is_online),
+              avatarUrl: (row.avatar_url as string | null) ?? null,
             };
           }),
         );
@@ -151,6 +214,7 @@ export default function HomeClient() {
         const online = Boolean(s.is_online);
         return {
           id: s.id,
+          rawDate: s.date,
           date: formatShowDateShortEnUS(s.date),
           time: s.time ?? null,
           name: s.name,
@@ -179,13 +243,15 @@ export default function HomeClient() {
 
   useEffect(() => {
     void (async () => {
+      setArticlesLoading(true);
       const { data } = await supabase
         .from("articles")
-        .select("id, title, excerpt, category, published_at, read_time")
+        .select("id, title, excerpt, category, published_at, read_time, cover_image_url")
         .eq("status", "published")
         .order("published_at", { ascending: false })
         .limit(3);
       setRecentArticles((data as HomeArticle[] | null) ?? []);
+      setArticlesLoading(false);
     })();
   }, []);
 
@@ -283,8 +349,11 @@ export default function HomeClient() {
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 -z-10"
       >
-        <div className="absolute left-1/2 top-[-160px] h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,var(--ml-gold-glow-strong),rgba(0,0,0,0)_62%)] blur-2xl" />
-        <div className="absolute bottom-[-220px] right-[-220px] h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,var(--ml-gold-glow-soft),rgba(0,0,0,0)_60%)] blur-3xl" />
+        <div className="ml-noise-overlay absolute inset-0" />
+        <div className="absolute left-1/2 top-[-160px]">
+          <div className="ml-orb-1 h-[520px] w-[820px] rounded-full bg-[radial-gradient(circle_at_center,var(--ml-gold-glow-strong),rgba(0,0,0,0)_62%)] blur-2xl" />
+        </div>
+        <div className="ml-orb-2 absolute bottom-[-220px] right-[-220px] h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,var(--ml-gold-glow-soft),rgba(0,0,0,0)_60%)] blur-3xl" />
         <div
           className="absolute inset-0"
           style={{ background: "var(--ml-gradient-vignette)" }}
@@ -293,7 +362,7 @@ export default function HomeClient() {
 
       <main>
         <section className={`${CLASSES.section} pb-10 pt-14 sm:pt-18`}>
-          <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+          <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-stretch">
             <div>
               <p className={CLASSES.pillGold}>
                 The directory for magicians
@@ -304,7 +373,7 @@ export default function HomeClient() {
                 Discover • Book • Follow
               </p>
 
-              <h1 className={`${CLASSES.headingHero} mt-6`}>
+              <h1 className="ml-font-heading ml-hero-shimmer mt-6 text-4xl font-semibold leading-tight tracking-tight whitespace-nowrap sm:text-5xl">
                 Where the audience finds its magic
               </h1>
 
@@ -312,25 +381,21 @@ export default function HomeClient() {
                 Magicalive is the place to discover performers, track events, and explore venues — like IMDb, but for magic.
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="flex-1">
-                  <button
-                    type="button"
-                    onClick={() => window.dispatchEvent(new Event("ml:open-search-overlay"))}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-base text-zinc-300 transition hover:border-[var(--ml-gold)]/35 hover:text-zinc-100"
-                  >
-                    <span className="text-[var(--ml-gold)]">⌕</span>
-                    <span>Search magicians, events, venues...</span>
-                  </button>
-                </div>
-                <div className="flex gap-3">
-                  <Link href="/magicians" className={CLASSES.btnPrimary}>
-                    Browse magicians
-                  </Link>
-                  <Link href="/events" className={CLASSES.btnSecondary}>
-                    Explore events
-                  </Link>
-                </div>
+              <div className="mt-8 flex flex-wrap gap-3 sm:flex-nowrap sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event("ml:open-search-overlay"))}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-[var(--ml-gold)]/35 hover:text-zinc-100"
+                >
+                  <span className="text-[var(--ml-gold)]">⌕</span>
+                  <span>Search</span>
+                </button>
+                <Link href="/magicians" className={CLASSES.btnPrimary}>
+                  Browse magicians
+                </Link>
+                <Link href="/events" className={CLASSES.btnSecondary}>
+                  Explore events
+                </Link>
               </div>
 
               <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -340,19 +405,12 @@ export default function HomeClient() {
                   { value: "320", label: "Venues" },
                   { value: "18k", label: "Members" },
                 ].map((stat) => (
-                  <div key={stat.label} className={`${CLASSES.card} px-4 py-4`}>
-                    <div className="ml-font-heading text-2xl font-semibold text-zinc-50">
-                      {stat.value}
-                    </div>
-                    <div className={`${CLASSES.labelCaps} mt-1`}>
-                      {stat.label}
-                    </div>
-                  </div>
+                  <CountUpStat key={stat.label} value={stat.value} label={stat.label} />
                 ))}
               </div>
             </div>
 
-            <div className={CLASSES.cardGlass}>
+            <div className={`${CLASSES.cardGlass} h-full`}>
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,var(--ml-gold-glow-mid),rgba(0,0,0,0)_55%)]" />
               <div className="relative">
                 <div className="flex items-center justify-between">
@@ -362,51 +420,99 @@ export default function HomeClient() {
                   </Link>
                 </div>
                 <div className="mt-4 space-y-3">
-                  {recentArticles.length ? (
-                    recentArticles.map((a) => (
+                  {articlesLoading ? (
+                    <>
+                      <div className="animate-pulse overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+                        <div className="h-36 w-full bg-white/10" />
+                        <div className="space-y-2 p-4">
+                          <div className="h-3 w-1/4 rounded bg-white/10" />
+                          <div className="h-4 w-3/4 rounded bg-white/10" />
+                          <div className="h-3 w-full rounded bg-white/10" />
+                        </div>
+                      </div>
+                      {Array.from({ length: 2 }).map((_, i) => (
+                        <div key={i} className="flex animate-pulse gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                          <div className="h-12 w-16 shrink-0 rounded-lg bg-white/10" />
+                          <div className="flex-1 space-y-2 py-1">
+                            <div className="h-3.5 w-3/4 rounded bg-white/10" />
+                            <div className="h-2.5 w-1/3 rounded bg-white/10" />
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : recentArticles.length ? (
+                    <>
+                      {/* Featured latest article */}
                       <Link
-                        key={a.id}
-                        href={`/articles/${encodeURIComponent(a.id)}`}
-                        className={`${CLASSES.cardRow} transition hover:border-[var(--ml-gold)]/35`}
+                        href={`/articles/${encodeURIComponent(recentArticles[0]!.id)}`}
+                        className="group block overflow-hidden rounded-2xl border border-white/10 bg-black/20 transition hover:border-[var(--ml-gold)]/35"
                       >
-                        <p className="truncate text-sm font-medium text-zinc-100">
-                          {a.title?.trim() || "Untitled"}
-                        </p>
-                        {a.category ? (
-                          <span className="ml-3 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]/80">
-                            {a.category}
-                          </span>
-                        ) : null}
+                        {recentArticles[0]!.cover_image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={recentArticles[0]!.cover_image_url}
+                            alt=""
+                            className="h-36 w-full object-cover opacity-90 transition group-hover:opacity-100"
+                          />
+                        ) : (
+                          <div className="h-36 w-full bg-white/5" />
+                        )}
+                        <div className="p-4">
+                          {recentArticles[0]!.category ? (
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]/80">
+                              {recentArticles[0]!.category}
+                            </span>
+                          ) : null}
+                          <p className="mt-1 text-sm font-semibold leading-snug text-zinc-100">
+                            {recentArticles[0]!.title?.trim() || "Untitled"}
+                          </p>
+                          {recentArticles[0]!.excerpt ? (
+                            <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-zinc-400">
+                              {recentArticles[0]!.excerpt}
+                            </p>
+                          ) : null}
+                        </div>
                       </Link>
-                    ))
+                      {/* Remaining articles */}
+                      {recentArticles.slice(1).map((a) => (
+                        <Link
+                          key={a.id}
+                          href={`/articles/${encodeURIComponent(a.id)}`}
+                          className={`${CLASSES.cardRow} gap-3 transition hover:border-[var(--ml-gold)]/35`}
+                        >
+                          {a.cover_image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={a.cover_image_url}
+                              alt=""
+                              className="h-12 w-16 shrink-0 rounded-lg object-cover opacity-90"
+                            />
+                          ) : (
+                            <div className="h-12 w-16 shrink-0 rounded-lg bg-white/5" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-zinc-100">
+                              {a.title?.trim() || "Untitled"}
+                            </p>
+                            {a.category ? (
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]/80">
+                                {a.category}
+                              </span>
+                            ) : null}
+                          </div>
+                        </Link>
+                      ))}
+                    </>
                   ) : (
                     <p className="text-sm text-zinc-500">No articles yet.</p>
                   )}
-                </div>
-                <div className={`${CLASSES.cardCta} mt-5`}>
-                  <div>
-                    <div className="text-sm font-semibold text-zinc-100">
-                      Are you a magician?
-                    </div>
-                    <div className="text-xs text-zinc-300">
-                      Get discovered by audiences and venues.
-                    </div>
-                    {showFoundingSpots ? (
-                      <div className="mt-1 text-xs text-[var(--ml-gold)]/75">
-                        ♣ {foundingRemaining} Founding Member spots remaining
-                      </div>
-                    ) : null}
-                  </div>
-                  <Link href={createProfileHref} className={CLASSES.btnPrimarySm}>
-                    Create profile
-                  </Link>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className={`${CLASSES.section} pb-16 pt-2`}>
+        <FadeInSection className={`${CLASSES.section} pb-16 pt-2`}>
           <div className="flex items-end justify-between gap-6">
             <div>
               <h2 className={CLASSES.headingSection}>Upcoming events</h2>
@@ -432,18 +538,24 @@ export default function HomeClient() {
                 (() => {
                   const ticketLink = e.ticket_url?.trim() || null;
                   const isLec = e.event_type === "lecture";
+                  const isToday = e.rawDate === todayYmdLocal();
                   return (
                 <div
                   key={e.id}
                   className={`grid grid-cols-[88px_1fr] items-center gap-x-4 px-5 py-4 sm:grid-cols-[110px_1fr_220px_120px] ${CLASSES.tableRow} ${
                     isLec ? "border-l-2 border-l-violet-500/45 bg-violet-950/[0.12]" : ""
-                  }`}
+                  } ${isToday && !isLec ? "border-l-2 border-l-[var(--ml-gold)]/60 bg-[var(--ml-gold)]/[0.04]" : ""}`}
                 >
                   <div>
                     <div
                       className={`text-sm font-semibold ${isLec ? "text-violet-200" : "text-[var(--ml-gold)]"}`}
                     >
                       {e.date}
+                      {isToday ? (
+                        <span className="ml-1.5 rounded-full bg-[var(--ml-gold)]/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--ml-gold)]">
+                          Today
+                        </span>
+                      ) : null}
                     </div>
                     {e.time?.trim() ? (
                       <div className="mt-0.5 text-xs font-medium text-zinc-500">{formatTime(e.time)}</div>
@@ -525,9 +637,9 @@ export default function HomeClient() {
               ) : null}
             </div>
           </div>
-        </section>
+        </FadeInSection>
 
-        <section className={`${CLASSES.section} pb-4`}>
+        <FadeInSection className={`${CLASSES.section} pb-4`} delay={100}>
           {showFoundingSpots ? (
             <div className="rounded-3xl border border-[var(--ml-gold)]/25 bg-[var(--ml-gold)]/10 p-6 sm:p-8">
               <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">
@@ -571,9 +683,9 @@ export default function HomeClient() {
               </p>
             </div>
           ) : null}
-        </section>
+        </FadeInSection>
 
-        <section className={`${CLASSES.section} py-12`}>
+        <FadeInSection className={`${CLASSES.section} py-12`} delay={80}>
           <div className="flex items-end justify-between gap-6">
             <div>
               <h2 className={CLASSES.headingSection}>Featured magicians</h2>
@@ -626,7 +738,27 @@ export default function HomeClient() {
                         <div className="absolute -top-16 left-1/2 h-40 w-80 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,var(--ml-gold-glow-card),rgba(0,0,0,0)_70%)] blur-2xl" />
                       </div>
 
-                      <div className="relative">
+                      <div className="relative flex h-full flex-col">
+                        <div className="mb-4 flex justify-center">
+                          <Link
+                            href={`/profile/magician?id=${encodeURIComponent(m.id)}`}
+                            className="rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--ml-gold)]/60"
+                            aria-label={`View ${m.name}'s profile`}
+                          >
+                            {m.avatarUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={m.avatarUrl}
+                                alt=""
+                                className="h-20 w-20 rounded-full border-2 border-white/20 object-cover drop-shadow-lg transition hover:border-[var(--ml-gold)]/60"
+                              />
+                            ) : (
+                              <span className="inline-flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/20 bg-zinc-800 text-3xl font-semibold text-zinc-100 drop-shadow-lg transition hover:border-[var(--ml-gold)]/60">
+                                {initials(m.name)}
+                              </span>
+                            )}
+                          </Link>
+                        </div>
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <h3 className={CLASSES.headingCard}>
@@ -641,7 +773,10 @@ export default function HomeClient() {
                           </div>
                           {m.onlineNow ? (
                             <span className={CLASSES.badgeOnline}>
-                              <span className="h-2 w-2 rounded-full bg-emerald-300" />
+                              <span className="relative flex h-2 w-2">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-300" />
+                            </span>
                               Online now
                             </span>
                           ) : (
@@ -661,7 +796,7 @@ export default function HomeClient() {
                           ))}
                         </div>
 
-                        <div className="mt-5 flex items-center justify-between">
+                        <div className="mt-auto flex items-center justify-between pt-5">
                           <div className="flex items-center gap-2">
                             <span className="text-[var(--ml-gold)]">★</span>
                             <span className="text-sm font-semibold text-zinc-100">
@@ -682,7 +817,7 @@ export default function HomeClient() {
                     </article>
                   ))}
           </div>
-        </section>
+        </FadeInSection>
 
         <HomeOurStoryTeaser />
 

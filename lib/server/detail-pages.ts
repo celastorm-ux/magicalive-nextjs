@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { supabase } from "@/lib/supabase";
+import { parseTaggedPerformers } from "@/lib/tagged-performers";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
 export type MagicianProfileBundle = {
@@ -182,11 +183,25 @@ export const getVenueDetailBundle = cache(async (venueId: string): Promise<Venue
   };
 });
 
+/** @deprecated use EventTaggedPerformer */
+export type EventPerformer = EventTaggedPerformer;
+
+export type EventTaggedPerformer = {
+  profile_id: string | null;
+  unclaimed_profile_id: string | null;
+  name: string;
+  status: "registered" | "invited";
+  display_name: string | null;
+  avatar_url: string | null;
+  location: string | null;
+};
+
 export type EventDetailBundle = {
   event: Record<string, unknown> | null;
   moreByMagician: unknown[];
   youMightLike: unknown[];
   reviews: unknown[];
+  performers: EventTaggedPerformer[];
 };
 
 export const getEventDetailBundle = cache(async (eventId: string): Promise<EventDetailBundle | null> => {
@@ -200,7 +215,7 @@ export const getEventDetailBundle = cache(async (eventId: string): Promise<Event
     .eq("id", eventId)
     .single();
   if (error || !data) {
-    return { event: null, moreByMagician: [], youMightLike: [], reviews: [] };
+    return { event: null, moreByMagician: [], youMightLike: [], reviews: [], performers: [] };
   }
   const current = data as Record<string, unknown> & { magician_id?: string | null; id?: string };
   const magicianId = current.magician_id ?? null;
@@ -208,6 +223,74 @@ export const getEventDetailBundle = cache(async (eventId: string): Promise<Event
   let moreByMagician: unknown[] = [];
   let youMightLike: unknown[] = [];
   let reviews: unknown[] = [];
+  let performers: EventTaggedPerformer[] = [];
+
+  const taggedRaw = (current as { tagged_performers?: unknown }).tagged_performers;
+  const tagged = parseTaggedPerformers(taggedRaw);
+  if (tagged.length > 0 && current.id) {
+    const regIds = tagged.map((t) => t.profile_id).filter((id): id is string => Boolean(id));
+    const { data: profRows } =
+      regIds.length > 0
+        ? await db
+            .from("profiles")
+            .select("id, display_name, avatar_url, location")
+            .in("id", regIds)
+        : { data: [] as { id: string; display_name: string | null; avatar_url: string | null; location: string | null }[] };
+    const byId = new Map(
+      (profRows ?? []).map((p) => [
+        p.id,
+        p as { id: string; display_name: string | null; avatar_url: string | null; location: string | null },
+      ]),
+    );
+    performers = tagged.map((t) => {
+      if (t.profile_id) {
+        const p = byId.get(t.profile_id);
+        const dn = p?.display_name?.trim() || t.name;
+        return {
+          profile_id: t.profile_id,
+          unclaimed_profile_id: null,
+          name: dn,
+          status: "registered" as const,
+          display_name: dn,
+          avatar_url: p?.avatar_url ?? t.avatar_url ?? null,
+          location: p?.location ?? null,
+        };
+      }
+      return {
+        profile_id: null,
+        unclaimed_profile_id: t.unclaimed_profile_id ?? null,
+        name: t.name,
+        status: "invited" as const,
+        display_name: t.name,
+        avatar_url: null,
+        location: null,
+      };
+    });
+  } else if (current.id) {
+    const { data: perfRows } = await db
+      .from("show_performers")
+      .select("magician_id, profiles(id, display_name, avatar_url, location)")
+      .eq("show_id", current.id);
+    if (perfRows) {
+      performers = (
+        perfRows as unknown as Array<{
+          magician_id: string;
+          profiles: { id: string; display_name: string | null; avatar_url: string | null; location: string | null } | null;
+        }>
+      )
+        .filter((r) => r.profiles?.id)
+        .map((r) => ({
+          profile_id: r.profiles!.id,
+          unclaimed_profile_id: null,
+          name: r.profiles!.display_name?.trim() || "Magician",
+          status: "registered" as const,
+          display_name: r.profiles!.display_name,
+          avatar_url: r.profiles!.avatar_url,
+          location: r.profiles!.location,
+        }));
+    }
+  }
+
   if (magicianId) {
     const [{ data: more }, { data: other }, { data: rv }] = await Promise.all([
       db
@@ -242,7 +325,7 @@ export const getEventDetailBundle = cache(async (eventId: string): Promise<Event
     youMightLike = (other ?? []) as unknown[];
     reviews = (rv ?? []) as unknown[];
   }
-  return { event: current as Record<string, unknown>, moreByMagician, youMightLike, reviews };
+  return { event: current as Record<string, unknown>, moreByMagician, youMightLike, reviews, performers };
 });
 
 export type ArticlePublicBundle = {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CLASSES } from "@/lib/constants";
+import type { EventTaggedPerformer } from "@/lib/server/detail-pages";
 import { formatShowDateLongEnUS, parseShowYmd } from "@/lib/show-dates";
 import { formatTime } from "@/lib/utils";
 
@@ -96,6 +97,7 @@ type EventDetailClientProps = {
   moreByMagician: ShowWithMagician[];
   youMightLike: ShowWithMagician[];
   reviews: ReviewItem[];
+  performers: EventTaggedPerformer[];
 };
 
 export default function EventDetailClient({
@@ -104,6 +106,7 @@ export default function EventDetailClient({
   moreByMagician,
   youMightLike,
   reviews,
+  performers,
 }: EventDetailClientProps) {
   const [copied, setCopied] = useState(false);
 
@@ -327,6 +330,56 @@ export default function EventDetailClient({
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-zinc-400">{aboutShow}</p>
           </section>
+
+          {performers.length > 0 && (
+            <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+              <h2 className="mb-4 ml-font-heading text-xl font-semibold text-zinc-100">Also performing</h2>
+              <ul className="flex flex-col gap-4 sm:flex-row sm:flex-wrap">
+                {performers.map((p) => {
+                  const key = p.profile_id ?? p.unclaimed_profile_id ?? p.name;
+                  const label = p.display_name ?? p.name ?? "Performer";
+                  return (
+                    <li
+                      key={key}
+                      className="flex min-w-[200px] flex-1 flex-col gap-2 rounded-xl border border-white/10 bg-black/20 p-4 sm:max-w-[240px]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-violet-900 to-indigo-950 text-sm font-semibold text-zinc-100">
+                          {p.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.avatar_url} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            initials(label)
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          {p.profile_id ? (
+                            <Link
+                              href={`/profile/magician?id=${encodeURIComponent(p.profile_id)}`}
+                              className="text-sm font-semibold text-zinc-100 transition hover:underline"
+                            >
+                              {label}
+                            </Link>
+                          ) : (
+                            <span className="text-sm font-semibold text-zinc-100">{label}</span>
+                          )}
+                          {p.location ? <p className="text-xs text-zinc-500">{p.location}</p> : null}
+                        </div>
+                      </div>
+                      {!p.profile_id ? (
+                        <p className="text-xs text-zinc-500">
+                          Not yet on Magicalive{" "}
+                          <Link href="/for-magicians" className="text-[var(--ml-gold)]/90 hover:underline">
+                            Invite them
+                          </Link>
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
 
           <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
             <h2 className="ml-font-heading text-xl font-semibold text-zinc-100">About the magician</h2>

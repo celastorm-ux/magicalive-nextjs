@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { replaceUnclaimedInTaggedPerformers } from "@/lib/tagged-performers";
 
 /**
  * Copy unclaimed magician row to a new Clerk user id, reassign FKs, delete placeholder.
@@ -67,6 +68,8 @@ export async function claimUnclaimedProfile(
   await db.from("booking_requests").update({ magician_id: clerkUserId }).eq("magician_id", unclaimedId);
   await db.from("notifications").update({ recipient_id: clerkUserId }).eq("recipient_id", unclaimedId);
   await db.from("notifications").update({ sender_id: clerkUserId }).eq("sender_id", unclaimedId);
+
+  await replaceUnclaimedInTaggedPerformers(db, unclaimedId, clerkUserId);
 
   const { error: delErr } = await db.from("profiles").delete().eq("id", unclaimedId);
   if (delErr) {

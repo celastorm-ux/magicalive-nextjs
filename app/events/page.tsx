@@ -98,7 +98,6 @@ export default function EventsPage() {
   const [lectureSkillFilter, setLectureSkillFilter] =
     useState<(typeof LECTURE_SKILL_FILTERS)[number]>("All levels");
   const [lectureFormat, setLectureFormat] = useState<"all" | "online" | "in_person">("all");
-  const [view, setView] = useState<"list" | "cards">("list");
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -596,26 +595,10 @@ export default function EventsPage() {
                 </div>
               </>
             ) : null}
-            <div className="flex flex-1 flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3 lg:border-t-0 lg:pt-0">
+            <div className="flex flex-1 flex-wrap items-center border-t border-white/10 pt-3 lg:border-t-0 lg:pt-0">
               <span className="text-sm text-zinc-400">
                 <span className="font-semibold text-zinc-200">{filtered.length}</span> results
               </span>
-              <div className="flex rounded-xl border border-white/10 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setView("list")}
-                  className={`rounded-lg px-4 py-2 text-xs font-semibold uppercase tracking-wider transition ${view === "list" ? "bg-[var(--ml-gold)] text-black" : "text-zinc-500 hover:text-zinc-300"}`}
-                >
-                  List
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setView("cards")}
-                  className={`rounded-lg px-4 py-2 text-xs font-semibold uppercase tracking-wider transition ${view === "cards" ? "bg-[var(--ml-gold)] text-black" : "text-zinc-500 hover:text-zinc-300"}`}
-                >
-                  Cards
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -627,12 +610,20 @@ export default function EventsPage() {
                 <p className="ml-font-heading text-2xl text-zinc-200">
                   {catalogTab === "lectures" ? "No public lectures yet" : "No public shows yet"}
                 </p>
+                <p className="mt-3 text-sm text-zinc-500">
+                  Check back soon, or{" "}
+                  <Link href="/magicians" className="text-[var(--ml-gold)] hover:underline">
+                    browse magicians
+                  </Link>{" "}
+                  to find performers directly.
+                </p>
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/15 bg-white/[0.02] px-8 py-20 text-center">
-                <p className="ml-font-heading text-2xl text-zinc-200">No events match</p>
+                <p className="ml-font-heading text-2xl text-zinc-200">No events match your filters</p>
+                <p className="mt-3 text-sm text-zinc-500">Try adjusting or clearing your filters to see more results.</p>
               </div>
-            ) : view === "list" ? (
+            ) : (
               <div className="space-y-12">
                 {(["thisWeek", "thisMonth", "future"] as const).map((key) => {
                   const items = grouped[key];
@@ -762,86 +753,6 @@ export default function EventsPage() {
                         })}
                       </ul>
                     </section>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                {filtered.map((e) => {
-                  const d = localMidnightFromShowDate(e.date);
-                  const ticketLink = e.ticket_url?.trim() || null;
-                  const lecture = isLecture(e);
-                  return (
-                    <article
-                      key={e.id}
-                      className={`overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
-                        lecture ? "border-violet-500/30 hover:border-violet-400/45" : "border-white/10 hover:border-[var(--ml-gold)]/30"
-                      }`}
-                    >
-                      <div
-                        className={`relative h-36 ${
-                          lecture
-                            ? "bg-gradient-to-br from-violet-950 via-indigo-950 to-black"
-                            : "bg-gradient-to-br from-violet-950 via-purple-900/90 to-indigo-950"
-                        }`}
-                      >
-                        <div className="absolute left-3 top-3 rounded-lg border border-white/20 bg-black/40 px-2.5 py-1.5 text-center backdrop-blur-sm">
-                          <div
-                            className={`ml-font-heading text-lg font-semibold ${lecture ? "text-violet-200" : "text-[var(--ml-gold)]"}`}
-                          >
-                            {d ? d.getDate() : "—"}
-                          </div>
-                          <div className="text-[9px] font-medium uppercase tracking-wider text-zinc-300">
-                            {d ? MONTH_NAMES[d.getMonth()] : ""}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <Link
-                          href={`/events/${encodeURIComponent(e.id)}`}
-                          className="ml-font-heading text-lg font-semibold text-zinc-100 transition hover:underline"
-                        >
-                          {e.name}
-                        </Link>
-                        <p className="mt-1 text-sm text-zinc-500">{venueLine(e)}</p>
-                        {lecture ? renderLectureBadges(e) : null}
-                        <div className="mt-2 flex items-center gap-2 text-xs text-[var(--ml-gold)]/75">
-                          <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-full border border-[var(--ml-gold)]/25 bg-white/5 text-[10px] text-zinc-200">
-                            {e.profiles?.avatar_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={e.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
-                            ) : (
-                              initials(e.profiles?.display_name || "Magician")
-                            )}
-                          </span>
-                          {e.magician_id || e.profiles?.id ? (
-                            <Link
-                              href={`/profile/magician?id=${encodeURIComponent(String(e.magician_id || e.profiles?.id))}`}
-                              className="transition hover:underline"
-                            >
-                              {e.profiles?.display_name || "Magician"}
-                            </Link>
-                          ) : (
-                            <span>{e.profiles?.display_name || "Magician"}</span>
-                          )}
-                          <span className="text-zinc-600">· {formatTime(e.time ?? "") || "TBA"}</span>
-                        </div>
-                        {ticketLink ? (
-                          <a
-                            href={ticketLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`${CLASSES.btnPrimarySm} mt-3 inline-flex`}
-                          >
-                            {ticketLabel(e)}
-                          </a>
-                        ) : (
-                          <span className="mt-3 inline-flex rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                            Free / enquire
-                          </span>
-                        )}
-                      </div>
-                    </article>
                   );
                 })}
               </div>

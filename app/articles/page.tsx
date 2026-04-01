@@ -196,23 +196,29 @@ export default function ArticlesPage() {
 
         {/* Category tabs */}
         <div className="mt-8 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {categories.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => {
-                setCategory(c);
-                setListExtra(0);
-              }}
-              className={`shrink-0 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition ${
-                category === c
-                  ? "border-[var(--ml-gold)] bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]"
-                  : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
+          {categories.map((c) => {
+            const count = c === "All" ? articles.length : articles.filter((a) => a.category === c).length;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => {
+                  setCategory(c);
+                  setListExtra(0);
+                }}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition ${
+                  category === c
+                    ? "border-[var(--ml-gold)] bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]"
+                    : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                }`}
+              >
+                {c}
+                <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${category === c ? "bg-[var(--ml-gold)]/20 text-[var(--ml-gold)]" : "bg-white/10 text-zinc-500"}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="mt-10 flex flex-col gap-10 lg:flex-row lg:items-start">

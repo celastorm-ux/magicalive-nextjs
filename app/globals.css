@@ -113,6 +113,55 @@
   font-family: var(--font-cormorant), ui-serif, Georgia, "Times New Roman", serif;
 }
 
+/* Drifting orb animations */
+@keyframes ml-orb-drift-1 {
+  0%, 100% { transform: translateX(-50%) translateY(0px); }
+  35%       { transform: translateX(-52%) translateY(-22px); }
+  70%       { transform: translateX(-47%) translateY(14px); }
+}
+
+@keyframes ml-orb-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40%       { transform: translate(-22px, -28px) scale(1.08); }
+  70%       { transform: translate(14px, 10px) scale(0.94); }
+}
+
+.ml-orb-1 {
+  animation: ml-orb-drift-1 26s ease-in-out infinite;
+}
+
+.ml-orb-2 {
+  animation: ml-orb-drift-2 32s ease-in-out infinite;
+}
+
+/* Grain / noise texture overlay */
+.ml-noise-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.038;
+  mix-blend-mode: screen;
+}
+
+@keyframes ml-hero-shimmer {
+  0% { background-position: -200% center; }
+  60%, 100% { background-position: 200% center; }
+}
+
+.ml-hero-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f4f4f5 20%,
+    #f5cc71 48%,
+    #fff8e7 52%,
+    #f5cc71 56%,
+    #f4f4f5 80%
+  );
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: ml-hero-shimmer 2.2s ease-out 0.4s 1 both;
+}
+
 @keyframes ml-step-fade {
   from {
     opacity: 0;

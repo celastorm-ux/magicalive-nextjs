@@ -6,10 +6,18 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AvailabilityCalendar } from "@/components/AvailabilityCalendar";
 import { LocationPicker } from "@/components/LocationPicker";
+import { TaggedPerformersField } from "@/components/TaggedPerformersField";
 import { CLASSES } from "@/lib/constants";
 import { findCountryForCity, pickerStateFromDatabase, stateValueForDatabase } from "@/lib/locations";
 import { createNotification } from "@/lib/notifications";
 import { formatShowDateLongEnUS, localMidnightFromShowDate } from "@/lib/show-dates";
+import {
+  localFromStored,
+  parseTaggedPerformers,
+  storedFromLocal,
+  taggedPerformersSummaryNames,
+  type TaggedPerformerLocal,
+} from "@/lib/tagged-performers";
 import { formatTime } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
@@ -58,6 +66,7 @@ type ShowRow = {
   is_cancelled?: boolean | null;
   cancellation_reason?: string | null;
   description?: string | null;
+  tagged_performers?: unknown;
 };
 
 type VenueOption = {
@@ -197,6 +206,9 @@ export default function DashboardPage() {
   const [editMeetingLink, setEditMeetingLink] = useState("");
 
   const [cancelTarget, setCancelTarget] = useState<ShowRow | null>(null);
+
+  const [postTaggedPerformers, setPostTaggedPerformers] = useState<TaggedPerformerLocal[]>([]);
+  const [editTaggedPerformers, setEditTaggedPerformers] = useState<TaggedPerformerLocal[]>([]);
   const [cancelReasonDraft, setCancelReasonDraft] = useState("");
   const [cancelSaving, setCancelSaving] = useState(false);
 
@@ -485,12 +497,42 @@ export default function DashboardPage() {
         max_attendees: isLecture && maxParsed != null && Number.isFinite(maxParsed) ? maxParsed : null,
         is_online: isLecture ? lectureOnline : false,
         description: showDescription.trim().slice(0, SHOW_DESCRIPTION_MAX) || null,
+        tagged_performers: storedFromLocal(postTaggedPerformers),
       };
 
-      const { error } = await supabase.from("shows").insert(row);
+      const { data: newShow, error } = await supabase.from("shows").insert(row).select("id").single();
 
       if (error) throw error;
       console.log("Show inserted successfully with venue_id:", venueIdForInsert);
+
+      if (newShow?.id && postTaggedPerformers.length > 0) {
+        const posterName =
+          profile?.display_name?.trim() ||
+          user?.fullName?.trim() ||
+          user?.firstName?.trim() ||
+          "A magician";
+        const venueLabel = online
+          ? "Online"
+          : `${venueName.trim()}${showCity.trim() ? `, ${showCity.trim()}` : ""}`;
+        const dateLabel = formatShowDateLongEnUS(normalizedDate);
+        for (const t of postTaggedPerformers) {
+          if (t.kind !== "registered") continue;
+          void createNotification({
+            recipientId: t.profile_id,
+            senderId: user.id,
+            senderName: posterName,
+            senderAvatar: profile?.avatar_url?.trim() || undefined,
+            type: "tagged_in_show",
+            message: `${posterName} tagged you in their show ${showName.trim()} at ${venueLabel} on ${dateLabel}`,
+            link: `/events/${newShow.id}`,
+          });
+        }
+        void fetch("/api/shows/finalize-tagged-invites", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ showId: newShow.id }),
+        });
+      }
     } catch (error) {
       const msg =
         (error as { message?: string })?.message || String(error) || "Unknown error";
@@ -519,6 +561,7 @@ export default function DashboardPage() {
     setLectureIncludesProps(false);
     setLectureOnline(false);
     setMeetingLink("");
+    setPostTaggedPerformers([]);
     await load(user.id);
   };
 
@@ -567,10 +610,37 @@ export default function DashboardPage() {
     setCancelReasonDraft("");
   };
 
-  const startEditShow = (s: ShowRow) => {
+  const startEditShow = async (s: ShowRow) => {
     setEditSaveMsg("");
     setErrorMsg("");
     setEditingShowId(s.id);
+    setEditTaggedPerformers([]);
+    const storedTags = parseTaggedPerformers(s.tagged_performers);
+    if (storedTags.length > 0) {
+      setEditTaggedPerformers(localFromStored(storedTags));
+    } else {
+      const { data: perfData } = await supabase
+        .from("show_performers")
+        .select("magician_id, profiles(id, display_name)")
+        .eq("show_id", s.id);
+      if (perfData?.length) {
+        setEditTaggedPerformers(
+          (
+            perfData as unknown as Array<{
+              magician_id: string;
+              profiles: { id: string; display_name: string | null } | null;
+            }>
+          ).map((row) => ({
+            clientKey: `reg-${row.magician_id}`,
+            kind: "registered" as const,
+            profile_id: row.magician_id,
+            name: row.profiles?.display_name?.trim() || "Magician",
+            avatar_url: null,
+            location: null,
+          })),
+        );
+      }
+    }
     const kind: PostEventKind = s.event_type === "lecture" ? "lecture" : "show";
     setEditEventType(kind);
     setEditShowName(s.name);
@@ -667,6 +737,7 @@ export default function DashboardPage() {
         editEventType === "lecture" && maxEdit != null && Number.isFinite(maxEdit) ? maxEdit : null,
       is_online: editEventType === "lecture" ? editIsOnline : false,
       description: editDescription.trim().slice(0, SHOW_DESCRIPTION_MAX) || null,
+      tagged_performers: storedFromLocal(editTaggedPerformers),
     };
 
     const { error } = await supabase.from("shows").update(updatePayload).eq("id", editingShowId);
@@ -675,18 +746,12 @@ export default function DashboardPage() {
       setErrorMsg(error.message || "Something went wrong");
       return;
     }
-    setShows((curr) =>
-      curr.map((s) =>
-        s.id === editingShowId
-          ? {
-              ...s,
-              ...updatePayload,
-              city: updatePayload.city,
-              venue_name: updatePayload.venue_name,
-            }
-          : s,
-      ),
-    );
+    void fetch("/api/shows/finalize-tagged-invites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ showId: editingShowId }),
+    });
+    if (user?.id) await load(user.id);
     setEditSaveMsg("Updated");
     setEditingShowId(null);
   };
@@ -824,6 +889,30 @@ export default function DashboardPage() {
             ? "Online"
             : [s.venue_name, s.city].filter(Boolean).join(", ") || "—"}
         </p>
+        {(() => {
+          const names = taggedPerformersSummaryNames(s.tagged_performers);
+          if (!names.length) return null;
+          return (
+            <p className="mt-1 text-xs text-zinc-500">
+              <span className="text-zinc-600">Also performing: </span>
+              {names.map((n, i) => (
+                <span key={`${n.profileId ?? "u"}-${n.name}-${i}`}>
+                  {i > 0 ? ", " : null}
+                  {n.profileId ? (
+                    <Link
+                      href={`/profile/magician?id=${encodeURIComponent(n.profileId)}`}
+                      className="text-[var(--ml-gold)]/85 transition hover:underline"
+                    >
+                      {n.name}
+                    </Link>
+                  ) : (
+                    <span>{n.name}</span>
+                  )}
+                </span>
+              ))}
+            </p>
+          );
+        })()}
       </div>
       <div className="flex items-center gap-2">
         <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider ${s.is_public ? "border-emerald-400/30 text-emerald-300" : "border-zinc-500/30 text-zinc-400"}`}>
@@ -831,7 +920,7 @@ export default function DashboardPage() {
         </span>
         <button
           type="button"
-          onClick={() => startEditShow(s)}
+          onClick={() => void startEditShow(s)}
           className="rounded-lg border border-white/15 px-2 py-1 text-xs text-zinc-300"
         >
           Edit
@@ -1034,6 +1123,15 @@ export default function DashboardPage() {
                 {editDescription.length}/{SHOW_DESCRIPTION_MAX}
               </p>
             </div>
+            {user?.id ? (
+              <TaggedPerformersField
+                value={editTaggedPerformers}
+                onChange={setEditTaggedPerformers}
+                excludeUserId={user.id}
+                inputClass={inputClass}
+                labelClass={labelClass}
+              />
+            ) : null}
             {editEventType === "show" || (editEventType === "lecture" && !editIsOnline) ? (
               <div className="sm:col-span-2">
                 <label className={labelClass}>Ticket URL</label>
@@ -1437,6 +1535,15 @@ export default function DashboardPage() {
                   {showDescription.length}/{SHOW_DESCRIPTION_MAX}
                 </p>
               </div>
+              {user?.id ? (
+                <TaggedPerformersField
+                  value={postTaggedPerformers}
+                  onChange={setPostTaggedPerformers}
+                  excludeUserId={user.id}
+                  inputClass={inputClass}
+                  labelClass={labelClass}
+                />
+              ) : null}
               {postEventType === "show" || (postEventType === "lecture" && !lectureOnline) ? (
                 <div className="sm:col-span-2">
                   <label className={labelClass}>Ticket URL</label>

@@ -205,20 +205,27 @@ export default function CityMagiciansClient({
                     className="group overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/50 transition hover:border-[var(--ml-gold)]/35 hover:shadow-[0_0_40px_-12px_rgba(245,204,113,0.15)]"
                   >
                     <div
-                      className={`relative flex h-36 items-center justify-center bg-gradient-to-br ${m.gradient}`}
+                      className={`relative flex h-44 items-center justify-center bg-gradient-to-br ${m.gradient}`}
                     >
-                      {m.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={m.avatarUrl}
-                          alt=""
-                          className="h-20 w-20 rounded-full border-2 border-white/20 object-cover drop-shadow-lg transition group-hover:scale-105"
-                        />
-                      ) : (
-                        <span className="inline-flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/20 bg-black/25 text-3xl font-semibold text-zinc-100 drop-shadow-lg transition group-hover:scale-105">
-                          {firstInitial(m.name)}
-                        </span>
-                      )}
+                      <Link
+                        href={`/profile/magician?id=${encodeURIComponent(m.id)}`}
+                        className="rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--ml-gold)]/60"
+                        tabIndex={0}
+                        aria-label={`View ${m.name}'s profile`}
+                      >
+                        {m.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={m.avatarUrl}
+                            alt=""
+                            className="h-28 w-28 rounded-full border-2 border-white/20 object-cover drop-shadow-lg transition group-hover:scale-105 hover:border-[var(--ml-gold)]/60"
+                          />
+                        ) : (
+                          <span className="inline-flex h-28 w-28 items-center justify-center rounded-full border-2 border-white/20 bg-black/25 text-4xl font-semibold text-zinc-100 drop-shadow-lg transition group-hover:scale-105 hover:border-[var(--ml-gold)]/60">
+                            {firstInitial(m.name)}
+                          </span>
+                        )}
+                      </Link>
                       <div className="absolute right-3 top-3">
                         {m.isFoundingMember ? (
                           <span className="absolute -left-8 -top-1 text-[var(--ml-gold)]" title="Founding Member">

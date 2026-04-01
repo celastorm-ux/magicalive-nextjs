@@ -38,6 +38,18 @@ export async function PATCH(request: Request) {
   const rec = body as Record<string, unknown>;
   const venueId = typeof rec.venueId === "string" ? rec.venueId.trim() : "";
 
+  if (venueId && rec.website !== undefined) {
+    const website = typeof rec.website === "string" ? rec.website.trim() : null;
+    const { error } = await ctx.db
+      .from("venues")
+      .update({ website: website || null })
+      .eq("id", venueId);
+    if (error) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   if (venueId && rec.latitude !== undefined && rec.longitude !== undefined) {
     const lat =
       typeof rec.latitude === "number" ? rec.latitude : parseFloat(String(rec.latitude));

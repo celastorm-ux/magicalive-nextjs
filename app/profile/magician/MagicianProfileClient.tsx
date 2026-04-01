@@ -13,6 +13,32 @@ import { formatShowDateLongEnUS, formatShowDateMediumEnUS, todayYmdLocal } from 
 import { formatLastSeen, formatTime } from "@/lib/utils";
 import { createNotification } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
+import { taggedPerformersSummaryNames } from "@/lib/tagged-performers";
+
+function AlsoPerformingLine({ tagged }: { tagged: unknown }) {
+  const names = taggedPerformersSummaryNames(tagged);
+  if (!names.length) return null;
+  return (
+    <p className="mt-1 text-xs text-zinc-500">
+      <span className="text-zinc-600">Also performing: </span>
+      {names.map((n, i) => (
+        <span key={`${n.profileId ?? "u"}-${n.name}-${i}`}>
+          {i > 0 ? ", " : null}
+          {n.profileId ? (
+            <Link
+              href={`/profile/magician?id=${encodeURIComponent(n.profileId)}`}
+              className="text-[var(--ml-gold)]/85 transition hover:underline"
+            >
+              {n.name}
+            </Link>
+          ) : (
+            <span>{n.name}</span>
+          )}
+        </span>
+      ))}
+    </p>
+  );
+}
 
 const TABS = [
   "About",
@@ -79,6 +105,7 @@ type ShowRow = {
   is_cancelled?: boolean | null;
   cancellation_reason?: string | null;
   description?: string | null;
+  tagged_performers?: unknown;
 };
 
 type ReviewRow = {
@@ -196,6 +223,7 @@ export default function MagicianProfileClient({
   const paramId = searchParams.get("id")?.trim();
   const { user, isLoaded } = useUser();
   const [tab, setTab] = useState<Tab>("About");
+  const [bioExpanded, setBioExpanded] = useState(false);
   const [profile, setProfile] = useState<MagicianRow | null>(
     () => (initial?.profile as MagicianRow | undefined) ?? null,
   );
@@ -203,6 +231,7 @@ export default function MagicianProfileClient({
   const [pastShows, setPastShows] = useState<ShowRow[]>(() => initial?.pastShows ?? []);
   const [reviews, setReviews] = useState<ReviewRow[]>(() => initial?.reviews ?? []);
   const [articles, setArticles] = useState<ArticleRow[]>(() => initial?.articles ?? []);
+  const [featuredInShows, setFeaturedInShows] = useState<Array<ShowRow & { magician_display_name?: string | null }>>([]);
   const [loading, setLoading] = useState(() => !initial?.profile);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -280,6 +309,46 @@ export default function MagicianProfileClient({
       .eq("status", "published")
       .order("published_at", { ascending: false });
     setArticles(!arErr && ar ? (ar as ArticleRow[]) : []);
+
+    // Shows where this magician is listed as a co-performer (not the owner)
+    const today2 = todayYmdLocal();
+    const spIds = new Set<string>();
+    const { data: spRows } = await supabase
+      .from("show_performers")
+      .select("show_id")
+      .eq("magician_id", profileId);
+    (spRows ?? []).forEach((r: { show_id: string }) => {
+      if (r.show_id) spIds.add(r.show_id);
+    });
+    const { data: taggedRpc } = await supabase.rpc("shows_where_profile_tagged", {
+      p_profile_id: profileId,
+    });
+    (taggedRpc ?? []).forEach((r: { show_id: string }) => {
+      if (r?.show_id) spIds.add(String(r.show_id));
+    });
+    const spIdList = [...spIds];
+    if (spIdList.length > 0) {
+      const { data: fiShows } = await supabase
+        .from("shows")
+        .select("*, profiles(display_name)")
+        .in("id", spIdList)
+        .gte("date", today2)
+        .eq("is_public", true)
+        .eq("is_cancelled", false)
+        .order("date", { ascending: true });
+      setFeaturedInShows(
+        (fiShows ?? []).map((s) => {
+          const prof = s.profiles as { display_name?: string | null } | null;
+          return {
+            ...(s as unknown as ShowRow),
+            magician_display_name: prof?.display_name ?? null,
+          };
+        }),
+      );
+    } else {
+      setFeaturedInShows([]);
+    }
+
     setLoading(false);
   }, [profileId]);
 
@@ -854,9 +923,18 @@ export default function MagicianProfileClient({
                   <h2 className="mt-8 ml-font-heading text-xl font-semibold text-zinc-100">
                     Biography
                   </h2>
-                  <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-zinc-400">
+                  <div className={`relative mt-4 whitespace-pre-wrap text-sm leading-relaxed text-zinc-400 ${!bioExpanded && bio && bio.length > 400 ? "line-clamp-4" : ""}`}>
                     {bio}
                   </div>
+                  {bio && bio.length > 400 ? (
+                    <button
+                      type="button"
+                      onClick={() => setBioExpanded((v) => !v)}
+                      className="mt-2 text-xs font-semibold text-[var(--ml-gold)] transition hover:underline"
+                    >
+                      {bioExpanded ? "Show less" : "Read more"}
+                    </button>
+                  ) : null}
                   <div className="mt-8">
                     <h2 className="mb-3 ml-font-heading text-xl font-semibold text-zinc-100">
                       Availability
@@ -886,6 +964,14 @@ export default function MagicianProfileClient({
                           allowFullScreen
                         />
                       </div>
+                    </div>
+                  ) : isOwn ? (
+                    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-8 py-10 text-center">
+                      <p className="text-sm font-medium text-zinc-300">No YouTube video linked yet</p>
+                      <p className="mt-1 text-xs text-zinc-500">Add a YouTube URL to your profile to feature your latest video here.</p>
+                      <a href="/profile/edit" className="mt-4 text-xs font-semibold text-[var(--ml-gold)] transition hover:underline">
+                        Edit profile →
+                      </a>
                     </div>
                   ) : null}
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4">
@@ -958,6 +1044,7 @@ export default function MagicianProfileClient({
                                 )}
                                 {show.city ? <span>{` · ${show.city}`}</span> : null}
                               </div>
+                              <AlsoPerformingLine tagged={show.tagged_performers} />
                             </div>
                             {show.ticket_url?.trim() ? (
                               <a
@@ -1032,6 +1119,7 @@ export default function MagicianProfileClient({
                                 )}
                                 {!show.is_online && show.city ? <span>{` · ${show.city}`}</span> : null}
                               </div>
+                              <AlsoPerformingLine tagged={show.tagged_performers} />
                               <div className="mt-2 flex flex-wrap gap-1.5">
                                 {show.max_attendees != null && show.max_attendees > 0 ? (
                                   <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-400">
@@ -1071,6 +1159,58 @@ export default function MagicianProfileClient({
                       )}
                     </ul>
                   </section>
+
+                  {featuredInShows.length > 0 && (
+                    <section>
+                      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-sky-400">
+                        Featured in
+                      </h3>
+                      <ul className="divide-y divide-white/10 rounded-2xl border border-sky-500/20 bg-sky-950/[0.08]">
+                        {featuredInShows.map((show) => (
+                          <li
+                            key={show.id}
+                            className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+                          >
+                            <div>
+                              <p className="text-sm font-semibold text-sky-200/80">
+                                {show.date ? formatShowDateLongEnUS(show.date) : "Date TBA"}
+                                {show.time ? ` · ${formatTime(show.time)}` : ""}
+                              </p>
+                              <Link
+                                href={`/events/${encodeURIComponent(show.id)}`}
+                                className="mt-1 inline-flex ml-font-heading text-lg font-semibold text-zinc-100 transition hover:underline"
+                              >
+                                {show.name}
+                              </Link>
+                              {show.magician_display_name ? (
+                                <p className="text-xs text-zinc-500">
+                                  Hosted by {show.magician_display_name}
+                                </p>
+                              ) : null}
+                              <div className="mt-0.5 text-sm text-zinc-500">
+                                {show.venue_name || "Venue TBA"}
+                                {show.city ? ` · ${show.city}` : ""}
+                              </div>
+                            </div>
+                            {show.ticket_url?.trim() ? (
+                              <a
+                                href={show.ticket_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={CLASSES.btnPrimarySm}
+                              >
+                                Tickets
+                              </a>
+                            ) : (
+                              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                                Free / enquire
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
 
                   {cancelledShows.length ? (
                     <section className="mt-10">
@@ -1231,7 +1371,8 @@ export default function MagicianProfileClient({
                               {show.date ? formatShowDateMediumEnUS(show.date) : "—"}
                             </td>
                             <td className="px-4 py-3 font-medium text-zinc-200 sm:px-5">
-                              {show.name}
+                              <div>{show.name}</div>
+                              <AlsoPerformingLine tagged={show.tagged_performers} />
                             </td>
                             <td className="hidden px-4 py-3 text-zinc-500 sm:table-cell sm:px-5">
                               {show.venue_name || "—"}

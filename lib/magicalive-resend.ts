@@ -14,7 +14,8 @@ export type MagicaliveEmailType =
   | "article_submitted"
   | "venue_submitted"
   | "founding_member_welcome"
-  | "magician_invite";
+  | "magician_invite"
+  | "tagged_in_show_invite";
 
 export function siteBaseUrl() {
   return (
@@ -415,6 +416,50 @@ export function emailFoundingMemberWelcome(data: {
   };
 }
 
+/** Invited co-performer — claim unclaimed profile after being tagged on a show */
+export function emailTaggedInShowInvite(data: {
+  invitee_name: string;
+  poster_name: string;
+  show_name: string;
+  venue: string;
+  show_date: string;
+  claim_url: string;
+  sign_in_url: string;
+}): { subject: string; html: string; from: string } {
+  const subject = `${data.poster_name} tagged you in an upcoming magic show`;
+  const inner = `
+  <tr>
+    <td style="padding:8px 28px 0;">
+      <h1 style="margin:0 0 12px;font-family:Georgia,'Cormorant Garamond','Times New Roman',serif;font-size:26px;font-weight:600;color:${GOLD};line-height:1.2;">
+        You're tagged on a show
+      </h1>
+      <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:${TEXT};">
+        Hi ${escapeHtml(data.invitee_name)},
+      </p>
+      <p style="margin:14px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:${TEXT};">
+        <strong style="color:${TEXT};">${escapeHtml(data.poster_name)}</strong> is performing at
+        <strong style="color:${TEXT};">${escapeHtml(data.show_name)}</strong> at
+        <strong style="color:${TEXT};">${escapeHtml(data.venue)}</strong>
+        on <strong style="color:${TEXT};">${escapeHtml(data.show_date)}</strong> and tagged you as a fellow performer.
+      </p>
+      <p style="margin:14px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:${TEXT};">
+        Join Magicalive free to claim your profile, connect with the magic community, and be listed alongside
+        ${escapeHtml(data.poster_name)} on this show.
+      </p>
+      ${button(data.claim_url, "Claim your free profile")}
+      <p style="margin:0 24px 16px;font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.65;color:${MUTED};text-align:center;">
+        Already on Magicalive? <a href="${escapeHtml(data.sign_in_url)}" style="color:${GOLD};text-decoration:underline;">Sign in</a>
+        and your profile will be linked automatically when you claim this placeholder.
+      </p>
+    </td>
+  </tr>`;
+  return {
+    subject,
+    html: wrapBody(inner),
+    from: "Magicalive <hello@magicalive.com>",
+  };
+}
+
 export function emailMagicianInvite(data: {
   name: string;
   personal_message: string;
@@ -617,6 +662,11 @@ export async function sendMagicaliveEmail(
         break;
       case "magician_invite":
         built = emailMagicianInvite(data as unknown as Parameters<typeof emailMagicianInvite>[0]);
+        break;
+      case "tagged_in_show_invite":
+        built = emailTaggedInShowInvite(
+          data as unknown as Parameters<typeof emailTaggedInShowInvite>[0],
+        );
         break;
       default:
         return { ok: false, error: "Unknown email type" };

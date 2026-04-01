@@ -96,7 +96,7 @@ export default function ClaimProfileClient() {
         setConnectErr(json.error || "Claim failed");
         return;
       }
-      router.push("/profile");
+      router.push("/profile/setup?new=1");
     } catch {
       setConnectErr("Request failed");
     } finally {
@@ -148,7 +148,7 @@ export default function ClaimProfileClient() {
             setSignBusy(false);
             return;
           }
-          router.push("/profile");
+          router.push("/profile/setup?new=1");
         } else {
           setSignErr("Invalid code. Try again.");
         }
@@ -187,7 +187,7 @@ export default function ClaimProfileClient() {
           setSignBusy(false);
           return;
         }
-        router.push("/profile");
+        router.push("/profile/setup?new=1");
       } else {
         await su.prepareEmailAddressVerification({ strategy: "email_code" });
         setAwaitingVerify(true);

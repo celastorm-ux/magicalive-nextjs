@@ -97,6 +97,7 @@ export default function MagiciansClient() {
   const { user } = useUser();
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterCountry, setFilterCountry] = useState<string>(ALL_COUNTRIES);
   const [filterState, setFilterState] = useState<string>(ALL_STATES);
   const [filterCity, setFilterCity] = useState<string>(ALL_CITIES);
@@ -378,8 +379,13 @@ export default function MagiciansClient() {
     setAvailableForQuery("");
   };
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return magicians.filter((m) => {
       if (onlineOnly && !m.onlineNow) return false;
       if (
@@ -409,7 +415,7 @@ export default function MagiciansClient() {
       }
       return true;
     });
-  }, [search, filterCountry, filterState, filterCity, style, onlineOnly, sidebarTag, magicians]);
+  }, [debouncedSearch, filterCountry, filterState, filterCity, style, onlineOnly, sidebarTag, magicians]);
 
   const toggleSidebarTag = (tag: string) => {
     setSidebarTag((t) => {
@@ -537,7 +543,7 @@ export default function MagiciansClient() {
               ))}
             </select>
             <select
-              className={`${selectClass} ${availParam ? "border-[var(--ml-gold)]/40 ring-1 ring-[var(--ml-gold)]/15" : ""}`}
+              className={`${selectClass} ${availParam ? "border-[var(--ml-gold)]/60 bg-[var(--ml-gold)]/10 text-[var(--ml-gold)] ring-1 ring-[var(--ml-gold)]/30" : ""}`}
               value={availParam}
               onChange={(e) => setAvailableForQuery(e.target.value)}
             >
@@ -655,20 +661,27 @@ export default function MagiciansClient() {
                     className="group overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/50 transition hover:border-[var(--ml-gold)]/35 hover:shadow-[0_0_40px_-12px_rgba(245,204,113,0.15)]"
                   >
                     <div
-                      className={`relative flex h-36 items-center justify-center bg-gradient-to-br ${m.gradient}`}
+                      className={`relative flex h-44 items-center justify-center bg-gradient-to-br ${m.gradient}`}
                     >
-                      {m.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={m.avatarUrl}
-                          alt=""
-                          className="h-20 w-20 rounded-full border-2 border-white/20 object-cover drop-shadow-lg transition group-hover:scale-105"
-                        />
-                      ) : (
-                        <span className="inline-flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/20 bg-black/25 text-3xl font-semibold text-zinc-100 drop-shadow-lg transition group-hover:scale-105">
-                          {firstInitial(m.name)}
-                        </span>
-                      )}
+                      <Link
+                        href={`/profile/magician?id=${encodeURIComponent(m.id)}`}
+                        className="rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--ml-gold)]/60"
+                        tabIndex={0}
+                        aria-label={`View ${m.name}'s profile`}
+                      >
+                        {m.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={m.avatarUrl}
+                            alt=""
+                            className="h-28 w-28 rounded-full border-2 border-white/20 object-cover drop-shadow-lg transition group-hover:scale-105 hover:border-[var(--ml-gold)]/60"
+                          />
+                        ) : (
+                          <span className="inline-flex h-28 w-28 items-center justify-center rounded-full border-2 border-white/20 bg-black/25 text-4xl font-semibold text-zinc-100 drop-shadow-lg transition group-hover:scale-105 hover:border-[var(--ml-gold)]/60">
+                            {firstInitial(m.name)}
+                          </span>
+                        )}
+                      </Link>
                       {m.isUnclaimed ? (
                         <span className="pointer-events-none absolute bottom-2 right-2 rounded border border-amber-600/35 bg-black/55 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-200/90 backdrop-blur-sm">
                           Unclaimed
@@ -707,7 +720,7 @@ export default function MagiciansClient() {
                               void toggleFollow(m.id);
                             }}
                             disabled={followBusyId === m.id}
-                            className="absolute left-3 top-3 cursor-pointer rounded-full border border-[var(--ml-gold)]/35 bg-black/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] backdrop-blur-sm"
+                            className={`absolute left-3 top-3 rounded-full border border-[var(--ml-gold)]/35 bg-black/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] backdrop-blur-sm transition ${followBusyId === m.id ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:border-[var(--ml-gold)]/60 hover:bg-black/70"}`}
                           >
                             {followingIds.has(m.id) ? "♥ Following" : "♡ Follow"}
                           </button>
@@ -776,27 +789,35 @@ export default function MagiciansClient() {
                 Filter by specialty
               </h3>
               <div className="flex flex-wrap gap-2">
-                {styleOptions.filter((t) => t !== STYLES[0]).map((tag) => (
-                  <Link
-                    key={tag}
-                    href={(() => {
-                      const p = new URLSearchParams();
-                      if (filterCountry !== ALL_COUNTRIES) p.set("country", filterCountry);
-                      if (filterCity !== ALL_CITIES) p.set("city", filterCity);
-                      if (availParam) p.set("available_for", availParam);
-                      if (sidebarTag !== tag) p.set("style", tag);
-                      const qs = p.toString();
-                      return qs ? `/magicians?${qs}` : "/magicians";
-                    })()}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                      sidebarTag === tag
-                        ? "border-[var(--ml-gold)] bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]"
-                        : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
-                    }`}
-                  >
-                    {tag}
-                  </Link>
-                ))}
+                {styleOptions.filter((t) => t !== STYLES[0]).map((tag) => {
+                  const count = magicians.filter((m) =>
+                    (m.styleKeys as string[] | undefined)?.includes(tag)
+                  ).length;
+                  return (
+                    <Link
+                      key={tag}
+                      href={(() => {
+                        const p = new URLSearchParams();
+                        if (filterCountry !== ALL_COUNTRIES) p.set("country", filterCountry);
+                        if (filterCity !== ALL_CITIES) p.set("city", filterCity);
+                        if (availParam) p.set("available_for", availParam);
+                        if (sidebarTag !== tag) p.set("style", tag);
+                        const qs = p.toString();
+                        return qs ? `/magicians?${qs}` : "/magicians";
+                      })()}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                        sidebarTag === tag
+                          ? "border-[var(--ml-gold)] bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]"
+                          : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                      }`}
+                    >
+                      {tag}
+                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${sidebarTag === tag ? "bg-[var(--ml-gold)]/20 text-[var(--ml-gold)]" : "bg-white/10 text-zinc-500"}`}>
+                        {count}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
 

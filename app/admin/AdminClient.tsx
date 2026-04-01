@@ -263,6 +263,9 @@ export default function AdminClient() {
   const [manualLat, setManualLat] = useState("");
   const [manualLng, setManualLng] = useState("");
   const [manualSaving, setManualSaving] = useState(false);
+  const [editingWebsiteVenueId, setEditingWebsiteVenueId] = useState<string | null>(null);
+  const [editWebsiteValue, setEditWebsiteValue] = useState("");
+  const [websiteSaving, setWebsiteSaving] = useState(false);
 
   const setTab = useCallback(
     (next: AdminTab) => {
@@ -961,6 +964,27 @@ export default function AdminClient() {
     }
   };
 
+  const saveVenueWebsite = async (venueId: string) => {
+    setActionErr("");
+    setWebsiteSaving(true);
+    try {
+      const res = await fetch("/api/admin/venues", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId, website: editWebsiteValue.trim() }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        setActionErr(json.error || "Save failed");
+        return;
+      }
+      setEditingWebsiteVenueId(null);
+      await fetchTab();
+    } finally {
+      setWebsiteSaving(false);
+    }
+  };
+
   const toggleUserAdmin = async (uid: string, next: boolean) => {
     setActionErr("");
     const res = await fetch("/api/admin/users", {
@@ -1405,13 +1429,29 @@ export default function AdminClient() {
                         </button>
                       </td>
                       <td className="py-3 pr-4">
-                        <button
-                          type="button"
-                          onClick={() => void openPostShowModal(m.id)}
-                          className="text-xs font-semibold text-zinc-300 underline decoration-white/20 hover:text-[var(--ml-gold)]"
-                        >
-                          Post event
-                        </button>
+                        <div className="flex flex-col gap-1">
+                          <button
+                            type="button"
+                            onClick={() => void openPostShowModal(m.id)}
+                            className="text-xs font-semibold text-zinc-300 underline decoration-white/20 hover:text-[var(--ml-gold)]"
+                          >
+                            Post event
+                          </button>
+                          {m.is_unclaimed ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const link = `${window.location.origin}/claim-profile?id=${encodeURIComponent(m.id)}`;
+                                void navigator.clipboard.writeText(link).then(() => {
+                                  alert("Claim link copied to clipboard!");
+                                });
+                              }}
+                              className="text-xs font-semibold text-amber-300 underline decoration-amber-500/30 hover:text-amber-200"
+                            >
+                              Copy claim link
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="py-3">
                         <Link
@@ -2106,6 +2146,7 @@ export default function AdminClient() {
                     <th className="py-3 pr-4">State</th>
                     <th className="py-3 pr-4">Type</th>
                     <th className="py-3 pr-4">Coords</th>
+                    <th className="py-3 pr-4">Website</th>
                     <th className="py-3 pr-4">Submitted</th>
                     <th className="py-3">View</th>
                   </tr>
@@ -2144,6 +2185,36 @@ export default function AdminClient() {
                             </button>
                           ) : null}
                         </td>
+                        <td className="py-3 pr-4 text-xs text-zinc-500">
+                          {v.website?.trim() ? (
+                            <a
+                              href={
+                                v.website.trim().startsWith("http")
+                                  ? v.website.trim()
+                                  : `https://${v.website.trim()}`
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="max-w-[140px] truncate text-[var(--ml-gold)] hover:underline"
+                              style={{ display: "inline-block", maxWidth: 140 }}
+                            >
+                              {v.website.trim()}
+                            </a>
+                          ) : (
+                            <span className="text-zinc-600">—</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingWebsiteVenueId(v.id);
+                              setEditWebsiteValue(v.website?.trim() ?? "");
+                              setActionErr("");
+                            }}
+                            className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] hover:underline"
+                          >
+                            {v.website?.trim() ? "Edit" : "Add"}
+                          </button>
+                        </td>
                         <td className="py-3 pr-4 text-zinc-500">{fmtShort(v.created_at)}</td>
                         <td className="py-3">
                           <Link
@@ -2156,7 +2227,7 @@ export default function AdminClient() {
                       </tr>
                       {editingVenueId === v.id ? (
                         <tr className="border-b border-white/5 bg-white/[0.02]">
-                          <td colSpan={7} className="px-4 py-4">
+                          <td colSpan={8} className="px-4 py-4">
                             <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                               Manual coordinates
                             </p>
@@ -2197,6 +2268,48 @@ export default function AdminClient() {
                                   disabled={manualSaving}
                                   onClick={() => {
                                     setEditingVenueId(null);
+                                    setActionErr("");
+                                  }}
+                                  className={CLASSES.btnSecondary}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                      {editingWebsiteVenueId === v.id ? (
+                        <tr className="border-b border-white/5 bg-white/[0.02]">
+                          <td colSpan={8} className="px-4 py-4">
+                            <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                              Website URL
+                            </p>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                              <label className="flex w-full max-w-md flex-col gap-1 text-xs text-zinc-500">
+                                URL
+                                <input
+                                  type="url"
+                                  value={editWebsiteValue}
+                                  onChange={(e) => setEditWebsiteValue(e.target.value)}
+                                  className="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[var(--ml-gold)]/40"
+                                  placeholder="https://example.com"
+                                />
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  disabled={websiteSaving}
+                                  onClick={() => void saveVenueWebsite(v.id)}
+                                  className={CLASSES.btnPrimarySm}
+                                >
+                                  {websiteSaving ? "Saving…" : "Save"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={websiteSaving}
+                                  onClick={() => {
+                                    setEditingWebsiteVenueId(null);
                                     setActionErr("");
                                   }}
                                   className={CLASSES.btnSecondary}

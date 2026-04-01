@@ -132,6 +132,7 @@ export default async function EventDetailPage({ params }: { params: PageParams }
         moreByMagician={bundle.moreByMagician as ShowWithMagician[]}
         youMightLike={bundle.youMightLike as ShowWithMagician[]}
         reviews={bundle.reviews as ReviewItem[]}
+        performers={bundle.performers}
       />
     </>
   );

@@ -135,7 +135,7 @@ export default function VenuesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const cardRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const fetchVenues = useCallback(async () => {
     setLoading(true);
@@ -550,25 +550,12 @@ export default function VenuesPage() {
                 const tagsExtra = allTags.length - tagsShown.length;
                 return (
                   <li key={v.id} className="flex min-h-0 min-w-0">
-                    <div
+                    <Link
+                      href={`/venues/${encodeURIComponent(v?.id ?? "")}`}
                       ref={(el) => {
                         if (v?.id) cardRefs.current[v.id] = el;
                       }}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => {
-                        if (!v?.id) return;
-                        setSelectedId(v.id);
-                        scrollToCard(v.id);
-                      }}
-                      onKeyDown={(e) => {
-                        if (!v?.id) return;
-                        if (e.key === "Enter" || e.key === " ") {
-                          setSelectedId(v.id);
-                          scrollToCard(v.id);
-                        }
-                      }}
-                      className={`flex h-full w-full min-h-0 cursor-pointer flex-col overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
+                      className={`flex h-full w-full min-h-0 flex-col overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
                         selectedId === v?.id
                           ? "border-[var(--ml-gold)]/60 shadow-[0_0_32px_-8px_rgba(245,204,113,0.2)]"
                           : "border-white/10 hover:border-white/20"
@@ -601,32 +588,6 @@ export default function VenuesPage() {
                               {v.description.trim()}
                             </p>
                           ) : null}
-                          {v?.website?.trim() ? (
-                            <a
-                              href={
-                                v.website!.trim().startsWith("http")
-                                  ? v.website!.trim()
-                                  : `https://${v.website!.trim()}`
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                fontSize: "11px",
-                                letterSpacing: "0.08em",
-                                textTransform: "uppercase",
-                                color: "#c9a84c",
-                                border: "0.5px solid #8a6f2e",
-                                padding: "5px 12px",
-                                borderRadius: "2px",
-                                textDecoration: "none",
-                                display: "inline-block",
-                                marginTop: "8px",
-                              }}
-                            >
-                              Visit website ↗
-                            </a>
-                          ) : null}
                           <div className="mt-3 max-h-[4.5rem] min-h-0 overflow-hidden">
                             <div className="flex flex-wrap gap-2">
                               {allTags.length ? (
@@ -648,7 +609,37 @@ export default function VenuesPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
+                        {v?.website?.trim() ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const url = v.website!.trim();
+                              window.open(
+                                url.startsWith("http") ? url : `https://${url}`,
+                                "_blank",
+                                "noopener,noreferrer",
+                              );
+                            }}
+                            style={{
+                              fontSize: "11px",
+                              letterSpacing: "0.08em",
+                              textTransform: "uppercase",
+                              color: "#c9a84c",
+                              border: "0.5px solid #8a6f2e",
+                              padding: "5px 12px",
+                              borderRadius: "2px",
+                              background: "none",
+                              cursor: "pointer",
+                              display: "inline-block",
+                              marginTop: "12px",
+                            }}
+                          >
+                            Visit website ↗
+                          </button>
+                        ) : null}
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
                           {(v?.upcomingShows ?? 0) > 0 ? (
                             <span className="text-sm font-semibold text-emerald-400">
                               {v.upcomingShows} upcoming {v.upcomingShows === 1 ? "show" : "shows"}
@@ -656,16 +647,9 @@ export default function VenuesPage() {
                           ) : (
                             <span className="text-sm text-zinc-600">No upcoming shows</span>
                           )}
-                          <Link
-                            href={`/venues/${encodeURIComponent(v?.id ?? "")}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className={CLASSES.btnPrimarySm}
-                          >
-                            View venue
-                          </Link>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   </li>
                 );
               })}
