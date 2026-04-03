@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { label: "Magicians", href: "/magicians" },
   { label: "Events", href: "/events" },
   { label: "Venues", href: "/venues" },
+  { label: "Groups", href: "/groups" },
   { label: "Articles", href: "/articles" },
 ] as const;
 

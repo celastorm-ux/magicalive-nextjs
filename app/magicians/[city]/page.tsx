@@ -7,8 +7,10 @@ import {
   venueCityOrFilter,
 } from "@/lib/city-landing";
 import { buildMetadata } from "@/lib/seo";
+import { siteBaseUrl } from "@/lib/magicalive-resend";
 import { getRouteSupabase } from "@/lib/supabase-route";
 import { formatLastSeen } from "@/lib/utils";
+import JsonLd from "@/components/JsonLd";
 import CityMagiciansClient, { type CityMagicianCard } from "../CityMagiciansClient";
 
 const CARD_GRADIENTS = [
@@ -114,7 +116,34 @@ export default async function CityMagiciansPage({ params }: { params: PageParams
 
   const venues = (venueRows ?? []) as Array<{ id: string; name: string; city: string | null; state: string | null }>;
 
+  const base = siteBaseUrl();
+
+  const itemListSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `Magicians in ${def.displayName}`,
+    url: `${base}/magicians/${def.slug}`,
+    itemListElement: magicians.slice(0, 20).map((m, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      item: {
+        "@type": "Person",
+        name: m.name,
+        jobTitle: "Magician",
+        url: `${base}/profile/magician?id=${encodeURIComponent(m.id)}`,
+        image: m.avatarUrl ?? undefined,
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: m.location !== "—" ? m.location : def.displayName,
+        },
+      },
+    })),
+  };
+
   return (
-    <CityMagiciansClient definition={def} magicians={magicians} venues={venues} />
+    <>
+      <JsonLd data={itemListSchema} />
+      <CityMagiciansClient definition={def} magicians={magicians} venues={venues} />
+    </>
   );
 }

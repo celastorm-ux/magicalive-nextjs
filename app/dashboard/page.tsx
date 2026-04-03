@@ -1208,33 +1208,63 @@ export default function DashboardPage() {
         <div className="mt-6 border-b border-white/10">
           <div className="-mb-px flex gap-1 overflow-x-auto pb-px">
             {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => {
-                  setTab(t.id);
-                  setSaveMsg("");
-                  setErrorMsg("");
-                }}
-                className={`shrink-0 border-b-2 px-4 py-3 text-sm font-medium transition ${
-                  tab === t.id
-                    ? "border-[var(--ml-gold)] text-[var(--ml-gold)]"
-                    : "border-transparent text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                {t.label}
-              </button>
+              t.id === "post" ? (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    setTab(t.id);
+                    setSaveMsg("");
+                    setErrorMsg("");
+                  }}
+                  className={`shrink-0 border-b-2 px-4 py-3 text-sm font-semibold transition ${
+                    tab === t.id
+                      ? "border-[var(--ml-gold)] text-[var(--ml-gold)]"
+                      : "border-[var(--ml-gold)]/40 text-[var(--ml-gold)]/80 hover:border-[var(--ml-gold)]/70 hover:text-[var(--ml-gold)]"
+                  }`}
+                >
+                  + {t.label}
+                </button>
+              ) : (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    setTab(t.id);
+                    setSaveMsg("");
+                    setErrorMsg("");
+                  }}
+                  className={`shrink-0 border-b-2 px-4 py-3 text-sm font-medium transition ${
+                    tab === t.id
+                      ? "border-[var(--ml-gold)] text-[var(--ml-gold)]"
+                      : "border-transparent text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              )
             ))}
           </div>
         </div>
 
         {tab === "overview" ? (
           <div className="mt-8 space-y-8">
-            <div className="rounded-2xl border border-[var(--ml-gold)]/25 bg-[var(--ml-gold)]/10 p-5">
+            <div className="flex flex-col gap-4 rounded-2xl border border-[var(--ml-gold)]/25 bg-[var(--ml-gold)]/10 p-5 sm:flex-row sm:items-center sm:justify-between">
               <p className="ml-font-heading text-2xl font-semibold text-zinc-100">
                 You&apos;re live, {profile.display_name || "Magician"}{" "}
                 <span className="inline-block animate-pulse text-[var(--ml-gold)]">✦</span>
               </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setTab("post");
+                  setSaveMsg("");
+                  setErrorMsg("");
+                }}
+                className="shrink-0 rounded-xl bg-[var(--ml-gold)] px-5 py-2.5 text-sm font-semibold text-black transition hover:brightness-95"
+              >
+                + Post a show
+              </button>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
@@ -1551,20 +1581,24 @@ export default function DashboardPage() {
                 </div>
               ) : null}
             </div>
-            <label className="mt-5 inline-flex items-center gap-2 text-sm text-zinc-300">
-              <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
-              Make this event public
-            </label>
-            {saveMsg ? <p className="mt-4 text-sm font-medium text-emerald-400">{saveMsg}</p> : null}
-            {errorMsg ? <p className="mt-4 text-sm font-medium text-red-400">{errorMsg}</p> : null}
-            <button
-              type="button"
-              onClick={() => void postShow()}
-              disabled={posting}
-              className={`${CLASSES.btnPrimary} mt-5 text-xs uppercase tracking-wider disabled:opacity-60`}
-            >
-              {posting ? "Adding…" : "Add to my profile"}
-            </button>
+            <div className="mt-6 flex flex-col gap-4 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <label className="inline-flex items-center gap-2 text-sm text-zinc-300">
+                <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
+                Make this event public
+              </label>
+              <div className="flex flex-col gap-2">
+                {saveMsg ? <p className="text-sm font-medium text-emerald-400">{saveMsg}</p> : null}
+                {errorMsg ? <p className="text-sm font-medium text-red-400">{errorMsg}</p> : null}
+                <button
+                  type="button"
+                  onClick={() => void postShow()}
+                  disabled={posting}
+                  className={`${CLASSES.btnPrimary} text-xs uppercase tracking-wider disabled:opacity-60`}
+                >
+                  {posting ? "Adding…" : "Add to my profile"}
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
 

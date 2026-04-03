@@ -46,6 +46,7 @@ type ProfileRow = {
   specialty_tags: string[] | null;
   available_for: string | null;
   credentials: string[] | null;
+  badges: string[] | null;
   instagram: string | null;
   tiktok: string | null;
   youtube: string | null;
@@ -90,6 +91,8 @@ export default function EditProfilePage() {
     EVENT_TYPES[0],
   );
   const [selectedTags, setSelectedTags] = useState<Set<string>>(() => new Set());
+  const [selectedBadges, setSelectedBadges] = useState<Set<string>>(() => new Set());
+  const [orgOptions, setOrgOptions] = useState<Array<{ name: string; abbreviation: string | null }>>([]);
   const [credentials, setCredentials] = useState<string[]>([""]);
   const [instagram, setInstagram] = useState("");
   const [tiktok, setTiktok] = useState("");
@@ -111,11 +114,11 @@ export default function EditProfilePage() {
       return;
     }
     void (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", String(user.id))
-        .maybeSingle();
+      const [{ data }, { data: orgData }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", String(user.id)).maybeSingle(),
+        supabase.from("groups").select("name, abbreviation").order("name", { ascending: true }),
+      ]);
+      setOrgOptions((orgData ?? []) as Array<{ name: string; abbreviation: string | null }>);
       setLoading(false);
       if (!data) {
         router.replace("/create-profile");
@@ -135,6 +138,7 @@ export default function EditProfilePage() {
       setAvatarUrl(p.avatar_url || null);
       setBannerUrl(p.banner_url || null);
       setSelectedTags(new Set(p.specialty_tags || []));
+      setSelectedBadges(new Set(p.badges || []));
       setAvailableFor(
         ((p.available_for as (typeof EVENT_TYPES)[number]) || EVENT_TYPES[0]),
       );
@@ -279,6 +283,7 @@ export default function EditProfilePage() {
       short_bio: shortBio.trim() || null,
       full_bio: fullBio.trim() || null,
       specialty_tags: isMagician ? [...selectedTags] : null,
+      badges: isMagician ? [...selectedBadges] : null,
       available_for:
         isMagician && availableFor !== EVENT_TYPES[0] ? availableFor : null,
       credentials: isMagician
@@ -564,6 +569,44 @@ export default function EditProfilePage() {
               <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
                 This is the email fans can reach you on. Defaults to your account email if left empty.
               </p>
+            </div>
+          </section>
+        ) : null}
+
+        {isMagician && orgOptions.length > 0 ? (
+          <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <h2 className="mb-1 ml-font-heading text-xl font-semibold text-zinc-100">
+              Memberships
+            </h2>
+            <p className="mb-4 text-[11px] text-zinc-500">
+              Select any organizations you belong to.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {orgOptions.map((org) => {
+                const label = org.abbreviation?.trim() || org.name;
+                const active = selectedBadges.has(org.name);
+                return (
+                  <button
+                    key={org.name}
+                    type="button"
+                    onClick={() =>
+                      setSelectedBadges((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(org.name)) next.delete(org.name);
+                        else next.add(org.name);
+                        return next;
+                      })
+                    }
+                    className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                      active
+                        ? "border-[var(--ml-gold)]/45 bg-[var(--ml-gold)]/10 text-[var(--ml-gold)]"
+                        : "border-white/15 bg-white/5 text-zinc-400 hover:border-white/25"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </section>
         ) : null}

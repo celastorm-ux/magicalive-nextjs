@@ -35,6 +35,9 @@ export function Footer() {
             <Link href="/magic-shows" className={CLASSES.footerLink}>
               Magic Shows
             </Link>
+            <Link href="/groups" className={CLASSES.footerLink}>
+              Groups
+            </Link>
             <Link href="/submit-venue" className={CLASSES.footerLink}>
               Submit a venue
             </Link>

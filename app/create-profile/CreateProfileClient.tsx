@@ -161,6 +161,8 @@ export default function CreateProfileClient() {
     EVENT_TYPES[0],
   );
   const [selectedTags, setSelectedTags] = useState<Set<string>>(() => new Set());
+  const [selectedBadges, setSelectedBadges] = useState<Set<string>>(() => new Set());
+  const [orgOptions, setOrgOptions] = useState<Array<{ name: string; abbreviation: string | null }>>([]);
   const [credValues, setCredValues] = useState<Record<number, string>>({
     0: "",
     1: "",
@@ -226,6 +228,16 @@ export default function CreateProfileClient() {
         setMStep(0);
       }
     }, 200);
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from("groups")
+        .select("name, abbreviation")
+        .order("name", { ascending: true });
+      setOrgOptions((data ?? []) as Array<{ name: string; abbreviation: string | null }>);
+    })();
   }, []);
 
   useEffect(() => {
@@ -470,6 +482,7 @@ export default function CreateProfileClient() {
         specialty_tags: [...selectedTags],
         available_for: availableVal,
         credentials,
+        badges: [...selectedBadges],
         instagram: instagram.trim(),
         tiktok: tiktok.trim(),
         youtube: youtube.trim(),
@@ -487,6 +500,7 @@ export default function CreateProfileClient() {
       magAvatarFile,
       credRowIds,
       credValues,
+      selectedBadges,
       age,
       availableFor,
       user,
@@ -1137,6 +1151,43 @@ export default function CreateProfileClient() {
           >
             + Add another credential
           </button>
+          {orgOptions.length > 0 && (
+            <div className="mt-8">
+              <p className="mb-1 text-[10px] font-medium uppercase tracking-widest text-zinc-500">
+                Organization memberships
+              </p>
+              <p className="mb-4 text-[13px] text-zinc-500">
+                Select any magic societies or groups you belong to.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {orgOptions.map((org) => {
+                  const label = org.abbreviation?.trim() || org.name;
+                  const active = selectedBadges.has(org.name);
+                  return (
+                    <button
+                      key={org.name}
+                      type="button"
+                      onClick={() =>
+                        setSelectedBadges((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(org.name)) next.delete(org.name);
+                          else next.add(org.name);
+                          return next;
+                        })
+                      }
+                      className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                        active
+                          ? "border-[var(--ml-gold)]/45 bg-[var(--ml-gold)]/10 text-[var(--ml-gold)]"
+                          : "border-white/15 bg-white/5 text-zinc-400 hover:border-white/25"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* m5 */}

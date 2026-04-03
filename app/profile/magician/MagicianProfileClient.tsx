@@ -63,6 +63,7 @@ type MagicianRow = {
   full_bio: string | null;
   specialty_tags: string[] | null;
   credentials: string[] | null;
+  badges: string[] | null;
   instagram: string | null;
   facebook: string | null;
   tiktok: string | null;
@@ -510,6 +511,7 @@ export default function MagicianProfileClient({
     "No biography yet.";
   const tags = profile.specialty_tags ?? [];
   const creds = profile.credentials ?? [];
+  const orgBadges = profile.badges ?? [];
   const media =
     (profile.media_urls?.filter(Boolean).length ?? 0) > 0
       ? profile.media_urls!
@@ -1397,6 +1399,23 @@ export default function MagicianProfileClient({
           </div>
 
           <aside className="w-full shrink-0 space-y-6 lg:w-80">
+            {orgBadges.length > 0 && (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]">
+                  Memberships
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {orgBadges.map((b) => (
+                    <span
+                      key={b}
+                      className="inline-flex items-center rounded-full border border-[var(--ml-gold)]/35 bg-[var(--ml-gold)]/10 px-2.5 py-1 text-[11px] font-semibold text-[var(--ml-gold)]"
+                    >
+                      {b}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
               <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]">
                 Credentials
