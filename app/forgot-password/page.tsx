@@ -18,7 +18,7 @@ function extractClerkError(err: unknown): string {
 }
 
 export default function ForgotPasswordPage() {
-  const { signIn, isLoaded } = useSignIn();
+  const { signIn } = useSignIn();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -27,7 +27,7 @@ export default function ForgotPasswordPage() {
   async function sendReset(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!signIn || !isLoaded) return;
+    if (!signIn) return;
     const trimmed = email.trim();
     if (!trimmed) {
       setError("Enter your email address.");
@@ -49,7 +49,7 @@ export default function ForgotPasswordPage() {
 
   async function resend() {
     setError("");
-    if (!signIn || !isLoaded || !email.trim()) return;
+    if (!signIn || !email.trim()) return;
     setBusy(true);
     try {
       await signIn.create({
@@ -64,7 +64,7 @@ export default function ForgotPasswordPage() {
     }
   }
 
-  if (!isLoaded) {
+  if (!signIn) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-black text-zinc-500">
         Loading…
