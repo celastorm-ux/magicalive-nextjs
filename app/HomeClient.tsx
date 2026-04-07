@@ -123,6 +123,8 @@ export default function HomeClient() {
   const [foundingRemaining, setFoundingRemaining] = useState<number | null>(null);
   const [foundingBannerDismissed, setFoundingBannerDismissed] = useState(false);
   const [passwordResetBanner, setPasswordResetBanner] = useState(false);
+  const [magicianCount, setMagicianCount] = useState<number | null>(null);
+  const [venueCount, setVenueCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!userLoaded || !isSignedIn || !user?.id) {
@@ -270,6 +272,15 @@ export default function HomeClient() {
       const claimed = Number(count ?? 0);
       setFoundingRemaining(Math.max(0, 100 - claimed));
     })();
+
+    void (async () => {
+      const [{ count: mCount }, { count: vCount }] = await Promise.all([
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "magician"),
+        supabase.from("venues").select("id", { count: "exact", head: true }).eq("is_verified", true),
+      ]);
+      setMagicianCount(Number(mCount ?? 0));
+      setVenueCount(Number(vCount ?? 0));
+    })();
   }, []);
 
   useEffect(() => {
@@ -400,10 +411,10 @@ export default function HomeClient() {
 
               <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {[
-                  { value: "2400+", label: "Magicians" },
-                  { value: "840", label: "Events" },
-                  { value: "320", label: "Venues" },
-                  { value: "18k", label: "Members" },
+                  { value: magicianCount !== null ? String(magicianCount) : "…", label: "Magicians" },
+                  { value: "40", label: "Events" },
+                  { value: venueCount !== null ? String(venueCount) : "…", label: "Venues" },
+                  { value: "320", label: "Members" },
                 ].map((stat) => (
                   <CountUpStat key={stat.label} value={stat.value} label={stat.label} />
                 ))}

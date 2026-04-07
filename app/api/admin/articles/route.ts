@@ -172,7 +172,7 @@ export async function POST(request: Request) {
         const resend = new Resend(resendKey);
         const validEmails = subscribers
           .map((s) => (s.email as string | null)?.trim())
-          .filter((e): e is string => Boolean(e) && e.includes("@"));
+          .filter((e): e is string => typeof e === "string" && e.includes("@"));
 
         // Resend batch: up to 100 per call
         for (let i = 0; i < validEmails.length; i += 100) {
