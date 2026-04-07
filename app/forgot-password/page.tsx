@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
     setBusy(true);
     try {
       await signIn.create({
-        strategy: "reset_password_email_code",
+        strategy: "reset_password_email_code" as any,
         identifier: trimmed,
       });
       setSent(true);
@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
     setBusy(true);
     try {
       await signIn.create({
-        strategy: "reset_password_email_code",
+        strategy: "reset_password_email_code" as any,
         identifier: email.trim(),
       });
       setSent(true);
