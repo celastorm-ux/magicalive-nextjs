@@ -1,37 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth, useClerk, useSignIn } from "@clerk/nextjs";
+import { useClerk, useSignIn } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { CLASSES } from "@/lib/constants";
 
-function getSignInResource(raw: ReturnType<typeof useSignIn>): SignInForReset | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  if ("signIn" in raw && (raw as { signIn?: SignInForReset }).signIn) {
-    return (raw as { signIn: SignInForReset }).signIn;
+function extractClerkError(err: unknown): string {
+  if (err && typeof err === "object" && "errors" in err) {
+    const errors = (err as { errors: { message?: string; longMessage?: string }[] }).errors;
+    return errors[0]?.longMessage ?? errors[0]?.message ?? "Something went wrong.";
   }
-  if ("create" in raw && typeof (raw as { create?: unknown }).create === "function") {
-    return raw as unknown as SignInForReset;
-  }
-  return undefined;
+  if (err instanceof Error) return err.message;
+  return "Something went wrong. Try again.";
 }
-
-type SignInForReset = {
-  create: (p: { identifier: string }) => Promise<{ error?: { message: string } | null }>;
-  resetPasswordEmailCode: {
-    verifyCode: (p: { code: string }) => Promise<{ error?: { message: string } | null }>;
-    submitPassword: (p: { password: string }) => Promise<{ error?: { message: string } | null }>;
-  };
-  status: string;
-  createdSessionId: string | null;
-  finalize: (opts: {
-    navigate: (args: {
-      session: { currentTask?: unknown } | null;
-      decorateUrl: (path: string) => string;
-    }) => void | Promise<void>;
-  }) => Promise<{ error?: { message: string } | null }>;
-};
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-[var(--ml-gold)]/50 focus:bg-white/10";
@@ -39,9 +21,8 @@ const inputClass =
 function ResetPasswordInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isLoaded } = useAuth();
   const { setActive } = useClerk();
-  const signIn = getSignInResource(useSignIn());
+  const { signIn, isLoaded } = useSignIn();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -82,63 +63,31 @@ function ResetPasswordInner() {
 
     setBusy(true);
     try {
-      const { error: createError } = await signIn.create({ identifier: trimmedEmail });
-      if (createError) {
-        setError(createError.message || "Could not start reset. Check your email.");
-        setBusy(false);
-        return;
+      // If signIn isn't in the needs_first_factor state (e.g. fresh session),
+      // re-initiate the reset flow. This also covers the case where the user
+      // opens the link in a new browser tab.
+      if (signIn.status !== "needs_first_factor") {
+        await signIn.create({
+          strategy: "reset_password_email_code",
+          identifier: trimmedEmail,
+        });
       }
 
-      const { error: verifyError } = await signIn.resetPasswordEmailCode.verifyCode({
+      const result = await signIn.attemptFirstFactor({
+        strategy: "reset_password_email_code",
         code: trimmedCode,
-      });
-      if (verifyError) {
-        setError(verifyError.message || "Invalid or expired code.");
-        setBusy(false);
-        return;
-      }
-
-      const { error: pwError } = await signIn.resetPasswordEmailCode.submitPassword({
         password: newPassword,
       });
-      if (pwError) {
-        setError(pwError.message || "Could not set password.");
-        setBusy(false);
-        return;
-      }
 
-      if (signIn.status === "complete" && signIn.createdSessionId) {
-        try {
-          await setActive({ session: signIn.createdSessionId });
-        } catch {
-          setError("Password updated but we could not sign you in. Try signing in manually.");
-          return;
-        }
+      if (result.status === "complete" && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
         router.push("/?password_reset=success");
-      } else if (signIn.status === "complete") {
-        const { error: finError } = await signIn.finalize({
-          navigate: async ({ session, decorateUrl }) => {
-            if (session?.currentTask) return;
-            const url = decorateUrl(`/?password_reset=success`);
-            if (url.startsWith("http")) {
-              window.location.href = url;
-            } else {
-              router.push(url);
-            }
-          },
-        });
-        if (finError) {
-          setError(finError.message || "Could not finish sign-in.");
-        }
       } else {
-        router.push("/?password_reset=success");
+        // Unexpected state — send them to sign-in to try manually
+        router.push("/sign-in");
       }
-    } catch (err: unknown) {
-      const msg =
-        err && typeof err === "object" && "errors" in err && Array.isArray((err as { errors: { message?: string }[] }).errors)
-          ? (err as { errors: { message?: string }[] }).errors[0]?.message
-          : null;
-      setError(msg || "Something went wrong. Try again.");
+    } catch (err) {
+      setError(extractClerkError(err));
     } finally {
       setBusy(false);
     }
@@ -194,6 +143,7 @@ function ResetPasswordInner() {
               <input
                 id="reset-code"
                 type="text"
+                inputMode="numeric"
                 autoComplete="one-time-code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}

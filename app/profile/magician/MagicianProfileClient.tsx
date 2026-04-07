@@ -857,8 +857,12 @@ export default function MagicianProfileClient({
 
             <div className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-5">
               {[
-                { label: "Rating", value: avgRating ?? "—" },
-                { label: "Reviews", value: String(reviews.length) },
+                ...(reviews.length >= 3
+                  ? [
+                      { label: "Rating", value: avgRating ?? "—" },
+                      { label: "Reviews", value: String(reviews.length) },
+                    ]
+                  : []),
                 {
                   label: "Followers",
                   value: String(profile.follower_count ?? 0),

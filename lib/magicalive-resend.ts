@@ -15,7 +15,8 @@ export type MagicaliveEmailType =
   | "venue_submitted"
   | "founding_member_welcome"
   | "magician_invite"
-  | "tagged_in_show_invite";
+  | "tagged_in_show_invite"
+  | "new_article_published";
 
 export function siteBaseUrl() {
   return (
@@ -599,6 +600,44 @@ export function emailNewReview(data: {
   };
 }
 
+/** New article published — broadcast to opted-in subscribers */
+export function emailNewArticlePublished(data: {
+  article_title: string;
+  article_url: string;
+  author_name: string;
+  excerpt?: string | null;
+  category?: string | null;
+}): { subject: string; html: string; from: string } {
+  const subject = `New article: ${data.article_title}`;
+  const settingsUrl = `${siteBaseUrl()}/profile/edit`;
+  const inner = `
+  <tr>
+    <td style="padding:8px 28px 0;">
+      ${data.category?.trim() ? `<p style="margin:0 0 10px;font-family:system-ui,-apple-system,sans-serif;font-size:11px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;color:${GOLD};">${escapeHtml(data.category)}</p>` : ""}
+      <h1 style="margin:0 0 12px;font-family:Georgia,'Cormorant Garamond','Times New Roman',serif;font-size:26px;font-weight:600;color:${TEXT};line-height:1.25;">
+        ${escapeHtml(data.article_title)}
+      </h1>
+      <p style="margin:0 0 6px;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:${MUTED};">
+        By <strong style="color:${TEXT};">${escapeHtml(data.author_name)}</strong>
+      </p>
+      ${
+        data.excerpt?.trim()
+          ? `<p style="margin:16px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.65;color:${TEXT};">${escapeHtml(data.excerpt)}</p>`
+          : ""
+      }
+      ${button(data.article_url, "Read the article")}
+      <p style="margin:0 24px 8px;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:${MUTED};text-align:center;">
+        <a href="${escapeHtml(settingsUrl)}" style="color:${GOLD};text-decoration:underline;">Unsubscribe from article emails</a>
+      </p>
+    </td>
+  </tr>`;
+  return {
+    subject,
+    html: wrapBody(inner),
+    from: "Magicalive <hello@magicalive.com>",
+  };
+}
+
 export async function sendWithResend(params: {
   to: string;
   subject: string;
@@ -666,6 +705,11 @@ export async function sendMagicaliveEmail(
       case "tagged_in_show_invite":
         built = emailTaggedInShowInvite(
           data as unknown as Parameters<typeof emailTaggedInShowInvite>[0],
+        );
+        break;
+      case "new_article_published":
+        built = emailNewArticlePublished(
+          data as unknown as Parameters<typeof emailNewArticlePublished>[0],
         );
         break;
       default:

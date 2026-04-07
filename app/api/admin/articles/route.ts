@@ -5,9 +5,11 @@ import { createNotification } from "@/lib/notifications";
 import {
   emailArticlePublishedAuthor,
   emailArticleRejectedAuthor,
+  emailNewArticlePublished,
   sendWithResend,
   siteBaseUrl,
 } from "@/lib/magicalive-resend";
+import { Resend } from "resend";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +91,7 @@ export async function POST(request: Request) {
 
   const { data: row, error: fetchErr } = await ctx.db
     .from("articles")
-    .select("id, title, author_id, status")
+    .select("id, title, excerpt, category, author_id, author_name, status")
     .eq("id", articleId)
     .maybeSingle();
 
@@ -97,8 +99,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Article not found" }, { status: 404 });
   }
 
-  const title = (row as { title?: string | null }).title?.trim() || "Your article";
-  const authorId = String((row as { author_id?: string | null }).author_id ?? "");
+  const articleRow = row as {
+    title?: string | null;
+    excerpt?: string | null;
+    category?: string | null;
+    author_id?: string | null;
+    author_name?: string | null;
+  };
+  const title = articleRow.title?.trim() || "Your article";
+  const authorId = String(articleRow.author_id ?? "");
+  const authorName = articleRow.author_name?.trim() || "Magicalive writer";
+  const excerpt = articleRow.excerpt?.trim() || null;
+  const category = articleRow.category?.trim() || null;
 
   if (action === "publish") {
     const publishedAt = new Date().toISOString();
@@ -115,6 +127,8 @@ export async function POST(request: Request) {
     }
 
     const articleUrl = `${siteBaseUrl()}/articles/${encodeURIComponent(articleId)}`;
+
+    // Notify the author
     const authorEmail = authorId ? await getClerkPrimaryEmail(authorId) : null;
     if (authorEmail) {
       const built = emailArticlePublishedAuthor({ article_title: title, article_url: articleUrl });
@@ -131,6 +145,47 @@ export async function POST(request: Request) {
         ctx.db,
       );
     }
+
+    // Fan-out to subscribers (fire-and-forget so publish returns immediately)
+    void (async () => {
+      try {
+        const resendKey = process.env.RESEND_API_KEY;
+        if (!resendKey) return;
+
+        const { data: subscribers } = await ctx.db
+          .from("profiles")
+          .select("id, email")
+          .neq("email_new_articles", false)
+          .not("email", "is", null)
+          .neq("id", authorId || "");
+
+        if (!subscribers?.length) return;
+
+        const built = emailNewArticlePublished({
+          article_title: title,
+          article_url: articleUrl,
+          author_name: authorName,
+          excerpt,
+          category,
+        });
+
+        const resend = new Resend(resendKey);
+        const validEmails = subscribers
+          .map((s) => (s.email as string | null)?.trim())
+          .filter((e): e is string => Boolean(e) && e.includes("@"));
+
+        // Resend batch: up to 100 per call
+        for (let i = 0; i < validEmails.length; i += 100) {
+          const chunk = validEmails.slice(i, i + 100);
+          await resend.batch.send(
+            chunk.map((to) => ({ from: built.from, to, subject: built.subject, html: built.html })),
+          );
+        }
+      } catch (err) {
+        console.error("Article subscriber fan-out error:", err);
+      }
+    })();
+
     return NextResponse.json({ ok: true });
   }
 

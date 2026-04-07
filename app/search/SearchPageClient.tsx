@@ -158,9 +158,9 @@ export default function SearchPageClient() {
           "id, display_name, location, specialty_tags, avatar_url, rating, review_count, is_online, last_seen, is_founding_member",
         )
         .eq("account_type", "magician")
-        .ilike("display_name", `%${q}%`)
-        .order("created_at", { ascending: false })
-        .limit(8);
+        .or(`display_name.ilike.%${q}%,handle.ilike.%${q}%,location.ilike.%${q}%,specialty_tags::text.ilike.%${q}%`)
+        .order("display_name", { ascending: true })
+        .limit(20);
 
       const showsPromise = supabase
         .from("shows")

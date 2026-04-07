@@ -373,7 +373,7 @@ export default function HomeClient() {
                 Discover • Book • Follow
               </p>
 
-              <h1 className="ml-font-heading ml-hero-shimmer mt-6 text-4xl font-semibold leading-tight tracking-tight whitespace-nowrap sm:text-5xl">
+              <h1 className="ml-font-heading ml-hero-shimmer mt-6 text-4xl font-semibold leading-tight tracking-tight sm:whitespace-nowrap sm:text-5xl">
                 Where the audience finds its magic
               </h1>
 
@@ -512,6 +512,190 @@ export default function HomeClient() {
           </div>
         </section>
 
+        <FadeInSection className={`${CLASSES.section} py-12`} delay={80}>
+          <div className="flex items-end justify-between gap-6">
+            <div>
+              <h2 className={CLASSES.headingSection}>Featured magicians</h2>
+              <p className={`${CLASSES.bodyMuted} mt-2`}>
+                Highly rated performers, ready for stage, screen, or close‑up.
+              </p>
+            </div>
+            <Link href="/magicians" className={`${CLASSES.linkGold} hidden sm:inline-flex`}>
+              View all →
+            </Link>
+          </div>
+
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {featuredLoading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`relative overflow-hidden p-5 ${CLASSES.cardInteractive}`}
+                  >
+                    <div className="animate-pulse space-y-4">
+                      <div className="h-6 w-2/3 rounded bg-white/10" />
+                      <div className="h-4 w-1/2 rounded bg-white/10" />
+                      <div className="flex flex-wrap gap-2">
+                        <div className="h-6 w-16 rounded-full bg-white/10" />
+                        <div className="h-6 w-20 rounded-full bg-white/10" />
+                      </div>
+                      <div className="flex justify-between pt-2">
+                        <div className="h-4 w-24 rounded bg-white/10" />
+                        <div className="h-8 w-16 rounded-lg bg-white/10" />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              : featuredMagicians.length === 0
+                ? (
+                    <p className="col-span-full text-sm text-zinc-500">
+                      No magicians to show yet.{" "}
+                      <Link href="/magicians" className="text-[var(--ml-gold)] hover:underline">
+                        Browse the directory
+                      </Link>
+                      .
+                    </p>
+                  )
+                : featuredMagicians.map((m) => (
+                    <article
+                      key={m.id}
+                      className={`group relative flex flex-col overflow-hidden p-5 ${CLASSES.cardInteractive}`}
+                    >
+                      <div className="absolute inset-0 opacity-0 transition group-hover:opacity-100">
+                        <div className="absolute -top-16 left-1/2 h-40 w-80 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,var(--ml-gold-glow-card),rgba(0,0,0,0)_70%)] blur-2xl" />
+                      </div>
+
+                      <div className="relative flex h-full flex-col">
+                        <div className="mb-4 flex justify-center">
+                          <Link
+                            href={`/profile/magician?id=${encodeURIComponent(m.id)}`}
+                            className="rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--ml-gold)]/60"
+                            aria-label={`View ${m.name}'s profile`}
+                          >
+                            {m.avatarUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={m.avatarUrl}
+                                alt=""
+                                className="h-20 w-20 rounded-full border-2 border-white/20 object-cover drop-shadow-lg transition hover:border-[var(--ml-gold)]/60"
+                              />
+                            ) : (
+                              <span className="inline-flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/20 bg-zinc-800 text-3xl font-semibold text-zinc-100 drop-shadow-lg transition hover:border-[var(--ml-gold)]/60">
+                                {initials(m.name)}
+                              </span>
+                            )}
+                          </Link>
+                        </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className={CLASSES.headingCard}>
+                              <Link
+                                href={`/profile/magician?id=${encodeURIComponent(m.id)}`}
+                                className="hover:underline"
+                              >
+                                {m.name}
+                              </Link>
+                            </h3>
+                            <p className="mt-1 text-sm text-zinc-400">{m.location}</p>
+                          </div>
+                          {m.onlineNow ? (
+                            <span className={CLASSES.badgeOnline}>
+                              <span className="relative flex h-2 w-2">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-300" />
+                            </span>
+                              Online now
+                            </span>
+                          ) : (
+                            <span className={CLASSES.badgeAvailable}>Available</span>
+                          )}
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {m.tags.map((tag, ti) => (
+                            <Link
+                              key={`${m.id}-tag-${ti}`}
+                              href={`/magicians?style=${encodeURIComponent(tag)}`}
+                              className={`${CLASSES.tag} transition hover:border-[var(--ml-gold)]/45 hover:bg-[var(--ml-gold)]/10`}
+                            >
+                              {tag}
+                            </Link>
+                          ))}
+                        </div>
+
+                        <div className="mt-auto flex items-center justify-between pt-5">
+                          <div className="flex items-center gap-2">
+                            {m.reviews >= 3 && (
+                              <>
+                                <span className="text-[var(--ml-gold)]">★</span>
+                                <span className="text-sm font-semibold text-zinc-100">
+                                  {m.rating.toFixed(1)}
+                                </span>
+                                <span className="text-xs text-zinc-400">
+                                  ({m.reviews} reviews)
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <Link
+                            href={`/profile/magician?id=${encodeURIComponent(m.id)}`}
+                            className={`${CLASSES.btnPrimarySm} ml-auto`}
+                          >
+                            View profile
+                          </Link>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+          </div>
+        </FadeInSection>
+
+        <FadeInSection className={`${CLASSES.section} pb-4`} delay={100}>
+          {showFoundingSpots ? (
+            <div className="rounded-3xl border border-[var(--ml-gold)]/25 bg-[var(--ml-gold)]/10 p-6 sm:p-8">
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">
+                Limited availability
+              </p>
+              <h2 className="mt-2 ml-font-heading text-3xl font-semibold text-zinc-100 sm:text-4xl">
+                Become a Founding Member ♣
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-200/90 sm:text-base">
+                The first 100 magicians to join Magicalive receive a permanent Founding Member
+                badge on their profile.{" "}
+                <span className="text-[var(--ml-gold)]">{foundingRemaining} spots remaining.</span>
+              </p>
+              <div className="mt-6 grid gap-3 text-sm text-zinc-200 sm:grid-cols-3">
+                <div>♣ Permanent badge on your profile</div>
+                <div>♣ Free forever — no premium required</div>
+                <div>♣ Be part of the founding community</div>
+              </div>
+              <div className="mt-6">
+                <Link href={createProfileHref} className={CLASSES.btnPrimary}>
+                  Claim your spot →
+                </Link>
+              </div>
+              <div className="mt-6">
+                <div className="mb-2 text-xs text-zinc-300">
+                  {foundingClaimed} of 100 spots claimed
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-[var(--ml-gold)] transition-all duration-300"
+                    style={{ width: `${foundingProgressPct}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : foundingRemaining === 0 ? (
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
+              <p className="text-sm text-zinc-300 sm:text-base">
+                Our 100 Founding Members have been selected. Create your free profile to join the
+                community.
+              </p>
+            </div>
+          ) : null}
+        </FadeInSection>
+
         <FadeInSection className={`${CLASSES.section} pb-16 pt-2`}>
           <div className="flex items-end justify-between gap-6">
             <div>
@@ -636,186 +820,6 @@ export default function HomeClient() {
                 <div className="px-5 py-10 text-center text-sm text-zinc-500">No upcoming public shows yet.</div>
               ) : null}
             </div>
-          </div>
-        </FadeInSection>
-
-        <FadeInSection className={`${CLASSES.section} pb-4`} delay={100}>
-          {showFoundingSpots ? (
-            <div className="rounded-3xl border border-[var(--ml-gold)]/25 bg-[var(--ml-gold)]/10 p-6 sm:p-8">
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">
-                Limited availability
-              </p>
-              <h2 className="mt-2 ml-font-heading text-3xl font-semibold text-zinc-100 sm:text-4xl">
-                Become a Founding Member ♣
-              </h2>
-              <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-200/90 sm:text-base">
-                The first 100 magicians to join Magicalive receive a permanent Founding Member
-                badge on their profile.{" "}
-                <span className="text-[var(--ml-gold)]">{foundingRemaining} spots remaining.</span>
-              </p>
-              <div className="mt-6 grid gap-3 text-sm text-zinc-200 sm:grid-cols-3">
-                <div>♣ Permanent badge on your profile</div>
-                <div>♣ Free forever — no premium required</div>
-                <div>♣ Be part of the founding community</div>
-              </div>
-              <div className="mt-6">
-                <Link href={createProfileHref} className={CLASSES.btnPrimary}>
-                  Claim your spot →
-                </Link>
-              </div>
-              <div className="mt-6">
-                <div className="mb-2 text-xs text-zinc-300">
-                  {foundingClaimed} of 100 spots claimed
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-[var(--ml-gold)] transition-all duration-300"
-                    style={{ width: `${foundingProgressPct}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : foundingRemaining === 0 ? (
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
-              <p className="text-sm text-zinc-300 sm:text-base">
-                Our 100 Founding Members have been selected. Create your free profile to join the
-                community.
-              </p>
-            </div>
-          ) : null}
-        </FadeInSection>
-
-        <FadeInSection className={`${CLASSES.section} py-12`} delay={80}>
-          <div className="flex items-end justify-between gap-6">
-            <div>
-              <h2 className={CLASSES.headingSection}>Featured magicians</h2>
-              <p className={`${CLASSES.bodyMuted} mt-2`}>
-                Highly rated performers, ready for stage, screen, or close‑up.
-              </p>
-            </div>
-            <Link href="/magicians" className={`${CLASSES.linkGold} hidden sm:inline-flex`}>
-              View all →
-            </Link>
-          </div>
-
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {featuredLoading
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`relative overflow-hidden p-5 ${CLASSES.cardInteractive}`}
-                  >
-                    <div className="animate-pulse space-y-4">
-                      <div className="h-6 w-2/3 rounded bg-white/10" />
-                      <div className="h-4 w-1/2 rounded bg-white/10" />
-                      <div className="flex flex-wrap gap-2">
-                        <div className="h-6 w-16 rounded-full bg-white/10" />
-                        <div className="h-6 w-20 rounded-full bg-white/10" />
-                      </div>
-                      <div className="flex justify-between pt-2">
-                        <div className="h-4 w-24 rounded bg-white/10" />
-                        <div className="h-8 w-16 rounded-lg bg-white/10" />
-                      </div>
-                    </div>
-                  </div>
-                ))
-              : featuredMagicians.length === 0
-                ? (
-                    <p className="col-span-full text-sm text-zinc-500">
-                      No magicians to show yet.{" "}
-                      <Link href="/magicians" className="text-[var(--ml-gold)] hover:underline">
-                        Browse the directory
-                      </Link>
-                      .
-                    </p>
-                  )
-                : featuredMagicians.map((m) => (
-                    <article
-                      key={m.id}
-                      className={`group relative overflow-hidden p-5 ${CLASSES.cardInteractive}`}
-                    >
-                      <div className="absolute inset-0 opacity-0 transition group-hover:opacity-100">
-                        <div className="absolute -top-16 left-1/2 h-40 w-80 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,var(--ml-gold-glow-card),rgba(0,0,0,0)_70%)] blur-2xl" />
-                      </div>
-
-                      <div className="relative flex h-full flex-col">
-                        <div className="mb-4 flex justify-center">
-                          <Link
-                            href={`/profile/magician?id=${encodeURIComponent(m.id)}`}
-                            className="rounded-full focus:outline-none focus:ring-2 focus:ring-[var(--ml-gold)]/60"
-                            aria-label={`View ${m.name}'s profile`}
-                          >
-                            {m.avatarUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={m.avatarUrl}
-                                alt=""
-                                className="h-20 w-20 rounded-full border-2 border-white/20 object-cover drop-shadow-lg transition hover:border-[var(--ml-gold)]/60"
-                              />
-                            ) : (
-                              <span className="inline-flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/20 bg-zinc-800 text-3xl font-semibold text-zinc-100 drop-shadow-lg transition hover:border-[var(--ml-gold)]/60">
-                                {initials(m.name)}
-                              </span>
-                            )}
-                          </Link>
-                        </div>
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <h3 className={CLASSES.headingCard}>
-                              <Link
-                                href={`/profile/magician?id=${encodeURIComponent(m.id)}`}
-                                className="hover:underline"
-                              >
-                                {m.name}
-                              </Link>
-                            </h3>
-                            <p className="mt-1 text-sm text-zinc-400">{m.location}</p>
-                          </div>
-                          {m.onlineNow ? (
-                            <span className={CLASSES.badgeOnline}>
-                              <span className="relative flex h-2 w-2">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-300" />
-                            </span>
-                              Online now
-                            </span>
-                          ) : (
-                            <span className={CLASSES.badgeAvailable}>Available</span>
-                          )}
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {m.tags.map((tag, ti) => (
-                            <Link
-                              key={`${m.id}-tag-${ti}`}
-                              href={`/magicians?style=${encodeURIComponent(tag)}`}
-                              className={`${CLASSES.tag} transition hover:border-[var(--ml-gold)]/45 hover:bg-[var(--ml-gold)]/10`}
-                            >
-                              {tag}
-                            </Link>
-                          ))}
-                        </div>
-
-                        <div className="mt-auto flex items-center justify-between pt-5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[var(--ml-gold)]">★</span>
-                            <span className="text-sm font-semibold text-zinc-100">
-                              {m.rating.toFixed(1)}
-                            </span>
-                            <span className="text-xs text-zinc-400">
-                              ({m.reviews} reviews)
-                            </span>
-                          </div>
-                          <Link
-                            href={`/profile/magician?id=${encodeURIComponent(m.id)}`}
-                            className={CLASSES.btnSecondarySm}
-                          >
-                            View
-                          </Link>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
           </div>
         </FadeInSection>
 

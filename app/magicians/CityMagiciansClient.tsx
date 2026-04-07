@@ -274,9 +274,13 @@ export default function CityMagiciansClient({
                       </div>
                       <div className="mt-4 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-[var(--ml-gold)]">★</span>
-                          <span className="text-sm font-semibold text-zinc-100">{m.rating.toFixed(1)}</span>
-                          <span className="text-xs text-zinc-400">({m.reviews} reviews)</span>
+                          {m.reviews >= 3 && (
+                            <>
+                              <span className="text-[var(--ml-gold)]">★</span>
+                              <span className="text-sm font-semibold text-zinc-100">{m.rating.toFixed(1)}</span>
+                              <span className="text-xs text-zinc-400">({m.reviews} reviews)</span>
+                            </>
+                          )}
                         </div>
                         <Link
                           href={`/profile/magician?id=${encodeURIComponent(m.id)}`}

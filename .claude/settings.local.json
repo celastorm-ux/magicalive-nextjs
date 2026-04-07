@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat /c/Users/lboeh/OneDrive/Desktop/magicalive-app/supabase/*.sql)"
+      "Bash(cat /c/Users/lboeh/OneDrive/Desktop/magicalive-app/supabase/*.sql)",
+      "Bash(grep -r \"resetPasswordEmailCode\" node_modules/@clerk/types/dist/*.d.ts)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -r \"NEXT_PUBLIC_CLERK\\\\|signInUrl\\\\|signUpUrl\" .env* middleware.ts)",
+      "Bash(grep -r \"CLERK_SIGN_IN\\\\|CLERK_SIGN_UP\\\\|signInForceRedirectUrl\\\\|afterSignIn\" .env*)"
     ]
   }
 }

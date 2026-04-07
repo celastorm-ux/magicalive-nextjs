@@ -104,6 +104,7 @@ export default function MagiciansClient() {
   const [style, setStyle] = useState<string>(STYLES[0]);
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [sidebarTag, setSidebarTag] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [magicians, setMagicians] = useState<Magician[]>([]);
   const [dirLoading, setDirLoading] = useState(true);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
@@ -465,138 +466,178 @@ export default function MagiciansClient() {
         </p>
 
         {/* Filter bar */}
-        <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
-          <div className="relative flex-1">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
-              ⌕
-            </span>
-            <input
-              type="search"
-              placeholder="Search by name, city, or specialty…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && search.trim()) {
-                  e.preventDefault();
-                  router.push(`/search?q=${encodeURIComponent(search.trim())}`);
-                }
-              }}
-              className={`${CLASSES.inputSearch} pl-9`}
-            />
-          </div>
-          <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:gap-4">
-            <select
-              className={selectClass}
-              value={filterCountry}
-              onChange={(e) => {
-                setFilterCountry(e.target.value);
-                setFilterState(ALL_STATES);
-                setFilterCity(ALL_CITIES);
-              }}
+        <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+          {/* Always-visible row: search + filter toggle */}
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
+                ⌕
+              </span>
+              <input
+                type="search"
+                placeholder="Search by name, city, or specialty…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && search.trim()) {
+                    e.preventDefault();
+                    router.push(`/search?q=${encodeURIComponent(search.trim())}`);
+                  }
+                }}
+                className={`${CLASSES.inputSearch} pl-9`}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((v) => !v)}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                filtersOpen || hasActiveFilters
+                  ? "border-[var(--ml-gold)]/50 bg-[var(--ml-gold)]/10 text-[var(--ml-gold)]"
+                  : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/20 hover:text-zinc-100"
+              }`}
             >
-              {countryFilterOptions.map((c) => (
-                <option key={c} value={c} className="bg-zinc-900">
-                  {c}
-                </option>
-              ))}
-            </select>
-            {showStateFilter ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zM7 15a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Filters
+              {hasActiveFilters && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--ml-gold)] text-[10px] font-bold text-black">
+                  {[
+                    filterCountry !== ALL_COUNTRIES,
+                    filterState !== ALL_STATES,
+                    filterCity !== ALL_CITIES,
+                    style !== STYLES[0],
+                    Boolean(availParam),
+                    onlineOnly,
+                    sidebarTag !== null,
+                  ].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Collapsible filter panel */}
+          {filtersOpen && (
+            <div className="flex flex-col gap-3 border-t border-white/10 pt-3 lg:flex-row lg:flex-wrap lg:items-center lg:gap-4">
               <select
                 className={selectClass}
-                value={filterState}
+                value={filterCountry}
                 onChange={(e) => {
-                  setFilterState(e.target.value);
+                  setFilterCountry(e.target.value);
+                  setFilterState(ALL_STATES);
                   setFilterCity(ALL_CITIES);
                 }}
               >
-                {stateFilterOptions.map((s) => (
+                {countryFilterOptions.map((c) => (
+                  <option key={c} value={c} className="bg-zinc-900">
+                    {c}
+                  </option>
+                ))}
+              </select>
+              {showStateFilter ? (
+                <select
+                  className={selectClass}
+                  value={filterState}
+                  onChange={(e) => {
+                    setFilterState(e.target.value);
+                    setFilterCity(ALL_CITIES);
+                  }}
+                >
+                  {stateFilterOptions.map((s) => (
+                    <option key={s} value={s} className="bg-zinc-900">
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <select
+                className={selectClass}
+                value={filterCity}
+                onChange={(e) => setFilterCity(e.target.value)}
+              >
+                {cityOptionsWithQuery.map((c) => (
+                  <option key={c} value={c} className="bg-zinc-900">
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={selectClass}
+                value={style}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setStyle(next);
+                  setSidebarTag(next === STYLES[0] ? null : next);
+                }}
+              >
+                {styleOptionsWithQuery.map((s) => (
                   <option key={s} value={s} className="bg-zinc-900">
                     {s}
                   </option>
                 ))}
               </select>
-            ) : null}
-            <select
-              className={selectClass}
-              value={filterCity}
-              onChange={(e) => setFilterCity(e.target.value)}
-            >
-              {cityOptionsWithQuery.map((c) => (
-                <option key={c} value={c} className="bg-zinc-900">
-                  {c}
-                </option>
-              ))}
-            </select>
-            <select
-              className={selectClass}
-              value={style}
-              onChange={(e) => {
-                const next = e.target.value;
-                setStyle(next);
-                setSidebarTag(next === STYLES[0] ? null : next);
-              }}
-            >
-              {styleOptionsWithQuery.map((s) => (
-                <option key={s} value={s} className="bg-zinc-900">
-                  {s}
-                </option>
-              ))}
-            </select>
-            <select
-              className={`${selectClass} ${availParam ? "border-[var(--ml-gold)]/60 bg-[var(--ml-gold)]/10 text-[var(--ml-gold)] ring-1 ring-[var(--ml-gold)]/30" : ""}`}
-              value={availParam}
-              onChange={(e) => setAvailableForQuery(e.target.value)}
-            >
-              {bookingSelectOptions.map((b) => (
-                <option key={b.token || "all"} value={b.token} className="bg-zinc-900">
-                  {b.label}
-                </option>
-              ))}
-            </select>
-            <div className="flex flex-1 flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3 lg:border-t-0 lg:pt-0">
-              <span className="flex flex-wrap items-center gap-2 text-sm text-zinc-400">
-                <span>
-                  <span className="font-semibold text-zinc-200">{filtered.length}</span>{" "}
-                  results
-                </span>
-                {availParam ? (
-                  <button
-                    type="button"
-                    onClick={() => clearBookingFilter()}
-                    className="inline-flex items-center gap-1 rounded-full border border-[var(--ml-gold)]/35 bg-[var(--ml-gold)]/10 px-2.5 py-1 text-xs font-medium text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/50 hover:bg-[var(--ml-gold)]/15"
-                  >
-                    <span aria-hidden>×</span>
-                    {bookingDirectoryLabelForToken(availParam)}
-                  </button>
-                ) : null}
-              </span>
-              <button
-                type="button"
-                onClick={() => setOnlineOnly((v) => !v)}
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition ${
-                  onlineOnly
-                    ? "border-emerald-400/40 bg-emerald-400/15 text-emerald-200"
-                    : "border-white/15 bg-white/5 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
-                }`}
+              <select
+                className={`${selectClass} ${availParam ? "border-[var(--ml-gold)]/60 bg-[var(--ml-gold)]/10 text-[var(--ml-gold)] ring-1 ring-[var(--ml-gold)]/30" : ""}`}
+                value={availParam}
+                onChange={(e) => setAvailableForQuery(e.target.value)}
               >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    onlineOnly ? "bg-emerald-400" : "bg-zinc-600"
-                  }`}
-                />
-                Online now
-              </button>
-              {hasActiveFilters ? (
+                {bookingSelectOptions.map((b) => (
+                  <option key={b.token || "all"} value={b.token} className="bg-zinc-900">
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+              <div className="flex flex-1 flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3 lg:border-t-0 lg:pt-0">
+                <span className="flex flex-wrap items-center gap-2 text-sm text-zinc-400">
+                  {availParam ? (
+                    <button
+                      type="button"
+                      onClick={() => clearBookingFilter()}
+                      className="inline-flex items-center gap-1 rounded-full border border-[var(--ml-gold)]/35 bg-[var(--ml-gold)]/10 px-2.5 py-1 text-xs font-medium text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/50 hover:bg-[var(--ml-gold)]/15"
+                    >
+                      <span aria-hidden>×</span>
+                      {bookingDirectoryLabelForToken(availParam)}
+                    </button>
+                  ) : null}
+                </span>
                 <button
                   type="button"
-                  onClick={clearAllFilters}
-                  className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-zinc-300 transition hover:border-white/25 hover:text-zinc-100"
+                  onClick={() => setOnlineOnly((v) => !v)}
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition ${
+                    onlineOnly
+                      ? "border-emerald-400/40 bg-emerald-400/15 text-emerald-200"
+                      : "border-white/15 bg-white/5 text-zinc-400 hover:border-white/25 hover:text-zinc-200"
+                  }`}
                 >
-                  Clear all filters
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      onlineOnly ? "bg-emerald-400" : "bg-zinc-600"
+                    }`}
+                  />
+                  Online now
                 </button>
-              ) : null}
+                {hasActiveFilters ? (
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-zinc-300 transition hover:border-white/25 hover:text-zinc-100"
+                  >
+                    Clear all filters
+                  </button>
+                ) : null}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="mt-10 flex flex-col gap-10 lg:flex-row lg:items-start">
@@ -658,7 +699,7 @@ export default function MagiciansClient() {
                 {filtered.map((m) => (
                   <article
                     key={m.id}
-                    className="group overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/50 transition hover:border-[var(--ml-gold)]/35 hover:shadow-[0_0_40px_-12px_rgba(245,204,113,0.15)]"
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/50 transition hover:border-[var(--ml-gold)]/35 hover:shadow-[0_0_40px_-12px_rgba(245,204,113,0.15)]"
                   >
                     <div
                       className={`relative flex h-44 items-center justify-center bg-gradient-to-br ${m.gradient}`}
@@ -739,7 +780,7 @@ export default function MagiciansClient() {
                         )
                       ) : null}
                     </div>
-                    <div className="p-4">
+                    <div className="flex flex-1 flex-col p-4">
                       <h2 className="ml-font-heading text-lg font-semibold text-zinc-50 group-hover:text-[var(--ml-gold)]">
                         <Link href={`/profile/magician?id=${encodeURIComponent(m.id)}`}>
                           {m.name}
@@ -758,19 +799,23 @@ export default function MagiciansClient() {
                           </Link>
                         ))}
                       </div>
-                      <div className="mt-4 flex items-center gap-2 border-t border-white/5 pt-3">
-                        <span className="text-[var(--ml-gold)]">★</span>
-                        <span className="text-sm font-semibold text-zinc-100">
-                          {m.rating.toFixed(1)}
-                        </span>
-                        <span className="text-xs text-zinc-500">
-                          ({m.reviews} reviews)
-                        </span>
-                      </div>
-                      <div className="mt-3">
+                      <div className="mt-auto flex items-center justify-between border-t border-white/5 pt-3">
+                        <div className="flex items-center gap-2">
+                          {m.reviews >= 3 && (
+                            <>
+                              <span className="text-[var(--ml-gold)]">★</span>
+                              <span className="text-sm font-semibold text-zinc-100">
+                                {m.rating.toFixed(1)}
+                              </span>
+                              <span className="text-xs text-zinc-500">
+                                ({m.reviews} reviews)
+                              </span>
+                            </>
+                          )}
+                        </div>
                         <Link
                           href={`/profile/magician?id=${encodeURIComponent(m.id)}`}
-                          className={CLASSES.btnSecondarySm}
+                          className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-[var(--ml-gold)]/40 bg-transparent px-3 py-1.5 text-xs font-semibold text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/60 hover:bg-[var(--ml-gold)]/10"
                         >
                           View profile
                         </Link>

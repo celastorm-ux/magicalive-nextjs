@@ -54,6 +54,7 @@ type ProfileRow = {
   avatar_url: string | null;
   banner_url: string | null;
   contact_email?: string | null;
+  email_new_articles?: boolean | null;
 };
 
 function initials(name: string) {
@@ -99,6 +100,8 @@ export default function EditProfilePage() {
   const [youtube, setYoutube] = useState("");
   const [website, setWebsite] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+
+  const [emailNewArticles, setEmailNewArticles] = useState(true);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -148,6 +151,7 @@ export default function EditProfilePage() {
       setYoutube(p.youtube || "");
       setWebsite(p.website || "");
       setContactEmail(p.contact_email?.trim() || "");
+      setEmailNewArticles(p.email_new_articles !== false);
     })();
   }, [isLoaded, user?.id, router]);
 
@@ -294,6 +298,7 @@ export default function EditProfilePage() {
       youtube: youtube.trim() || null,
       website: website.trim() || null,
       contact_email: isMagician ? contactEmail.trim() || null : null,
+      email_new_articles: emailNewArticles,
       updated_at: new Date().toISOString(),
     };
     const { error } = await supabase
@@ -302,7 +307,7 @@ export default function EditProfilePage() {
       .eq("id", String(user.id));
     setSaving(false);
     if (error) {
-      setErrMsg("Something went wrong");
+      setErrMsg(error.message || "Something went wrong");
       return;
     }
     setOkMsg("Profile updated successfully");
@@ -667,6 +672,26 @@ export default function EditProfilePage() {
               <input className={inputClass} value={website} onChange={(e) => setWebsite(e.target.value)} />
             </div>
           </div>
+        </section>
+
+        <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <h2 className="mb-4 ml-font-heading text-xl font-semibold text-zinc-100">
+            Notification preferences
+          </h2>
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={emailNewArticles}
+              onChange={(e) => setEmailNewArticles(e.target.checked)}
+              className="mt-0.5 h-4 w-4 cursor-pointer accent-[var(--ml-gold)]"
+            />
+            <span>
+              <span className="block text-sm font-medium text-zinc-200">New article emails</span>
+              <span className="block text-xs text-zinc-500">
+                Get an email when a new article is published on Magicalive.
+              </span>
+            </span>
+          </label>
         </section>
 
         <section id="password" className="mb-8 scroll-mt-24 rounded-2xl border border-white/10 bg-white/[0.02] p-5">

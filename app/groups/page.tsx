@@ -282,15 +282,8 @@ export default function GroupsPage() {
             {gridOrgs.length > 0 ? (
               <section
                 className={featuredFiltered.length > 0 ? "mt-14" : "mt-12"}
-                aria-labelledby="all-groups-heading"
               >
-                <h2
-                  id="all-groups-heading"
-                  className="ml-font-heading text-lg font-semibold text-zinc-200 sm:text-xl"
-                >
-                  {filter === "All" ? "All organizations" : `${filter} organizations`}
-                </h2>
-                <ul className="mt-6 grid list-none gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <ul className="grid list-none gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {gridOrgs.map((org, i) => (
                     <li key={org.id} className="flex min-h-0">
                       <div className="flex min-h-0 w-full">
