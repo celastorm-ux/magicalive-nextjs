@@ -242,6 +242,20 @@ export default function VenueProfileClient() {
                     {venue.venue_type}
                   </p>
                 ) : null}
+                {venue.website ? (
+                  <a
+                    href={
+                      String(venue.website).startsWith("http")
+                        ? String(venue.website)
+                        : `https://${venue.website}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-[var(--ml-gold)]/45 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/70 hover:bg-[var(--ml-gold)]/10"
+                  >
+                    Visit website ↗
+                  </a>
+                ) : null}
               </div>
             </div>
 
