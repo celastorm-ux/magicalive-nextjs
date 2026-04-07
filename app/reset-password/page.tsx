@@ -18,11 +18,16 @@ function extractClerkError(err: unknown): string {
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-[var(--ml-gold)]/50 focus:bg-white/10";
 
+type ClerkResetResult = {
+  status: string;
+  createdSessionId?: string | null;
+};
+
 function ResetPasswordInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setActive } = useClerk();
-  const { signIn, isLoaded } = useSignIn();
+  const { signIn } = useSignIn();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -40,7 +45,7 @@ function ResetPasswordInner() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!signIn || !isLoaded) return;
+    if (!signIn) return;
 
     const trimmedEmail = email.trim();
     const trimmedCode = code.trim();
@@ -68,16 +73,16 @@ function ResetPasswordInner() {
       // opens the link in a new browser tab.
       if (signIn.status !== "needs_first_factor") {
         await signIn.create({
-          strategy: "reset_password_email_code",
+          strategy: "reset_password_email_code" as any,
           identifier: trimmedEmail,
         });
       }
 
-      const result = await signIn.attemptFirstFactor({
-        strategy: "reset_password_email_code",
+      const result = (await (signIn as any).attemptFirstFactor({
+        strategy: "reset_password_email_code" as any,
         code: trimmedCode,
         password: newPassword,
-      });
+      })) as ClerkResetResult;
 
       if (result.status === "complete" && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
@@ -93,7 +98,7 @@ function ResetPasswordInner() {
     }
   }
 
-  if (!isLoaded) {
+  if (!signIn) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-black text-zinc-500">
         Loading…
