@@ -80,6 +80,7 @@ type VenueRow = {
   phone: string | null;
   latitude: number | null;
   longitude: number | null;
+  cover_image_url: string | null;
 };
 
 type Venue = VenueRow & {
@@ -561,9 +562,18 @@ export default function VenuesPage() {
                           : "border-white/10 hover:border-white/20"
                       }`}
                     >
-                      <div
-                        className={`h-[160px] w-full shrink-0 bg-gradient-to-br ${v?.gradient ?? CARD_GRADIENTS[0]}`}
-                      />
+                      {v?.cover_image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={v.cover_image_url}
+                          alt=""
+                          className="h-[160px] w-full shrink-0 object-cover"
+                        />
+                      ) : (
+                        <div
+                          className={`h-[160px] w-full shrink-0 bg-gradient-to-br ${v?.gradient ?? CARD_GRADIENTS[0]}`}
+                        />
+                      )}
                       <div className="flex min-h-0 flex-1 flex-col p-5">
                         <div className="flex min-h-0 flex-1 flex-col">
                           <h2 className="ml-font-heading text-xl font-semibold text-zinc-50">
