@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import {
+import React, {
   Component,
   type ErrorInfo,
   type ReactNode,
@@ -81,6 +81,7 @@ type VenueRow = {
   latitude: number | null;
   longitude: number | null;
   cover_image_url: string | null;
+  is_featured: boolean | null;
 };
 
 type Venue = VenueRow & {
@@ -123,6 +124,105 @@ function capacityMatches(capacity: number | null, cap: (typeof CAPS)[number]) {
 
 const selectClass =
   "min-w-0 flex-1 cursor-pointer rounded-2xl border border-white/10 bg-white/5 py-2.5 pl-3 pr-8 text-sm text-zinc-100 outline-none transition focus:border-[var(--ml-gold)]/50 sm:min-w-[140px]";
+
+function VenueCard({
+  v,
+  selectedId,
+  cardRefs,
+}: {
+  v: Venue;
+  selectedId: string | null;
+  cardRefs: React.MutableRefObject<Record<string, HTMLElement | null>>;
+}) {
+  const allTags = v.tags ?? [];
+  const tagsShown = allTags.slice(0, 4);
+  const tagsExtra = allTags.length - tagsShown.length;
+  return (
+    <li className="flex min-h-0 min-w-0">
+      <Link
+        href={`/venues/${encodeURIComponent(v.id)}`}
+        ref={(el) => { cardRefs.current[v.id] = el; }}
+        className={`flex h-full w-full min-h-0 flex-col overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
+          selectedId === v.id
+            ? "border-[var(--ml-gold)]/60 shadow-[0_0_32px_-8px_rgba(245,204,113,0.2)]"
+            : v.is_featured
+              ? "border-[var(--ml-gold)]/40 hover:border-[var(--ml-gold)]/65"
+              : "border-white/10 hover:border-white/20"
+        }`}
+      >
+        {v.cover_image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={v.cover_image_url} alt="" className="h-[160px] w-full shrink-0 object-cover" />
+        ) : (
+          <div className={`h-[160px] w-full shrink-0 bg-gradient-to-br ${v.gradient ?? CARD_GRADIENTS[0]}`} />
+        )}
+        <div className="flex min-h-0 flex-1 flex-col p-5">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <h2 className="ml-font-heading text-xl font-semibold text-zinc-50">{v.name ?? "—"}</h2>
+            <p className="mt-1 text-sm text-zinc-500">{v.city || "—"} · {v.venue_type || "Venue"}</p>
+            <p className="mt-2 text-xs text-zinc-600">
+              Capacity {(v.capacity ?? 0).toLocaleString()} · Est. {v.established_year ?? "—"}
+            </p>
+            {v.description?.trim() ? (
+              <p
+                className="mt-2 line-clamp-3 overflow-hidden text-sm text-zinc-500"
+                style={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}
+              >
+                {v.description.trim()}
+              </p>
+            ) : null}
+            <div className="mt-3 max-h-[4.5rem] min-h-0 overflow-hidden">
+              <div className="flex flex-wrap gap-2">
+                {allTags.length ? (
+                  <>
+                    {tagsShown.map((t) => (
+                      <span key={t} className={CLASSES.tag}>{t}</span>
+                    ))}
+                    {tagsExtra > 0 ? (
+                      <span className="rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                        +{tagsExtra} more
+                      </span>
+                    ) : null}
+                  </>
+                ) : (
+                  <span className="text-xs text-zinc-600">No tags</span>
+                )}
+              </div>
+            </div>
+          </div>
+          {v.website?.trim() ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const url = v.website!.trim();
+                window.open(url.startsWith("http") ? url : `https://${url}`, "_blank", "noopener,noreferrer");
+              }}
+              style={{
+                fontSize: "11px", letterSpacing: "0.08em", textTransform: "uppercase",
+                color: "#c9a84c", border: "0.5px solid #8a6f2e", padding: "5px 12px",
+                borderRadius: "2px", background: "none", cursor: "pointer",
+                display: "inline-block", marginTop: "12px",
+              }}
+            >
+              Visit website ↗
+            </button>
+          ) : null}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
+            {(v.upcomingShows ?? 0) > 0 ? (
+              <span className="text-sm font-semibold text-emerald-400">
+                {v.upcomingShows} upcoming {v.upcomingShows === 1 ? "show" : "shows"}
+              </span>
+            ) : (
+              <span className="text-sm text-zinc-600">No upcoming shows</span>
+            )}
+          </div>
+        </div>
+      </Link>
+    </li>
+  );
+}
 
 export default function VenuesPage() {
   const [search, setSearch] = useState("");
@@ -282,7 +382,7 @@ export default function VenuesPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (venues ?? []).filter((v) => {
+    const results = (venues ?? []).filter((v) => {
       if (!v?.id) return false;
       if (
         !rowLocationMatchesFilter(
@@ -303,7 +403,15 @@ export default function VenuesPage() {
       if (q && !(v.name ?? "").toLowerCase().includes(q)) return false;
       return true;
     });
+    return results.sort((a, b) => {
+      const af = a.is_featured ? 1 : 0;
+      const bf = b.is_featured ? 1 : 0;
+      return bf - af;
+    });
   }, [search, filterState, filterCountry, filterCity, vtype, cap, venues]);
+
+  const featuredVenues = useMemo(() => filtered.filter((v) => v.is_featured), [filtered]);
+  const otherVenues = useMemo(() => filtered.filter((v) => !v.is_featured), [filtered]);
 
   const filterBarResultsLabel = useMemo(() => {
     const n = filtered.length;
@@ -544,126 +652,28 @@ export default function VenuesPage() {
               </button>
             </div>
           ) : (
-            <ul className="grid w-full max-sm:grid-cols-1 gap-4 [grid-auto-rows:1fr] items-stretch sm:[grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
-              {(filtered ?? []).map((v) => {
-                const allTags = v?.tags ?? [];
-                const tagsShown = allTags.slice(0, 4);
-                const tagsExtra = allTags.length - tagsShown.length;
-                return (
-                  <li key={v.id} className="flex min-h-0 min-w-0">
-                    <Link
-                      href={`/venues/${encodeURIComponent(v?.id ?? "")}`}
-                      ref={(el) => {
-                        if (v?.id) cardRefs.current[v.id] = el;
-                      }}
-                      className={`flex h-full w-full min-h-0 flex-col overflow-hidden rounded-2xl border bg-zinc-950/50 transition ${
-                        selectedId === v?.id
-                          ? "border-[var(--ml-gold)]/60 shadow-[0_0_32px_-8px_rgba(245,204,113,0.2)]"
-                          : "border-white/10 hover:border-white/20"
-                      }`}
-                    >
-                      {v?.cover_image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={v.cover_image_url}
-                          alt=""
-                          className="h-[160px] w-full shrink-0 object-cover"
-                        />
-                      ) : (
-                        <div
-                          className={`h-[160px] w-full shrink-0 bg-gradient-to-br ${v?.gradient ?? CARD_GRADIENTS[0]}`}
-                        />
-                      )}
-                      <div className="flex min-h-0 flex-1 flex-col p-5">
-                        <div className="flex min-h-0 flex-1 flex-col">
-                          <h2 className="ml-font-heading text-xl font-semibold text-zinc-50">
-                            {v?.name ?? "—"}
-                          </h2>
-                          <p className="mt-1 text-sm text-zinc-500">
-                            {v?.city || "—"} · {v?.venue_type || "Venue"}
-                          </p>
-                          <p className="mt-2 text-xs text-zinc-600">
-                            Capacity {(v?.capacity ?? 0).toLocaleString()} · Est.{" "}
-                            {v?.established_year ?? "—"}
-                          </p>
-                          {v?.description?.trim() ? (
-                            <p
-                              className="mt-2 line-clamp-3 overflow-hidden text-sm text-zinc-500"
-                              style={{
-                                display: "-webkit-box",
-                                WebkitLineClamp: 3,
-                                WebkitBoxOrient: "vertical",
-                              }}
-                            >
-                              {v.description.trim()}
-                            </p>
-                          ) : null}
-                          <div className="mt-3 max-h-[4.5rem] min-h-0 overflow-hidden">
-                            <div className="flex flex-wrap gap-2">
-                              {allTags.length ? (
-                                <>
-                                  {tagsShown.map((t) => (
-                                    <span key={t} className={CLASSES.tag}>
-                                      {t}
-                                    </span>
-                                  ))}
-                                  {tagsExtra > 0 ? (
-                                    <span className="rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
-                                      +{tagsExtra} more
-                                    </span>
-                                  ) : null}
-                                </>
-                              ) : (
-                                <span className="text-xs text-zinc-600">No tags</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        {v?.website?.trim() ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const url = v.website!.trim();
-                              window.open(
-                                url.startsWith("http") ? url : `https://${url}`,
-                                "_blank",
-                                "noopener,noreferrer",
-                              );
-                            }}
-                            style={{
-                              fontSize: "11px",
-                              letterSpacing: "0.08em",
-                              textTransform: "uppercase",
-                              color: "#c9a84c",
-                              border: "0.5px solid #8a6f2e",
-                              padding: "5px 12px",
-                              borderRadius: "2px",
-                              background: "none",
-                              cursor: "pointer",
-                              display: "inline-block",
-                              marginTop: "12px",
-                            }}
-                          >
-                            Visit website ↗
-                          </button>
-                        ) : null}
-                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
-                          {(v?.upcomingShows ?? 0) > 0 ? (
-                            <span className="text-sm font-semibold text-emerald-400">
-                              {v.upcomingShows} upcoming {v.upcomingShows === 1 ? "show" : "shows"}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-zinc-600">No upcoming shows</span>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="space-y-12">
+              {featuredVenues.length > 0 && (
+                <section>
+                  <h2 className="ml-font-heading mb-6 text-xl font-semibold text-zinc-100 sm:text-2xl">
+                    Featured <span className="italic text-[var(--ml-gold)]">venues</span>
+                  </h2>
+                  <ul className="grid w-full max-sm:grid-cols-1 gap-4 [grid-auto-rows:1fr] items-stretch sm:[grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+                    {featuredVenues.map((v) => <VenueCard key={v.id} v={v} selectedId={selectedId} cardRefs={cardRefs} />)}
+                  </ul>
+                </section>
+              )}
+              {otherVenues.length > 0 && (
+                <section>
+                  <h2 className="ml-font-heading mb-6 text-xl font-semibold text-zinc-100 sm:text-2xl">
+                    More <span className="italic text-[var(--ml-gold)]">venues</span>
+                  </h2>
+                  <ul className="grid w-full max-sm:grid-cols-1 gap-4 [grid-auto-rows:1fr] items-stretch sm:[grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+                    {otherVenues.map((v) => <VenueCard key={v.id} v={v} selectedId={selectedId} cardRefs={cardRefs} />)}
+                  </ul>
+                </section>
+              )}
+            </div>
           )}
         </div>
       </div>
