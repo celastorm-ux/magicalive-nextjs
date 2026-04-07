@@ -13,8 +13,13 @@ const NAV_ITEMS = [
   { label: "Magicians", href: "/magicians" },
   { label: "Events", href: "/events" },
   { label: "Venues", href: "/venues" },
-  { label: "Groups", href: "/groups" },
   { label: "Articles", href: "/articles" },
+] as const;
+
+const MORE_ITEMS = [
+  { label: "Groups", href: "/groups" },
+  { label: "Magic Shops", href: "/magic-shops" },
+  { label: "Dealers", href: "/dealers" },
 ] as const;
 
 function isActivePath(pathname: string, href: string) {
@@ -32,6 +37,8 @@ export function Nav() {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement | null>(null);
   const [isMagician, setIsMagician] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingBookingCount, setPendingBookingCount] = useState(0);
@@ -51,12 +58,14 @@ export function Nav() {
   const close = useCallback(() => setOpen(false), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
   const closeUserMenu = useCallback(() => setUserMenuOpen(false), []);
+  const closeMore = useCallback(() => setMoreOpen(false), []);
 
   useEffect(() => {
     close();
     closeSearch();
     closeUserMenu();
-  }, [pathname, close, closeSearch, closeUserMenu]);
+    closeMore();
+  }, [pathname, close, closeSearch, closeUserMenu, closeMore]);
 
   useEffect(() => {
     if (!open) return;
@@ -114,6 +123,22 @@ export function Nav() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [userMenuOpen, closeUserMenu]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) closeMore();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeMore();
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen, closeMore]);
 
   const fetchNavProfile = useCallback(async () => {
     if (!user?.id) return;
@@ -286,6 +311,43 @@ export function Nav() {
                 </Link>
               );
             })}
+            <div className="relative shrink-0" ref={moreRef}>
+              <button
+                type="button"
+                onClick={() => setMoreOpen((v) => !v)}
+                className={`flex shrink-0 items-center gap-1 text-[12px] uppercase tracking-[0.07em] transition ${
+                  MORE_ITEMS.some((i) => isActivePath(pathname, i.href))
+                    ? "text-[var(--ml-gold)]"
+                    : "text-zinc-400 hover:text-zinc-100"
+                }`}
+              >
+                More
+                <svg className="h-3 w-3" viewBox="0 0 12 12" fill="currentColor" aria-hidden>
+                  <path d="M6 8L1 3h10z" />
+                </svg>
+              </button>
+              {moreOpen ? (
+                <div className="absolute left-0 top-full z-50 mt-2 min-w-[160px] overflow-hidden py-1 shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
+                  style={{ backgroundColor: "var(--card-bg)", borderRadius: 3, border: "0.5px solid var(--card-border)" }}
+                >
+                  {MORE_ITEMS.map((item) => {
+                    const active = isActivePath(pathname, item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={closeMore}
+                        className={`block px-4 py-2.5 text-[12px] uppercase tracking-[0.07em] transition hover:bg-white/[0.06] ${
+                          active ? "text-[var(--ml-gold)]" : "text-zinc-300"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
             {!isSignedIn ? (
               <Link
                 href="/for-magicians"
@@ -643,7 +705,7 @@ export function Nav() {
                   />
                 </div>
               </div>
-              {NAV_ITEMS.map((item) => {
+              {[...NAV_ITEMS, ...MORE_ITEMS].map((item) => {
                 const active = isActivePath(pathname, item.href);
                 return (
                   <Link
