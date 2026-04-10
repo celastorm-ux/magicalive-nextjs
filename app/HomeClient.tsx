@@ -673,6 +673,11 @@ export default function HomeClient() {
                     </article>
                   ))}
           </div>
+          <div className="mt-6 flex justify-center lg:hidden">
+            <Link href="/magicians" className={CLASSES.btnSecondary}>
+              View all magicians →
+            </Link>
+          </div>
         </FadeInSection>
 
         <FadeInSection className={`${CLASSES.section} pb-4`} delay={100}>
