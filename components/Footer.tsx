@@ -8,8 +8,8 @@ export function Footer() {
         <div className={CLASSES.footerBar}>
           <div>
             <span className="ml-font-heading text-sm font-semibold text-zinc-300">
-              Magic
-              <span className="text-[var(--ml-gold)] italic">alive</span>
+              Pinnacle
+              <span className="text-[var(--ml-gold)] italic">Magic</span>
             </span>
             <span className="ml-2">© {new Date().getFullYear()} PinnacleMagic</span>
           </div>
