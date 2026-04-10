@@ -127,8 +127,8 @@ export const CLASSES = {
   tableRow: "transition hover:bg-white/[0.04]",
 
   footerBar:
-    "flex flex-col gap-3 text-xs text-zinc-400 sm:flex-row sm:items-center sm:justify-between",
-  footerLink: "hover:text-zinc-100",
+    "flex flex-col gap-3 text-xs text-zinc-300 sm:flex-row sm:items-center sm:justify-between",
+  footerLink: "text-zinc-300 hover:text-white",
 
   headerSticky:
     "sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur",
