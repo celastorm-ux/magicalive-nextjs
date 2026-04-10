@@ -58,9 +58,11 @@ export function LayoutChrome({ children }: LayoutChromeProps) {
           }}
         />
       )}
-      {!hideChrome ? <Nav /> : null}
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col">{children}</div>
-      {!hideChrome ? <Footer /> : null}
+      <div className="relative z-10 flex min-h-dvh flex-col">
+        {!hideChrome ? <Nav /> : null}
+        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+        {!hideChrome ? <Footer /> : null}
+      </div>
     </>
   );
 }
