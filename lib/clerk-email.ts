@@ -22,8 +22,8 @@ export async function getClerkDisplayName(userId: string): Promise<string> {
       [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
       user.username ||
       user.primaryEmailAddress?.emailAddress;
-    return name || "Magicalive member";
+    return name || "PinnacleMagic member";
   } catch {
-    return "Magicalive member";
+    return "PinnacleMagic member";
   }
 }

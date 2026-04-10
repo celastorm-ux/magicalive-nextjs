@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CLASSES } from "@/lib/constants";
 
-const RECENT_KEY = "magicalive_recent_searches";
+const RECENT_KEY = "pinnaclemagic_recent_searches";
 const MAX_RECENT = 5;
 
 type SearchBarProps = {

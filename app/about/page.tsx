@@ -13,9 +13,9 @@ const GAP_CARDS = [
 
 export async function generateMetadata() {
   return buildMetadata({
-    title: "Our Story — Magicalive",
+    title: "Our Story — PinnacleMagic",
     description:
-      "Magicalive was built by a Los Angeles magician who couldn't answer a simple question: where is the magic happening this Friday? This is that story.",
+      "PinnacleMagic was built by a Los Angeles magician who couldn't answer a simple question: where is the magic happening this Friday? This is that story.",
   });
 }
 
@@ -117,7 +117,7 @@ async function AboutStory() {
               discover who was performing in their city this weekend.
             </p>
             <p className="text-zinc-200">
-              Magicalive is the answer to that <span className="text-[var(--ml-gold)]">question</span>.
+              PinnacleMagic is the answer to that <span className="text-[var(--ml-gold)]">question</span>.
             </p>
           </div>
         </section>
@@ -127,7 +127,7 @@ async function AboutStory() {
             &ldquo;Where the audience finds its magic&rdquo;
           </blockquote>
           <p className="mx-auto mt-8 max-w-xl text-sm leading-relaxed text-zinc-400 sm:text-base">
-            We built Magicalive for two people: the magician who deserves to be discovered, and the fan who deserves to
+            We built PinnacleMagic for two people: the magician who deserves to be discovered, and the fan who deserves to
             be amazed. Every profile, every show listing, every venue page exists to close the gap between them.
           </p>
         </section>
@@ -164,7 +164,7 @@ async function AboutStory() {
         <section className="mx-auto mt-24 max-w-3xl rounded-3xl border border-white/10 bg-white/[0.03] px-6 py-12 sm:px-10">
           <h2 className="ml-font-heading text-center text-3xl font-semibold text-zinc-50 sm:text-4xl">The first chapter</h2>
           <p className="mx-auto mt-6 max-w-2xl text-center text-base leading-relaxed text-zinc-400">
-            Magicalive launched in 2026 from Los Angeles. The first 100 magicians to join receive a permanent Founding
+            PinnacleMagic launched in 2026 from Los Angeles. The first 100 magicians to join receive a permanent Founding
             Member badge — a small acknowledgment that they believed in this before anyone else did.
           </p>
           <div className="mx-auto mt-10 max-w-md">

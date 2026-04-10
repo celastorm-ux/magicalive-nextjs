@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Upcoming Magic Events — Magicalive",
+  title: "Upcoming Magic Events — PinnacleMagic",
   description:
     "Browse upcoming magic shows and lectures near you. Find tickets and add to your calendar.",
 });

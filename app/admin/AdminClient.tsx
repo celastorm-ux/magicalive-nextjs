@@ -1128,7 +1128,7 @@ export default function AdminClient() {
           Administration
         </p>
         <h1 className="ml-font-heading text-3xl font-semibold tracking-tight text-zinc-50 sm:text-4xl">
-          Magicalive <span className="text-[var(--ml-gold)] italic">admin</span>
+          PinnacleMagic <span className="text-[var(--ml-gold)] italic">admin</span>
         </h1>
 
         <div className="mt-8 flex flex-wrap gap-2 border-b border-white/10 pb-4">
@@ -2495,7 +2495,7 @@ export default function AdminClient() {
               </p>
             ) : null}
             <p className="mt-4 text-xs text-zinc-500">
-              This creates an unclaimed profile. The magician can claim it when they join Magicalive.
+              This creates an unclaimed profile. The magician can claim it when they join PinnacleMagic.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button

@@ -668,7 +668,7 @@ export default function MagiciansClient() {
                   No magicians yet — be the first to create a profile
                 </p>
                 <p className="mt-2 max-w-md text-sm text-zinc-500">
-                  Be the first to publish a magician profile on Magicalive.
+                  Be the first to publish a magician profile on PinnacleMagic.
                 </p>
                 <Link
                   href="/create-profile"

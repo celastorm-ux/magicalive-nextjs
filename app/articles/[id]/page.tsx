@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import JsonLd from "@/components/JsonLd";
-import { siteBaseUrl } from "@/lib/magicalive-resend";
+import { siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 import { buildMetadata } from "@/lib/seo";
 import { getArticlePublicBundle } from "@/lib/server/detail-pages";
 import { getRouteSupabase } from "@/lib/supabase-route";
@@ -24,8 +24,8 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   const db = await getRouteSupabase();
   const { data } = await db.from("articles").select("title, excerpt, cover_image_url").eq("id", id).maybeSingle();
   return buildMetadata({
-    title: `${data?.title || "Article"} — Magicalive`,
-    description: data?.excerpt || "Read this article on Magicalive.",
+    title: `${data?.title || "Article"} — PinnacleMagic`,
+    description: data?.excerpt || "Read this article on PinnacleMagic.",
     image: data?.cover_image_url || "/og-default.png",
     type: "article",
   });
@@ -41,7 +41,7 @@ export default async function ArticleDetailPage({ params }: { params: PageParams
 
   const art = bundle.article as ArticleDetailRow;
   const author = normalizeAuthor(art.profiles);
-  const authorName = author?.display_name?.trim() || "Magicalive writer";
+  const authorName = author?.display_name?.trim() || "PinnacleMagic writer";
   const base = siteBaseUrl();
 
   const articleSchema = {
@@ -57,7 +57,7 @@ export default async function ArticleDetailPage({ params }: { params: PageParams
     image: art.cover_image_url || undefined,
     publisher: {
       "@type": "Organization",
-      name: "Magicalive",
+      name: "PinnacleMagic",
       url: base,
     },
   };

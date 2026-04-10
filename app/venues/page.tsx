@@ -447,9 +447,9 @@ export default function VenuesPage() {
   const headerSubtitle = loading
     ? "Loading venues…"
     : safeVenues.length === 0
-      ? "No venues on Magicalive yet"
+      ? "No venues on PinnacleMagic yet"
       : filtered.length === safeVenues.length
-        ? `${safeVenues.length} venue${safeVenues.length === 1 ? "" : "s"} hosting shows on Magicalive`
+        ? `${safeVenues.length} venue${safeVenues.length === 1 ? "" : "s"} hosting shows on PinnacleMagic`
         : `${filtered.length} of ${safeVenues.length} venues match your filters`;
 
   if (error) {
@@ -631,7 +631,7 @@ export default function VenuesPage() {
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-8 py-16 text-center">
               <p className="ml-font-heading text-xl text-zinc-300">No venues listed yet</p>
               <p className="mt-2 text-sm text-zinc-500">
-                Be the first venue on Magicalive.
+                Be the first venue on PinnacleMagic.
               </p>
               <Link href="/contact" className={`${CLASSES.btnPrimary} mt-6`}>
                 Get your venue listed

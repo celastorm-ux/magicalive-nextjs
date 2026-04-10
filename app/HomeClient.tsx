@@ -11,6 +11,15 @@ import { supabase } from "@/lib/supabase";
 
 const SIGN_UP_CREATE_PROFILE = `/sign-up?redirect_url=${encodeURIComponent("/create-profile")}`;
 
+const CARD_HUES = [
+  "rgba(167, 139, 250, 0.13)", // violet
+  "rgba(96, 165, 250, 0.13)",  // blue
+  "rgba(251, 113, 133, 0.13)", // rose
+  "rgba(45, 212, 191, 0.13)",  // teal
+  "rgba(251, 191, 36, 0.11)",  // amber
+  "rgba(129, 140, 248, 0.13)", // indigo
+];
+
 type FeaturedMagician = {
   id: string;
   name: string;
@@ -260,7 +269,7 @@ export default function HomeClient() {
   useEffect(() => {
     const dismissed =
       typeof window !== "undefined" &&
-      window.localStorage.getItem("magicalive_founding_banner_dismissed") === "1";
+      window.localStorage.getItem("pinnaclemagic_founding_banner_dismissed") === "1";
     setFoundingBannerDismissed(dismissed);
 
     void (async () => {
@@ -330,7 +339,7 @@ export default function HomeClient() {
               onClick={() => {
                 setFoundingBannerDismissed(true);
                 if (typeof window !== "undefined") {
-                  window.localStorage.setItem("magicalive_founding_banner_dismissed", "1");
+                  window.localStorage.setItem("pinnaclemagic_founding_banner_dismissed", "1");
                 }
               }}
               className="h-6 w-6 shrink-0 rounded text-zinc-300 transition hover:bg-black/25 hover:text-zinc-100"
@@ -389,7 +398,7 @@ export default function HomeClient() {
               </h1>
 
               <p className={`${CLASSES.bodyLead} mt-5 max-w-2xl`}>
-                Magicalive is the place to discover performers, track events, and explore venues — like IMDb, but for magic.
+                PinnacleMagic is the place to discover performers, track events, and explore venues — like IMDb, but for magic.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3 sm:flex-nowrap sm:items-center">
@@ -567,11 +576,16 @@ export default function HomeClient() {
                       .
                     </p>
                   )
-                : featuredMagicians.map((m) => (
+                : featuredMagicians.map((m, i) => (
                     <article
                       key={m.id}
                       className={`group relative flex flex-col overflow-hidden p-5 ${CLASSES.cardInteractive}`}
                     >
+                      {/* Static color hue */}
+                      <div className="absolute -top-16 left-1/2 h-40 w-80 -translate-x-1/2 rounded-full blur-2xl"
+                        style={{ background: `radial-gradient(circle at center, ${CARD_HUES[i % CARD_HUES.length]}, rgba(0,0,0,0) 70%)` }}
+                      />
+                      {/* Gold glow on hover */}
                       <div className="absolute inset-0 opacity-0 transition group-hover:opacity-100">
                         <div className="absolute -top-16 left-1/2 h-40 w-80 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,var(--ml-gold-glow-card),rgba(0,0,0,0)_70%)] blur-2xl" />
                       </div>
@@ -671,7 +685,7 @@ export default function HomeClient() {
                 Become a Founding Member ♣
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-200/90 sm:text-base">
-                The first 100 magicians to join Magicalive receive a permanent Founding Member
+                The first 100 magicians to join PinnacleMagic receive a permanent Founding Member
                 badge on their profile.{" "}
                 <span className="text-[var(--ml-gold)]">{foundingRemaining} spots remaining.</span>
               </p>
@@ -846,7 +860,7 @@ export default function HomeClient() {
                     Magicians: be found, be booked, be remembered
                   </h2>
                   <p className="mt-2 max-w-2xl text-sm text-zinc-200/90">
-                    Create your Magicalive profile to showcase your act, collect reviews, and get discovered by audiences and venues.
+                    Create your PinnacleMagic profile to showcase your act, collect reviews, and get discovered by audiences and venues.
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">

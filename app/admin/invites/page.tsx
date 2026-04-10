@@ -18,7 +18,7 @@ export default function AdminInvitesPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState(
-    "Hi [name], I'd love to invite you to join Magicalive — a new platform built exclusively for professional magicians. Create your free profile and be one of our first 100 Founding Members. [personal message here]",
+    "Hi [name], I'd love to invite you to join PinnacleMagic — a new platform built exclusively for professional magicians. Create your free profile and be one of our first 100 Founding Members. [personal message here]",
   );
   const [rows, setRows] = useState<InviteRow[]>([]);
   const [loading, setLoading] = useState(false);

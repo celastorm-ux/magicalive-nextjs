@@ -73,7 +73,7 @@ export default function SubmitArticlePage() {
       (profile?.display_name as string | null)?.trim() ||
       user.fullName?.trim() ||
       user.firstName?.trim() ||
-      "Magicalive writer";
+      "PinnacleMagic writer";
 
     let coverImageUrl: string | null = null;
     if (coverFile) {
@@ -163,7 +163,7 @@ export default function SubmitArticlePage() {
           Submit an <span className="text-[var(--ml-gold)] italic">article</span>
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400 sm:text-base">
-          Share interviews, tutorials, and stories with the Magicalive audience.
+          Share interviews, tutorials, and stories with the PinnacleMagic audience.
         </p>
         {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
 

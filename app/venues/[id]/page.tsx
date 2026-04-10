@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import JsonLd from "@/components/JsonLd";
 import { CLASSES } from "@/lib/constants";
-import { siteBaseUrl } from "@/lib/magicalive-resend";
+import { siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 import { buildMetadata } from "@/lib/seo";
 import { getVenueDetailBundle } from "@/lib/server/detail-pages";
 import VenueDetailClient, { type MagicianCard, type ShowUpcoming, type VenueRow } from "./VenueDetailClient";
@@ -15,8 +15,8 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   const v = bundle?.venue as VenueRow | null | undefined;
   if (!v) {
     return buildMetadata({
-      title: "Venue — Magicalive",
-      description: "Discover magic venues on Magicalive.",
+      title: "Venue — PinnacleMagic",
+      description: "Discover magic venues on PinnacleMagic.",
     });
   }
   const name = v.name?.trim() || "Venue";
@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   const capacity = v.capacity != null ? `${v.capacity}` : "Unknown";
   const excerpt = (v.description || "").slice(0, 120) || "Magic venue";
   return buildMetadata({
-    title: `${name} — Magicalive Venues`,
+    title: `${name} — PinnacleMagic Venues`,
     description: `${excerpt} | ${city} | ${capacity} capacity`,
   });
 }

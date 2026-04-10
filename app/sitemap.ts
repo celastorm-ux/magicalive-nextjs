@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { CITY_LANDING_PAGES } from "@/lib/city-landing";
-import { siteBaseUrl } from "@/lib/magicalive-resend";
+import { siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

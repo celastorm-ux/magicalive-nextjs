@@ -1,5 +1,5 @@
 /**
- * Magicalive design tokens — mirrors app/globals.css variables.
+ * PinnacleMagic design tokens — mirrors app/globals.css variables.
  */
 
 export const COLORS = {

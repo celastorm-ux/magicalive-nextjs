@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: "Magic Organizations & Societies — Magicalive",
+    title: "Magic Organizations & Societies — PinnacleMagic",
     description:
       "Discover the world's leading magic organizations including IBM SAM FISM The Magic Circle and the Academy of Magical Arts. Find your community.",
   };

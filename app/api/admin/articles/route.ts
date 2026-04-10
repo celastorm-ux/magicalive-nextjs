@@ -8,7 +8,7 @@ import {
   emailNewArticlePublished,
   sendWithResend,
   siteBaseUrl,
-} from "@/lib/magicalive-resend";
+} from "@/lib/pinnaclemagic-resend";
 import { Resend } from "resend";
 
 export const dynamic = "force-dynamic";
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
   };
   const title = articleRow.title?.trim() || "Your article";
   const authorId = String(articleRow.author_id ?? "");
-  const authorName = articleRow.author_name?.trim() || "Magicalive writer";
+  const authorName = articleRow.author_name?.trim() || "PinnacleMagic writer";
   const excerpt = articleRow.excerpt?.trim() || null;
   const category = articleRow.category?.trim() || null;
 

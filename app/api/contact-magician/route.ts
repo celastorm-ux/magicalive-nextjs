@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createNotification } from "@/lib/notifications";
 import { getClerkPrimaryEmail } from "@/lib/clerk-email";
 import { getRouteSupabase } from "@/lib/supabase-route";
-import { escapeHtml, sendWithResend, siteBaseUrl } from "@/lib/magicalive-resend";
+import { escapeHtml, sendWithResend, siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 
 export const dynamic = "force-dynamic";
 
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
   const html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8" /></head>
 <body style="margin:0;padding:24px;background:#0d0b0e;font-family:system-ui,sans-serif;color:#e4e4e7;">
-  <p style="margin:0 0 20px;font-size:14px;line-height:1.65;color:#e4e4e7;">Someone contacted you through Magicalive.<br />Reply directly to this email to respond to them.</p>
+  <p style="margin:0 0 20px;font-size:14px;line-height:1.65;color:#e4e4e7;">Someone contacted you through PinnacleMagic.<br />Reply directly to this email to respond to them.</p>
   <p style="margin:0 0 12px;font-size:15px;line-height:1.6;"><strong>From:</strong> ${escapeHtml(senderName)} &lt;${escapeHtml(senderEmail)}&gt;</p>
   <p style="margin:0 0 8px;font-size:13px;color:#a1a1aa;"><strong>Topic:</strong> ${escapeHtml(subjectLabel)}</p>
   <div style="margin:20px 0;padding:16px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(201,168,76,0.15);">
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     to: toEmail,
     subject: emailSubject,
     html,
-    from: "Magicalive <hello@magicalive.com>",
+    from: "PinnacleMagic <hello@pinnaclemagic.com>",
     replyTo: senderEmail,
   });
 

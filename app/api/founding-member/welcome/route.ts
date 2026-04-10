@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { sendMagicaliveEmail, siteBaseUrl } from "@/lib/magicalive-resend";
+import { sendPinnacleMagicEmail, siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export async function POST() {
   const to = (profile.email || "").trim();
   if (!to.includes("@")) return NextResponse.json({ ok: true, skipped: true });
 
-  const out = await sendMagicaliveEmail("founding_member_welcome", to, {
+  const out = await sendPinnacleMagicEmail("founding_member_welcome", to, {
     magician_name: profile.display_name?.trim() || "Magician",
     profile_url: `${siteBaseUrl()}/profile/magician?id=${encodeURIComponent(userId)}`,
   });

@@ -76,9 +76,9 @@ function createIcs(show: ShowWithMagician) {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Magicalive//Event//EN",
+    "PRODID:-//PinnacleMagic//Event//EN",
     "BEGIN:VEVENT",
-    `UID:${show.id}@magicalive`,
+    `UID:${show.id}@pinnaclemagic`,
     `DTSTAMP:${fmt(new Date())}`,
     `DTSTART:${fmt(start)}`,
     `DTEND:${fmt(end)}`,
@@ -368,7 +368,7 @@ export default function EventDetailClient({
                       </div>
                       {!p.profile_id ? (
                         <p className="text-xs text-zinc-500">
-                          Not yet on Magicalive{" "}
+                          Not yet on PinnacleMagic{" "}
                           <Link href="/for-magicians" className="text-[var(--ml-gold)]/90 hover:underline">
                             Invite them
                           </Link>

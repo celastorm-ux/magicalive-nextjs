@@ -726,7 +726,7 @@ export default function CreateProfileClient() {
           className={`ml-animate-step ${flow === "pick" ? "block" : "hidden"}`}
         >
           <p className="mb-2.5 text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--ml-gold)]">
-            Welcome to Magicalive
+            Welcome to PinnacleMagic
           </p>
           <h2 className="mb-2 ml-font-heading text-[34px] font-semibold leading-tight text-zinc-50">
             Who are <em className="text-[var(--ml-gold)] italic">you?</em>
@@ -834,7 +834,7 @@ export default function CreateProfileClient() {
               <em className="text-[var(--ml-gold)] italic">Let&apos;s set up your profile.</em>
             </h2>
             <p className="mb-4 text-[13px] leading-relaxed text-zinc-500">
-              You&apos;re signed in — add how you&apos;d like to appear on Magicalive. Your
+              You&apos;re signed in — add how you&apos;d like to appear on PinnacleMagic. Your
               login email is already on file from your account.
             </p>
             <p className="mb-8 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-[13px] text-zinc-300">
@@ -929,7 +929,7 @@ export default function CreateProfileClient() {
                 className="mt-0.5"
               />
               <span>
-                I agree to the Magicalive{" "}
+                I agree to the PinnacleMagic{" "}
                 <Link
                   href="/terms"
                   target="_blank"
@@ -996,7 +996,7 @@ export default function CreateProfileClient() {
             </div>
             <div className="mt-1.5 flex flex-wrap items-start justify-between gap-2">
               <p className="min-w-0 flex-1 text-[11px] leading-snug text-zinc-500">
-                Your profile will live at magicalive.com/@yourhandle. Leave blank to auto-generate
+                Your profile will live at pinnaclemagic.com/@yourhandle. Leave blank to auto-generate
                 from your display name.
               </p>
               {handleAvailStatus === "checking" &&
@@ -1406,7 +1406,7 @@ export default function CreateProfileClient() {
           </h2>
           <p className="mb-8 text-[13px] leading-relaxed text-zinc-500">
             You&apos;re signed in — choose how you&apos;d like to appear. Your email comes
-            from your Magicalive account.
+            from your PinnacleMagic account.
           </p>
           {fanPhase === "form" ? (
             <div id="fan-form">
@@ -1449,7 +1449,7 @@ export default function CreateProfileClient() {
                   className="mt-0.5"
                 />
                 <span>
-                  I agree to the Magicalive{" "}
+                  I agree to the PinnacleMagic{" "}
                   <Link
                     href="/terms"
                     target="_blank"
@@ -1482,7 +1482,7 @@ export default function CreateProfileClient() {
             <div className="py-10 text-center">
               <div className="mb-4 text-4xl text-[var(--ml-gold)]">♣</div>
               <div className="mb-2 ml-font-heading text-[26px] font-semibold text-zinc-100">
-                Welcome to Magicalive
+                Welcome to PinnacleMagic
               </div>
               <div className="mx-auto mb-6 max-w-md text-[13px] leading-relaxed text-zinc-500">
                 Your fan account is ready. Start discovering magicians, saving events, and
@@ -1492,7 +1492,7 @@ export default function CreateProfileClient() {
                 href="/"
                 className={`${CLASSES.btnPrimary} inline-flex text-xs uppercase tracking-wider`}
               >
-                Explore Magicalive →
+                Explore PinnacleMagic →
               </Link>
             </div>
           )}
@@ -1509,7 +1509,7 @@ export default function CreateProfileClient() {
             List your <em className="text-[var(--ml-gold)] italic">venue</em>
           </h2>
           <p className="mb-8 text-[13px] leading-relaxed text-zinc-500">
-            Tell us about your space and we&apos;ll get you listed in the Magicalive venue
+            Tell us about your space and we&apos;ll get you listed in the PinnacleMagic venue
             directory within 5 business days.
           </p>
           <div className="mb-[18px]">
@@ -1602,7 +1602,7 @@ export default function CreateProfileClient() {
               className="mt-0.5"
             />
             <span>
-              I agree to the Magicalive{" "}
+              I agree to the PinnacleMagic{" "}
               <Link
                 href="/terms"
                 target="_blank"

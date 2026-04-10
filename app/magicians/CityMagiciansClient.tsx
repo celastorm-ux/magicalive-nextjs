@@ -317,7 +317,7 @@ export default function CityMagiciansClient({
                     </li>
                   ))
                 ) : (
-                  <li className="text-zinc-500">Venues will appear as they join Magicalive.</li>
+                  <li className="text-zinc-500">Venues will appear as they join PinnacleMagic.</li>
                 )}
               </ul>
               <p className="mt-4 text-xs text-zinc-600">Spotlight: {definition.venueSpotlight.join(" · ")}</p>
@@ -379,7 +379,7 @@ export default function CityMagiciansClient({
             <p>{definition.hireBookerParagraphs[1]}</p>
             {venues.length ? (
               <p>
-                Venues on Magicalive in this area include{" "}
+                Venues on PinnacleMagic in this area include{" "}
                 {venues.slice(0, 6).map((v, i) => (
                   <span key={v.id}>
                     {i > 0 ? ", " : ""}

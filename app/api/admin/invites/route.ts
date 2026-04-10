@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { requireAdmin } from "@/lib/admin-server";
-import { sendMagicaliveEmail, siteBaseUrl } from "@/lib/magicalive-resend";
+import { sendPinnacleMagicEmail, siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 
 export const dynamic = "force-dynamic";
 
@@ -50,9 +50,9 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   const inviteUrl = `${siteBaseUrl()}/invite/${encodeURIComponent(t)}`;
-  const out = await sendMagicaliveEmail("magician_invite", email, {
+  const out = await sendPinnacleMagicEmail("magician_invite", email, {
     name,
-    personal_message: personalMessage || `Hi ${name}, I'd love to invite you to join Magicalive — a new platform built exclusively for professional magicians. Create your free profile and be one of our first 100 Founding Members.`,
+    personal_message: personalMessage || `Hi ${name}, I'd love to invite you to join PinnacleMagic — a new platform built exclusively for professional magicians. Create your free profile and be one of our first 100 Founding Members.`,
     invite_url: inviteUrl,
   });
   if (!out.ok) return NextResponse.json({ ok: false, error: out.error }, { status: 500 });
@@ -82,7 +82,7 @@ export async function PATCH(request: Request) {
   }
 
   const inviteUrl = `${siteBaseUrl()}/invite/${encodeURIComponent(invite.token)}`;
-  const out = await sendMagicaliveEmail("magician_invite", invite.email, {
+  const out = await sendPinnacleMagicEmail("magician_invite", invite.email, {
     name: invite.name,
     personal_message: invite.personal_message || "",
     invite_url: inviteUrl,

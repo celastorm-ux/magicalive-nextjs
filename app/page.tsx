@@ -1,5 +1,5 @@
 import JsonLd from "@/components/JsonLd";
-import { siteBaseUrl } from "@/lib/magicalive-resend";
+import { siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 import HomeClient from "./HomeClient";
 
 export default function Home() {
@@ -7,7 +7,7 @@ export default function Home() {
   const org = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "Magicalive",
+    name: "PinnacleMagic",
     url: base,
     description:
       "The world's magic community — discover magicians, browse shows, and explore venues.",
@@ -17,7 +17,7 @@ export default function Home() {
   const website = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Magicalive",
+    name: "PinnacleMagic",
     url: base,
     potentialAction: {
       "@type": "SearchAction",

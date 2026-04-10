@@ -318,7 +318,7 @@ export default function GroupsPage() {
             Already a member of one of these organizations?
           </h2>
           <p className="mx-auto mt-3 max-w-lg text-sm text-zinc-400 sm:text-base">
-            Add your membership credentials to your Magicalive profile
+            Add your membership credentials to your PinnacleMagic profile
           </p>
           <Link href="/profile/edit" className={`${CLASSES.btnPrimary} mt-8 inline-flex`}>
             Edit profile

@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getClerkPrimaryEmail } from "@/lib/clerk-email";
-import { sendMagicaliveEmail } from "@/lib/magicalive-resend";
+import { sendPinnacleMagicEmail } from "@/lib/pinnaclemagic-resend";
 import { createNotification } from "@/lib/notifications";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
   }
 
   if (magicianEmail) {
-    await sendMagicaliveEmail("booking_request", magicianEmail, {
+    await sendPinnacleMagicEmail("booking_request", magicianEmail, {
       requester_name: requesterName,
       requester_email: requesterEmail,
       event_date: eventDate,

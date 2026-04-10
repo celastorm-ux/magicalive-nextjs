@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Magic Venues — Magicalive",
+  title: "Magic Venues — PinnacleMagic",
   description:
     "Discover magic-friendly venues across the US. Theaters, lounges, and private clubs hosting live magic.",
 });

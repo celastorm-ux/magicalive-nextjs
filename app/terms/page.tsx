@@ -5,14 +5,14 @@ const sections = [
     id: "acceptance-of-terms",
     title: "Acceptance of Terms",
     paragraphs: [
-      "By accessing or using Magicalive you agree to be bound by these terms. If you disagree with any part you may not access the service.",
+      "By accessing or using PinnacleMagic you agree to be bound by these terms. If you disagree with any part you may not access the service.",
     ],
   },
   {
     id: "description-of-service",
     title: "Description of Service",
     paragraphs: [
-      "Magicalive is an online directory and community platform connecting professional magicians with fans, event organisers and venues. We provide tools for magicians to create profiles, list shows, and receive booking enquiries.",
+      "PinnacleMagic is an online directory and community platform connecting professional magicians with fans, event organisers and venues. We provide tools for magicians to create profiles, list shows, and receive booking enquiries.",
     ],
   },
   {
@@ -35,7 +35,7 @@ const sections = [
       "Profile content must be accurate and not misleading",
       "You may not impersonate other performers",
       "You retain ownership of your content",
-      "You grant Magicalive a license to display your content on the platform",
+      "You grant PinnacleMagic a license to display your content on the platform",
       "We may remove profiles that violate our community guidelines",
     ],
   },
@@ -44,7 +44,7 @@ const sections = [
     title: "Bookings and Transactions",
     paragraphs: [],
     bullets: [
-      "Magicalive facilitates connections between magicians and clients",
+      "PinnacleMagic facilitates connections between magicians and clients",
       "We are not a party to any agreement between users",
       "We are not responsible for the quality of performances",
       "We are not liable for disputes between users",
@@ -69,7 +69,7 @@ const sections = [
     title: "Intellectual Property",
     paragraphs: [],
     bullets: [
-      "The Magicalive name, logo and design are our property",
+      "The PinnacleMagic name, logo and design are our property",
       "User generated content remains owned by the user",
       "You grant us a worldwide license to use display and distribute your content on the platform",
       "You may not copy or reproduce our platform design",
@@ -90,7 +90,7 @@ const sections = [
     id: "privacy",
     title: "Privacy",
     paragraphs: [
-      "Your use of Magicalive is also governed by our Privacy Policy which is incorporated into these terms by reference.",
+      "Your use of PinnacleMagic is also governed by our Privacy Policy which is incorporated into these terms by reference.",
     ],
   },
   {
@@ -110,7 +110,7 @@ const sections = [
   {
     id: "contact-us",
     title: "Contact Us",
-    paragraphs: ["For legal questions please contact us at hello@magicalive.com"],
+    paragraphs: ["For legal questions please contact us at hello@pinnaclemagic.com"],
   },
 ] as const;
 
@@ -120,7 +120,7 @@ export default function TermsPage() {
       title="Terms of Service"
       titleAccent="Service"
       lastUpdated="March 2026"
-      intro="Please read these terms carefully before using Magicalive"
+      intro="Please read these terms carefully before using PinnacleMagic"
       sections={sections}
     />
   );

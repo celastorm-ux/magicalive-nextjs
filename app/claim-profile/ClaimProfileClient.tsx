@@ -236,10 +236,10 @@ export default function ClaimProfileClient() {
     <div className="min-h-dvh bg-black px-5 py-12 text-zinc-100 sm:px-8">
       <div className="mx-auto max-w-lg">
         <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--ml-gold)]">
-          Magicalive
+          PinnacleMagic
         </p>
         <h1 className="mt-2 ml-font-heading text-3xl font-semibold text-zinc-50">
-          Claim your Magicalive profile
+          Claim your PinnacleMagic profile
         </h1>
         <p className="mt-2 text-sm text-zinc-500">
           This profile was created on your behalf. Create an account to take ownership.

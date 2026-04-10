@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "magicalive_cookie_consent";
+const STORAGE_KEY = "pinnaclemagic_cookie_consent";
 const EXIT_MS = 260;
 
 export function CookieBanner() {
@@ -45,7 +45,7 @@ export function CookieBanner() {
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5">
         <p className="text-sm leading-relaxed text-zinc-300">
-          Magicalive uses cookies to improve your experience. By continuing to use the site you
+          PinnacleMagic uses cookies to improve your experience. By continuing to use the site you
           agree to our{" "}
           <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-[var(--ml-gold)] hover:underline">
             Privacy Policy

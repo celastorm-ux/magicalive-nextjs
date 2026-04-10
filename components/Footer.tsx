@@ -11,7 +11,7 @@ export function Footer() {
               Magic
               <span className="text-[var(--ml-gold)] italic">alive</span>
             </span>
-            <span className="ml-2">© {new Date().getFullYear()} Magicalive</span>
+            <span className="ml-2">© {new Date().getFullYear()} PinnacleMagic</span>
           </div>
           <div className="flex flex-wrap gap-4 sm:gap-6">
             <Link href="/terms" className={CLASSES.footerLink}>

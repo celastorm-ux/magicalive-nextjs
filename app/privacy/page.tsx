@@ -93,7 +93,7 @@ const sections = [
     id: "childrens-privacy",
     title: "Children's Privacy",
     paragraphs: [
-      "Magicalive is not directed at anyone under 18 years of age. We do not knowingly collect personal information from minors. If you believe a minor has created an account please contact us immediately.",
+      "PinnacleMagic is not directed at anyone under 18 years of age. We do not knowingly collect personal information from minors. If you believe a minor has created an account please contact us immediately.",
     ],
   },
   {
@@ -101,7 +101,7 @@ const sections = [
     title: "GDPR Rights (European Users)",
     paragraphs: [
       "If you are located in the European Economic Area you have additional rights under GDPR:",
-      "To exercise these rights contact privacy@magicalive.com",
+      "To exercise these rights contact privacy@pinnaclemagic.com",
     ],
     bullets: [
       "Right to access your personal data",
@@ -117,7 +117,7 @@ const sections = [
     title: "CCPA Rights (California Users)",
     paragraphs: [
       "If you are a California resident you have the right to:",
-      "To exercise these rights contact privacy@magicalive.com",
+      "To exercise these rights contact privacy@pinnaclemagic.com",
     ],
     bullets: [
       "Know what personal information we collect",
@@ -130,7 +130,7 @@ const sections = [
     id: "third-party-links",
     title: "Third Party Links",
     paragraphs: [
-      "Magicalive may contain links to third party websites including social media profiles and ticket platforms. We are not responsible for the privacy practices of these sites.",
+      "PinnacleMagic may contain links to third party websites including social media profiles and ticket platforms. We are not responsible for the privacy practices of these sites.",
     ],
   },
   {
@@ -145,8 +145,8 @@ const sections = [
     title: "Contact Us",
     paragraphs: [
       "For privacy questions or to exercise your rights:",
-      "Email: privacy@magicalive.com",
-      "General: hello@magicalive.com",
+      "Email: privacy@pinnaclemagic.com",
+      "General: hello@pinnaclemagic.com",
     ],
   },
 ] as const;

@@ -274,12 +274,12 @@ export default function SetupClient() {
         {/* Header */}
         <div className="mb-8 text-center">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">
-            Magicalive
+            PinnacleMagic
           </p>
           {isNew ? (
             <>
               <h1 className="mt-2 ml-font-heading text-3xl font-semibold text-zinc-50">
-                Welcome to Magicalive ✦
+                Welcome to PinnacleMagic ✦
               </h1>
               <p className="mt-2 text-sm text-zinc-500">
                 Let's set up your profile in a few quick steps.
@@ -367,7 +367,7 @@ export default function SetupClient() {
               <div>
                 <label className={labelClass}>Username *</label>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-zinc-500">magicalive.com/</span>
+                  <span className="text-sm text-zinc-500">pinnaclemagic.com/</span>
                   <input
                     className={`${inputClass} flex-1`}
                     value={handle}

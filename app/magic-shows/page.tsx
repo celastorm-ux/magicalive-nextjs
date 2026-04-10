@@ -8,7 +8,7 @@ import { getRouteSupabase } from "@/lib/supabase-route";
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildMetadata({
-    title: "Magic Shows Near Me — Find Live Magic Shows | Magicalive",
+    title: "Magic Shows Near Me — Find Live Magic Shows | PinnacleMagic",
     description:
       "Discover upcoming magic shows, close-up performances and mentalism events near you. Find tickets and book your seats.",
   });
@@ -63,7 +63,7 @@ const SHOW_STYLE_BLOCKS: Array<{ title: string; description: string; href: strin
 const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   {
     q: "Where can I find magic shows near me?",
-    a: "Magicalive lists upcoming magic shows across the US. Enter your city to see performances near you.",
+    a: "PinnacleMagic lists upcoming magic shows across the US. Enter your city to see performances near you.",
   },
   {
     q: "How much do magic show tickets cost?",
@@ -144,7 +144,7 @@ export default async function MagicShowsPage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Magic Shows Near Me — Magicalive",
+    name: "Magic Shows Near Me — PinnacleMagic",
     description: "Discover upcoming magic shows and live performances.",
     mainEntity: {
       "@type": "FAQPage",

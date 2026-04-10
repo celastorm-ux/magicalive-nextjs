@@ -7,7 +7,7 @@ import { getRouteSupabase } from "@/lib/supabase-route";
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildMetadata({
-    title: "Hire a Magician — Find Professional Magicians for Any Event | Magicalive",
+    title: "Hire a Magician — Find Professional Magicians for Any Event | PinnacleMagic",
     description:
       "Find and hire professional magicians for corporate events, weddings, private parties and more. Browse profiles, check availability and send booking requests.",
   });
@@ -29,7 +29,7 @@ const EVENT_TYPE_CARDS: Array<{
 const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   {
     q: "How much does it cost to hire a magician?",
-    a: "Rates vary by performer and event type. Most professional magicians charge between $300–$2,000 for private events. Corporate and stage shows typically range higher. Send a booking request through Magicalive to get a quote.",
+    a: "Rates vary by performer and event type. Most professional magicians charge between $300–$2,000 for private events. Corporate and stage shows typically range higher. Send a booking request through PinnacleMagic to get a quote.",
   },
   {
     q: "How far in advance should I book a magician?",
@@ -45,7 +45,7 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   },
   {
     q: "How do I know if a magician is professional?",
-    a: "Look for verified reviews from real audiences, credentials like SAM or IBM membership, a showreel video, and a complete Magicalive profile.",
+    a: "Look for verified reviews from real audiences, credentials like SAM or IBM membership, a showreel video, and a complete PinnacleMagic profile.",
   },
 ];
 
@@ -75,7 +75,7 @@ export default async function HireAMagicianPage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Hire a Magician — Magicalive",
+    name: "Hire a Magician — PinnacleMagic",
     description:
       "Find and hire professional magicians for corporate events, weddings, private parties and more.",
     mainEntity: {
@@ -93,7 +93,7 @@ export default async function HireAMagicianPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className={`${CLASSES.section} max-w-5xl`}>
         <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--ml-gold)]">
-          Magicalive
+          PinnacleMagic
         </p>
         <h1 className="ml-font-heading text-4xl font-semibold tracking-tight text-zinc-50 sm:text-5xl">
           Hire a Magician for Your Next Event
@@ -181,7 +181,7 @@ export default async function HireAMagicianPage() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 className={CLASSES.headingSection}>Featured magicians</h2>
-              <p className="mt-2 text-sm text-zinc-500">A snapshot of professionals on Magicalive.</p>
+              <p className="mt-2 text-sm text-zinc-500">A snapshot of professionals on PinnacleMagic.</p>
             </div>
             <Link href="/magicians" className={`${CLASSES.linkGold} text-sm font-semibold`}>
               Full directory →

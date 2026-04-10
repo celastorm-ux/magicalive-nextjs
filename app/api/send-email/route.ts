@@ -2,15 +2,15 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getClerkDisplayName, getClerkPrimaryEmail } from "@/lib/clerk-email";
 import {
-  sendMagicaliveEmail,
+  sendPinnacleMagicEmail,
   siteBaseUrl,
-  type MagicaliveEmailType,
-} from "@/lib/magicalive-resend";
+  type PinnacleMagicEmailType,
+} from "@/lib/pinnaclemagic-resend";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
 export const dynamic = "force-dynamic";
 
-const EMAIL_TYPES: MagicaliveEmailType[] = [
+const EMAIL_TYPES: PinnacleMagicEmailType[] = [
   "booking_request",
   "booking_accepted",
   "booking_declined",
@@ -39,14 +39,14 @@ export async function POST(request: Request) {
   const data = isRecord(body.data) ? body.data : {};
   const clientTo = typeof body.to === "string" ? body.to.trim() : "";
 
-  if (!EMAIL_TYPES.includes(type as MagicaliveEmailType)) {
+  if (!EMAIL_TYPES.includes(type as PinnacleMagicEmailType)) {
     return NextResponse.json({ ok: false, error: "Invalid type" }, { status: 400 });
   }
 
-  const internalHeader = request.headers.get("x-magicalive-internal-email-secret");
+  const internalHeader = request.headers.get("x-pinnaclemagic-internal-email-secret");
   const internalOk =
-    Boolean(process.env.MAGICALIVE_INTERNAL_EMAIL_SECRET) &&
-    internalHeader === process.env.MAGICALIVE_INTERNAL_EMAIL_SECRET;
+    Boolean(process.env.PINNACLEMAGIC_INTERNAL_EMAIL_SECRET) &&
+    internalHeader === process.env.PINNACLEMAGIC_INTERNAL_EMAIL_SECRET;
 
   /** booking_request: only trusted internal callers (or misconfigured open — require secret). */
   if (type === "booking_request") {
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     if (!clientTo || !clientTo.includes("@")) {
       return NextResponse.json({ ok: false, error: "Invalid recipient" }, { status: 400 });
     }
-    const result = await sendMagicaliveEmail("booking_request", clientTo, data);
+    const result = await sendPinnacleMagicEmail("booking_request", clientTo, data);
     if (!result.ok) {
       return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
     }
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     const magicianName = await getClerkDisplayName(userId);
 
     if (type === "booking_accepted") {
-      const sendResult = await sendMagicaliveEmail("booking_accepted", requesterEmail, {
+      const sendResult = await sendPinnacleMagicEmail("booking_accepted", requesterEmail, {
         magician_name: magicianName,
         magician_email: (await getClerkPrimaryEmail(userId)) || "",
         event_date: String(row.event_date ?? ""),
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     if (typeof data.reply_message === "string" && data.reply_message.trim()) {
       reply_message = data.reply_message.trim();
     }
-    const sendResult = await sendMagicaliveEmail("booking_declined", requesterEmail, {
+    const sendResult = await sendPinnacleMagicEmail("booking_declined", requesterEmail, {
       magician_name: magicianName,
       reply_message: reply_message ?? null,
     });
@@ -174,7 +174,7 @@ export async function POST(request: Request) {
         ? data.fan_profile_url
         : `${siteBaseUrl()}/profile/fan?id=${encodeURIComponent(followerId)}`;
 
-    const sendResult = await sendMagicaliveEmail("new_follower", magicianEmail, {
+    const sendResult = await sendPinnacleMagicEmail("new_follower", magicianEmail, {
       fan_name: fanName,
       fan_profile_url: fanProfileUrl,
       follower_count: followerCount,
@@ -224,7 +224,7 @@ export async function POST(request: Request) {
 
     const profileUrl = `${siteBaseUrl()}/profile/magician?id=${encodeURIComponent(magicianId)}`;
 
-    const sendResult = await sendMagicaliveEmail("new_review", magicianEmail, {
+    const sendResult = await sendPinnacleMagicEmail("new_review", magicianEmail, {
       reviewer_name: reviewerName,
       rating,
       body: reviewBody,
@@ -247,7 +247,7 @@ export async function POST(request: Request) {
     const authorName =
       typeof data.author_name === "string" && data.author_name.trim()
         ? data.author_name.trim()
-        : "Magicalive writer";
+        : "PinnacleMagic writer";
     if (!articleTitle) {
       return NextResponse.json({ ok: false, error: "article_title required" }, { status: 400 });
     }
@@ -255,7 +255,7 @@ export async function POST(request: Request) {
       typeof data.category === "string" && data.category.trim() ? data.category.trim() : "";
     const excerpt =
       typeof data.excerpt === "string" && data.excerpt.trim() ? data.excerpt.trim() : "";
-    const sendResult = await sendMagicaliveEmail("article_submitted", "hello@magicalive.com", {
+    const sendResult = await sendPinnacleMagicEmail("article_submitted", "hello@pinnaclemagic.com", {
       article_title: articleTitle,
       author_name: authorName,
       author_id: authorId,

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { emailVenueSubmitted, sendWithResend, siteBaseUrl } from "@/lib/magicalive-resend";
+import { emailVenueSubmitted, sendWithResend, siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
 export const dynamic = "force-dynamic";
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
   });
 
   const sendResult = await sendWithResend({
-    to: "hello@magicalive.com",
+    to: "hello@pinnaclemagic.com",
     replyTo: submitterEmail,
     subject: built.subject,
     html: built.html,

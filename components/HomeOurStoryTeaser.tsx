@@ -8,7 +8,7 @@ const COMPARE_CARDS = [
   { emoji: "🎬", category: "Film", platform: "IMDb", highlight: false },
   { emoji: "🍽️", category: "Food", platform: "Yelp", highlight: false },
   { emoji: "🎵", category: "Music", platform: "Spotify", highlight: false },
-  { emoji: "🎩", category: "Magic", platform: "Magicalive ♣", highlight: true },
+  { emoji: "🎩", category: "Magic", platform: "PinnacleMagic ♣", highlight: true },
 ] as const;
 
 export function HomeOurStoryTeaser() {
@@ -50,7 +50,7 @@ export function HomeOurStoryTeaser() {
                 scene is alive and active.
               </p>
               <p>
-                Film has IMDb. Food has Yelp. Music has Spotify. Magic had nothing. So we built Magicalive — a home for
+                Film has IMDb. Food has Yelp. Music has Spotify. Magic had nothing. So we built PinnacleMagic — a home for
                 every performer, fan, and venue in the magic world.
               </p>
             </div>

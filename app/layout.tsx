@@ -7,7 +7,7 @@ import PresenceTracker from "@/components/PresenceTracker";
 import PresenceCleanupTrigger from "@/components/PresenceCleanupTrigger";
 import JsonLd from "@/components/JsonLd";
 import { buildMetadata } from "@/lib/seo";
-import { siteBaseUrl } from "@/lib/magicalive-resend";
+import { siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,7 +29,7 @@ const cormorant = Cormorant_Garamond({
 
 export const metadata: Metadata = {
   ...buildMetadata({
-    title: "Magicalive — The World's Magic Community",
+    title: "PinnacleMagic — The World's Magic Community",
     description:
       "Discover magicians, browse upcoming shows, and explore venues. The definitive hub for magic performers and fans alike.",
     image: "/og-default.png",
@@ -50,7 +50,7 @@ export default function RootLayout({
   const siteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Magicalive",
+    name: "PinnacleMagic",
     url: base,
     potentialAction: {
       "@type": "SearchAction",
@@ -62,12 +62,12 @@ export default function RootLayout({
   const orgSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "Magicalive",
+    name: "PinnacleMagic",
     url: base,
     logo: `${base}/og-default.png`,
     description:
       "The world's magic community — discover magicians near you, browse upcoming shows, and connect with magic societies worldwide.",
-    sameAs: ["https://www.instagram.com/magicalive"],
+    sameAs: ["https://www.instagram.com/pinnaclemagic"],
   };
 
   return (

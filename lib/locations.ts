@@ -1,4 +1,4 @@
-/** Shared country → state/region → cities for Magicalive pickers and filters. */
+/** Shared country → state/region → cities for PinnacleMagic pickers and filters. */
 
 export type CountryData = { states: Record<string, string[]> };
 

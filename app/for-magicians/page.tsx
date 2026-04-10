@@ -18,7 +18,7 @@ export default function ForMagiciansPage() {
         <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 sm:p-12">
           <h1 className="ml-font-heading text-5xl">Your magic deserves an audience</h1>
           <p className="mt-4 max-w-3xl text-zinc-300">
-            Magicalive is the platform built exclusively for professional magicians. Create your profile, list your shows, and get discovered.
+            PinnacleMagic is the platform built exclusively for professional magicians. Create your profile, list your shows, and get discovered.
           </p>
           <p className="mt-3 text-sm">
             <Link href="/about" className="text-[var(--ml-gold)] underline decoration-[var(--ml-gold)]/35 underline-offset-4 hover:decoration-[var(--ml-gold)]">

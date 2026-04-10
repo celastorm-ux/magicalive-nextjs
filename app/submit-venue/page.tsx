@@ -92,7 +92,7 @@ export default function SubmitVenuePage() {
               Your venue was submitted
             </h1>
             <p className="mt-4 max-w-prose text-zinc-300">
-              We&apos;ll review it shortly and publish it on Magicalive.
+              We&apos;ll review it shortly and publish it on PinnacleMagic.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link href="/venues" className={CLASSES.btnPrimary}>

@@ -88,7 +88,7 @@ export function Nav() {
   }, [searchOpen]);
 
   useEffect(() => {
-    const key = "magicalive_recent_searches";
+    const key = "pinnaclemagic_recent_searches";
     try {
       const raw = localStorage.getItem(key);
       const parsed = raw ? (JSON.parse(raw) as string[]) : [];
@@ -248,7 +248,7 @@ export function Nav() {
     );
     setRecentSearches(next);
     try {
-      localStorage.setItem("magicalive_recent_searches", JSON.stringify(next));
+      localStorage.setItem("pinnaclemagic_recent_searches", JSON.stringify(next));
     } catch {
       // ignore storage failures
     }
@@ -261,7 +261,7 @@ export function Nav() {
     const next = recentSearches.filter((x) => x !== value);
     setRecentSearches(next);
     try {
-      localStorage.setItem("magicalive_recent_searches", JSON.stringify(next));
+      localStorage.setItem("pinnaclemagic_recent_searches", JSON.stringify(next));
     } catch {
       // ignore storage failures
     }
@@ -284,10 +284,10 @@ export function Nav() {
             className="inline-flex shrink-0 items-center gap-0 leading-none"
           >
             <span className="ml-font-heading text-[32px] font-semibold tracking-wide text-[#ffffff]">
-              Magic
+              Pinnacle
             </span>
             <span className="ml-font-heading text-[32px] font-semibold tracking-wide italic text-[var(--ml-gold)]">
-              alive
+              Magic
             </span>
           </Link>
         </div>
@@ -348,18 +348,6 @@ export function Nav() {
                 </div>
               ) : null}
             </div>
-            {!isSignedIn ? (
-              <Link
-                href="/for-magicians"
-                className={`shrink-0 text-[12px] uppercase tracking-[0.07em] transition ${
-                  isActivePath(pathname, "/for-magicians")
-                    ? "text-[var(--ml-gold)]"
-                    : "text-zinc-400 hover:text-zinc-100"
-                }`}
-              >
-                For Magicians
-              </Link>
-            ) : null}
             {isSignedIn && isMagician ? (
               <Link
                 href="/dashboard"

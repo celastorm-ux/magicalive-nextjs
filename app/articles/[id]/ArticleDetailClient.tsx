@@ -415,7 +415,7 @@ export function ArticleDetailClient({
   }
 
   const author = normalizeProfile(article.profiles);
-  const authorName = author?.display_name?.trim() || "Magicalive writer";
+  const authorName = author?.display_name?.trim() || "PinnacleMagic writer";
   const authorId = author?.id?.trim() || article.author_id || "";
   const tags = (article.tags ?? []).filter((t) => Boolean(t?.trim()));
 

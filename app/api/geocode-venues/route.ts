@@ -19,7 +19,7 @@ async function nominatimSearch(query: string): Promise<NominatimHit[] | null> {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "Magicalive/1.0 (magicalive.com)",
+      "User-Agent": "PinnacleMagic/1.0 (pinnaclemagic.com)",
     },
   });
   if (!res.ok) return null;

@@ -171,7 +171,7 @@ export function TaggedPerformersField({
               </span>
               <span className="max-w-[140px] truncate font-medium">{p.name}</span>
               {p.kind === "registered" ? (
-                <span className="text-emerald-400" title="On Magicalive">
+                <span className="text-emerald-400" title="On PinnacleMagic">
                   ✓
                 </span>
               ) : (
@@ -206,7 +206,7 @@ export function TaggedPerformersField({
         <input
           type="search"
           className={`${inputClass} pl-10`}
-          placeholder="Search for a magician on Magicalive..."
+          placeholder="Search for a magician on PinnacleMagic..."
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -251,7 +251,7 @@ export function TaggedPerformersField({
             ) : (
               <div className="space-y-3 px-4 py-3">
                 <p className="text-sm text-zinc-300">
-                  Can&apos;t find <span className="font-medium text-zinc-100">{qTrim}</span> on Magicalive?
+                  Can&apos;t find <span className="font-medium text-zinc-100">{qTrim}</span> on PinnacleMagic?
                 </p>
                 {!showInvite ? (
                   <button

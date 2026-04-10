@@ -7,7 +7,7 @@ import {
   venueCityOrFilter,
 } from "@/lib/city-landing";
 import { buildMetadata } from "@/lib/seo";
-import { siteBaseUrl } from "@/lib/magicalive-resend";
+import { siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 import { getRouteSupabase } from "@/lib/supabase-route";
 import { formatLastSeen } from "@/lib/utils";
 import JsonLd from "@/components/JsonLd";
@@ -35,8 +35,8 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   const def = getCityLandingDefinition(decodeURIComponent(rawSlug));
   if (!def) {
     return buildMetadata({
-      title: "Magicians by city — Magicalive",
-      description: "Discover professional magicians by city on Magicalive.",
+      title: "Magicians by city — PinnacleMagic",
+      description: "Discover professional magicians by city on PinnacleMagic.",
     });
   }
   const db = await getRouteSupabase();
@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
     .or(locationOrFilter(def.locationMatch));
   const n = count ?? 0;
   return buildMetadata({
-    title: `Magicians in ${def.displayName} — Magicalive`,
+    title: `Magicians in ${def.displayName} — PinnacleMagic`,
     description: `Discover ${n} professional magicians in ${def.displayName}. Browse profiles, upcoming shows, and book performers for your next event.`,
   });
 }

@@ -5,7 +5,7 @@ const GOLD = "#c9a84c";
 const TEXT = "#e4e4e7";
 const MUTED = "#a1a1aa";
 
-export type MagicaliveEmailType =
+export type PinnacleMagicEmailType =
   | "booking_request"
   | "booking_accepted"
   | "booking_declined"
@@ -22,7 +22,7 @@ export function siteBaseUrl() {
   return (
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
-    "https://magicalive.com"
+    "https://pinnaclemagic.com"
   );
 }
 
@@ -53,7 +53,7 @@ function logoBlock(): string {
   return `
   <tr>
     <td align="center" style="padding:28px 20px 8px;">
-      <span style="font-family:Georgia,'Cormorant Garamond','Times New Roman',serif;font-size:28px;font-weight:600;letter-spacing:0.12em;color:${GOLD};">MAGICALIVE</span>
+      <span style="font-family:Georgia,'Cormorant Garamond','Times New Roman',serif;font-size:28px;font-weight:600;letter-spacing:0.12em;color:${GOLD};">PINNACLEMAGIC</span>
     </td>
   </tr>`;
 }
@@ -64,7 +64,7 @@ function footerNote(): string {
   <tr>
     <td style="padding:32px 24px 28px;">
       <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.6;color:${MUTED};text-align:center;">
-        You're receiving this email because of activity on Magicalive.
+        You're receiving this email because of activity on PinnacleMagic.
         <a href="${escapeHtml(settingsUrl)}" style="color:${GOLD};text-decoration:underline;">Manage notification preferences</a> in your dashboard.
         <br /><br />
         <span style="color:#71717a;">To stop these emails, adjust your settings — we don't offer a one-click unsubscribe for transactional notices.</span>
@@ -93,7 +93,7 @@ function wrapBody(innerRows: string): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Magicalive</title>
+  <title>PinnacleMagic</title>
 </head>
 <body style="margin:0;padding:0;background:${BG};">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${BG};">
@@ -143,7 +143,7 @@ export function emailBookingRequest(data: {
         You have a new booking request
       </h1>
       <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.6;color:${TEXT};">
-        Someone wants to book you through Magicalive. Details below.
+        Someone wants to book you through PinnacleMagic. Details below.
       </p>
     </td>
   </tr>
@@ -164,7 +164,7 @@ export function emailBookingRequest(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive Bookings <bookings@magicalive.com>",
+    from: "PinnacleMagic Bookings <bookings@pinnaclemagic.com>",
   };
 }
 
@@ -186,7 +186,7 @@ export function emailBookingAccepted(data: {
         Congratulations!
       </h1>
       <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.65;color:${TEXT};">
-        <strong style="color:${TEXT};">${escapeHtml(data.magician_name)}</strong> accepted your booking request on Magicalive.
+        <strong style="color:${TEXT};">${escapeHtml(data.magician_name)}</strong> accepted your booking request on PinnacleMagic.
       </p>
       ${
         data.magician_email?.trim()
@@ -194,7 +194,7 @@ export function emailBookingAccepted(data: {
         Contact: <a href="mailto:${escapeHtml(data.magician_email)}" style="color:${GOLD};">${escapeHtml(data.magician_email)}</a>
       </p>`
           : `<p style="margin:16px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:${MUTED};">
-        They'll reach out through Magicalive to coordinate details.
+        They'll reach out through PinnacleMagic to coordinate details.
       </p>`
       }
     </td>
@@ -208,7 +208,7 @@ export function emailBookingAccepted(data: {
         ["Guests", data.guest_count != null ? escapeHtml(String(data.guest_count)) : "—"],
         ["Budget", escapeHtml(data.budget_range || "—")],
       ])}
-      ${button(siteBaseUrl(), "View on Magicalive")}
+      ${button(siteBaseUrl(), "View on PinnacleMagic")}
       <p style="margin:8px 24px 24px;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:${MUTED};text-align:center;">
         The magician will be in touch to confirm details.
       </p>
@@ -217,7 +217,7 @@ export function emailBookingAccepted(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive Bookings <bookings@magicalive.com>",
+    from: "PinnacleMagic Bookings <bookings@pinnaclemagic.com>",
   };
 }
 
@@ -251,7 +251,7 @@ export function emailBookingDeclined(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive Bookings <bookings@magicalive.com>",
+    from: "PinnacleMagic Bookings <bookings@pinnaclemagic.com>",
   };
 }
 
@@ -269,7 +269,7 @@ export function emailNewFollower(data: {
         New follower
       </h1>
       <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.65;color:${TEXT};">
-        <strong>${escapeHtml(data.fan_name)}</strong> is now following you on Magicalive.
+        <strong>${escapeHtml(data.fan_name)}</strong> is now following you on PinnacleMagic.
       </p>
       ${button(data.fan_profile_url, "View their profile")}
       <p style="margin:0 24px 24px;font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:${MUTED};text-align:center;">
@@ -280,7 +280,7 @@ export function emailNewFollower(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive <hello@magicalive.com>",
+    from: "PinnacleMagic <hello@pinnaclemagic.com>",
   };
 }
 
@@ -326,7 +326,7 @@ export function emailArticleSubmitted(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive <hello@magicalive.com>",
+    from: "PinnacleMagic <hello@pinnaclemagic.com>",
   };
 }
 
@@ -335,7 +335,7 @@ export function emailArticlePublishedAuthor(data: {
   article_title: string;
   article_url: string;
 }): { subject: string; html: string; from: string } {
-  const subject = "Your article has been published on Magicalive";
+  const subject = "Your article has been published on PinnacleMagic";
   const inner = `
   <tr>
     <td style="padding:8px 28px 0;">
@@ -343,7 +343,7 @@ export function emailArticlePublishedAuthor(data: {
         Congratulations!
       </h1>
       <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.65;color:${TEXT};">
-        Your article <strong style="color:${TEXT};">${escapeHtml(data.article_title)}</strong> is now live on Magicalive. Thank you for contributing to the community.
+        Your article <strong style="color:${TEXT};">${escapeHtml(data.article_title)}</strong> is now live on PinnacleMagic. Thank you for contributing to the community.
       </p>
       ${button(data.article_url, "Read your article")}
     </td>
@@ -351,7 +351,7 @@ export function emailArticlePublishedAuthor(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive <hello@magicalive.com>",
+    from: "PinnacleMagic <hello@pinnaclemagic.com>",
   };
 }
 
@@ -360,7 +360,7 @@ export function emailArticleRejectedAuthor(data: {
   article_title: string;
   reason: string;
 }): { subject: string; html: string; from: string } {
-  const subject = "Update on your Magicalive article submission";
+  const subject = "Update on your PinnacleMagic article submission";
   const inner = `
   <tr>
     <td style="padding:8px 28px 0;">
@@ -368,7 +368,7 @@ export function emailArticleRejectedAuthor(data: {
         Article submission update
       </h1>
       <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.65;color:${TEXT};">
-        Thank you for submitting <strong>${escapeHtml(data.article_title)}</strong>. After review, we’re not able to publish this version on Magicalive at this time.
+        Thank you for submitting <strong>${escapeHtml(data.article_title)}</strong>. After review, we’re not able to publish this version on PinnacleMagic at this time.
       </p>
       <div style="margin:20px 0;padding:16px;border-radius:12px;background:rgba(255,255,255,0.04);border-left:3px solid ${GOLD};">
         <p style="margin:0 0 6px;font-family:system-ui,-apple-system,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:${MUTED};">Note from the editorial team</p>
@@ -383,7 +383,7 @@ export function emailArticleRejectedAuthor(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive <hello@magicalive.com>",
+    from: "PinnacleMagic <hello@pinnaclemagic.com>",
   };
 }
 
@@ -391,7 +391,7 @@ export function emailFoundingMemberWelcome(data: {
   magician_name: string;
   profile_url: string;
 }): { subject: string; html: string; from: string } {
-  const subject = "Welcome to Magicalive — You are a Founding Member";
+  const subject = "Welcome to PinnacleMagic — You are a Founding Member";
   const inner = `
   <tr>
     <td style="padding:8px 28px 0;">
@@ -399,7 +399,7 @@ export function emailFoundingMemberWelcome(data: {
         Founding Member ♣
       </h1>
       <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:${TEXT};">
-        Hi ${escapeHtml(data.magician_name)}, you are one of Magicalive's first 100 magicians.
+        Hi ${escapeHtml(data.magician_name)}, you are one of PinnacleMagic's first 100 magicians.
       </p>
       <p style="margin:14px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:${TEXT};">
         Your Founding Member badge will appear permanently on your profile — even after we launch premium tiers your profile will always be free.
@@ -413,7 +413,7 @@ export function emailFoundingMemberWelcome(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive <hello@magicalive.com>",
+    from: "PinnacleMagic <hello@pinnaclemagic.com>",
   };
 }
 
@@ -444,12 +444,12 @@ export function emailTaggedInShowInvite(data: {
         on <strong style="color:${TEXT};">${escapeHtml(data.show_date)}</strong> and tagged you as a fellow performer.
       </p>
       <p style="margin:14px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:${TEXT};">
-        Join Magicalive free to claim your profile, connect with the magic community, and be listed alongside
+        Join PinnacleMagic free to claim your profile, connect with the magic community, and be listed alongside
         ${escapeHtml(data.poster_name)} on this show.
       </p>
       ${button(data.claim_url, "Claim your free profile")}
       <p style="margin:0 24px 16px;font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.65;color:${MUTED};text-align:center;">
-        Already on Magicalive? <a href="${escapeHtml(data.sign_in_url)}" style="color:${GOLD};text-decoration:underline;">Sign in</a>
+        Already on PinnacleMagic? <a href="${escapeHtml(data.sign_in_url)}" style="color:${GOLD};text-decoration:underline;">Sign in</a>
         and your profile will be linked automatically when you claim this placeholder.
       </p>
     </td>
@@ -457,7 +457,7 @@ export function emailTaggedInShowInvite(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive <hello@magicalive.com>",
+    from: "PinnacleMagic <hello@pinnaclemagic.com>",
   };
 }
 
@@ -466,12 +466,12 @@ export function emailMagicianInvite(data: {
   personal_message: string;
   invite_url: string;
 }): { subject: string; html: string; from: string } {
-  const subject = "You're invited to join Magicalive";
+  const subject = "You're invited to join PinnacleMagic";
   const inner = `
   <tr>
     <td style="padding:8px 28px 0;">
       <h1 style="margin:0 0 12px;font-family:Georgia,'Cormorant Garamond','Times New Roman',serif;font-size:26px;font-weight:600;color:${GOLD};line-height:1.2;">
-        You've been invited to Magicalive ♣
+        You've been invited to PinnacleMagic ♣
       </h1>
       <p style="margin:0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:${TEXT};">
         Hi ${escapeHtml(data.name)},
@@ -480,7 +480,7 @@ export function emailMagicianInvite(data: {
         ${escapeHtml(data.personal_message).replace(/\n/g, "<br/>")}
       </p>
       <p style="margin:14px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:${TEXT};">
-        Magicalive is a platform built exclusively for professional magicians. Create your profile, list your shows, and get discovered by fans and venues.
+        PinnacleMagic is a platform built exclusively for professional magicians. Create your profile, list your shows, and get discovered by fans and venues.
       </p>
       <p style="margin:14px 0 0;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:${TEXT};">
         Founding Member badge: the first 100 magicians receive a permanent Founding Member badge.
@@ -495,7 +495,7 @@ export function emailMagicianInvite(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive <hello@magicalive.com>",
+    from: "PinnacleMagic <hello@pinnaclemagic.com>",
   };
 }
 
@@ -558,7 +558,7 @@ export function emailVenueSubmitted(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive <hello@magicalive.com>",
+    from: "PinnacleMagic <hello@pinnaclemagic.com>",
   };
 }
 
@@ -596,7 +596,7 @@ export function emailNewReview(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive <hello@magicalive.com>",
+    from: "PinnacleMagic <hello@pinnaclemagic.com>",
   };
 }
 
@@ -634,7 +634,7 @@ export function emailNewArticlePublished(data: {
   return {
     subject,
     html: wrapBody(inner),
-    from: "Magicalive <hello@magicalive.com>",
+    from: "PinnacleMagic <hello@pinnaclemagic.com>",
   };
 }
 
@@ -665,8 +665,8 @@ export async function sendWithResend(params: {
   return { ok: true };
 }
 
-export async function sendMagicaliveEmail(
-  type: MagicaliveEmailType,
+export async function sendPinnacleMagicEmail(
+  type: PinnacleMagicEmailType,
   to: string,
   data: Record<string, unknown>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {

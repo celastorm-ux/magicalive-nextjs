@@ -137,7 +137,7 @@ export default function VerifyEmailPage() {
           Verify your <em className="text-[var(--ml-gold)] italic">email</em>
         </h1>
         <p className="text-[13px] leading-relaxed text-zinc-500">
-          Complete this step so we can publish your Magicalive profile. If you
+          Complete this step so we can publish your PinnacleMagic profile. If you
           came from the profile wizard, your answers are saved in this browser
           until you finish.
         </p>

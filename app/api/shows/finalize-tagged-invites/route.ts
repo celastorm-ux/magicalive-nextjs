@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { generateFanHandle } from "@/lib/generate-fan-handle";
 import { formatShowDateLongEnUS } from "@/lib/show-dates";
-import { sendMagicaliveEmail, siteBaseUrl } from "@/lib/magicalive-resend";
+import { sendPinnacleMagicEmail, siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 import { parseTaggedPerformers, type TaggedPerformerStored } from "@/lib/tagged-performers";
 import { getRouteSupabase } from "@/lib/supabase-route";
 
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     const claimUrl = `${siteBaseUrl()}/claim-profile?id=${encodeURIComponent(unclaimedId)}`;
     const signInUrl = `${siteBaseUrl()}/sign-in`;
 
-    await sendMagicaliveEmail("tagged_in_show_invite", e.email.trim().toLowerCase(), {
+    await sendPinnacleMagicEmail("tagged_in_show_invite", e.email.trim().toLowerCase(), {
       invitee_name: e.name.trim(),
       poster_name: posterName,
       show_name: showName,

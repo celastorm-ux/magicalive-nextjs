@@ -44,7 +44,7 @@ export default function InviteTokenPage() {
 
   return (
     <div className="min-h-screen bg-black p-8 text-zinc-100 sm:p-14">
-      <h1 className="ml-font-heading text-4xl">You&apos;ve been personally invited to join Magicalive</h1>
+      <h1 className="ml-font-heading text-4xl">You&apos;ve been personally invited to join PinnacleMagic</h1>
       <p className="mt-3 text-[var(--ml-gold)]">Founding Member ♣</p>
       <p className="mt-2 text-zinc-300">You have been reserved a Founding Member spot.</p>
       <button

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Magic Shops — Magicalive",
+  title: "Magic Shops — PinnacleMagic",
   description: "Discover magic shops and retailers around the world.",
 };
 

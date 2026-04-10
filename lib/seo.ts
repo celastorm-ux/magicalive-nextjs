@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { siteBaseUrl } from "@/lib/magicalive-resend";
+import { siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 
 const DEFAULT_OG = "/og-default.png";
 

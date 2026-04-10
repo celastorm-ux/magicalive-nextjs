@@ -18,7 +18,7 @@
  * - Two navigations: visiting `/profile` then redirect to `/profile/magician?id=…` is two
  *   route transitions by design (separate issue from one page mounting twice).
  *
- * Live production check: compare localhost (StrictMode) to https://magicalive.com — if
+ * Live production check: compare localhost (StrictMode) to https://pinnaclemagic.com — if
  * doubling only appears in dev, it is expected StrictMode behavior.
  */
 
@@ -28,7 +28,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import JsonLd from "@/components/JsonLd";
 import { CLASSES } from "@/lib/constants";
-import { siteBaseUrl } from "@/lib/magicalive-resend";
+import { siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 import { supabase } from "@/lib/supabase";
 import MagicianProfileClient, { type MagicianProfileInitialBundle } from "./MagicianProfileClient";
 

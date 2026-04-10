@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import JsonLd from "@/components/JsonLd";
-import { siteBaseUrl } from "@/lib/magicalive-resend";
+import { siteBaseUrl } from "@/lib/pinnaclemagic-resend";
 import { buildMetadata } from "@/lib/seo";
 import { getEventDetailBundle } from "@/lib/server/detail-pages";
 import { formatShowDateLongEnUS } from "@/lib/show-dates";
@@ -21,8 +21,8 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   const ev = bundle?.event as ShowWithMagician | null | undefined;
   if (!ev) {
     return buildMetadata({
-      title: "Event — Magicalive",
-      description: "Discover live magic shows on Magicalive.",
+      title: "Event — PinnacleMagic",
+      description: "Discover live magic shows on PinnacleMagic.",
     });
   }
   const showName = ev.name?.trim() || "Event";
@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   const magicianName = prof?.display_name || "a magician";
   const cancelled = Boolean((ev as { is_cancelled?: boolean | null }).is_cancelled);
   const base = buildMetadata({
-    title: `${showName} — Magicalive Events${cancelled ? " (Cancelled)" : ""}`,
+    title: `${showName} — PinnacleMagic Events${cancelled ? " (Cancelled)" : ""}`,
     description: `${showName} at ${venue} in ${city} on ${date}${cancelled ? " — This event has been cancelled." : ""}`,
   });
   return {

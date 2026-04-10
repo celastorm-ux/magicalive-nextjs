@@ -8,26 +8,26 @@ const CONTACT_CARDS = [
   {
     emoji: "✉️",
     label: "General",
-    description: "Questions about the directory, your account, or how Magicalive works.",
-    email: "hello@magicalive.com",
+    description: "Questions about the directory, your account, or how PinnacleMagic works.",
+    email: "hello@pinnaclemagic.com",
   },
   {
     emoji: "📝",
     label: "Editorial",
     description: "Article pitches, corrections, and editorial policy.",
-    email: "editorial@magicalive.com",
+    email: "editorial@pinnaclemagic.com",
   },
   {
     emoji: "🛟",
     label: "Support",
     description: "Technical help, login issues, and billing.",
-    email: "support@magicalive.com",
+    email: "support@pinnaclemagic.com",
   },
   {
     emoji: "🏛️",
     label: "Venues",
     description: "Listings, map data, and partnership inquiries for spaces.",
-    email: "venues@magicalive.com",
+    email: "venues@pinnaclemagic.com",
   },
 ] as const;
 
@@ -57,7 +57,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     ),
   },
   {
-    q: "Is Magicalive free to use?",
+    q: "Is PinnacleMagic free to use?",
     a: "Browsing magicians, events, and venues is free. Performers and venues can create listings on free tiers; paid options unlock extra promotion and analytics where available.",
   },
   {
@@ -70,10 +70,10 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
         </Link>{" "}
         and select <strong className="text-zinc-300">Venue</strong>, or email{" "}
         <a
-          href="mailto:venues@magicalive.com"
+          href="mailto:venues@pinnaclemagic.com"
           className="text-[var(--ml-gold)] hover:underline"
         >
-          venues@magicalive.com
+          venues@pinnaclemagic.com
         </a>{" "}
         with your space details. We typically confirm within a few business days.",
       </>
@@ -87,17 +87,17 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
         <Link href="/submit-article" className="text-[var(--ml-gold)] hover:underline">
           Submit an article
         </Link>{" "}
-        and choose the category that fits; editorial@magicalive.com is also fine for
+        and choose the category that fits; editorial@pinnaclemagic.com is also fine for
         pitches.",
       </>
     ),
   },
   {
     q: "How does the online now status work?",
-    a: "When you're signed in and active on Magicalive, your profile can show a green \"Online now\" indicator. You can control visibility in profile settings; it's optional and not real-time location.",
+    a: "When you're signed in and active on PinnacleMagic, your profile can show a green \"Online now\" indicator. You can control visibility in profile settings; it's optional and not real-time location.",
   },
   {
-    q: "Can I post events without a venue on Magicalive?",
+    q: "Can I post events without a venue on PinnacleMagic?",
     a: "Events should be tied to a real venue or listed space when possible. Pop-ups and touring shows can use a temporary or “TBA” venue with a note — contact support if your case is unusual.",
   },
   {
@@ -107,10 +107,10 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
         Use this form with topic <strong className="text-zinc-300">Bug report</strong>{" "}
         or <strong className="text-zinc-300">Other</strong>, or email{" "}
         <a
-          href="mailto:support@magicalive.com"
+          href="mailto:support@pinnaclemagic.com"
           className="text-[var(--ml-gold)] hover:underline"
         >
-          support@magicalive.com
+          support@pinnaclemagic.com
         </a>{" "}
         with links and a short description. We take harassment and misrepresentation
         seriously.",

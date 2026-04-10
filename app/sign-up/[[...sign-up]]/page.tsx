@@ -52,7 +52,7 @@ export default function SignUpPage() {
             className="mt-0.5"
           />
           <span>
-            I agree to the Magicalive{" "}
+            I agree to the PinnacleMagic{" "}
             <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-[#f5cc71] hover:underline">
               Terms of Service
             </Link>{" "}

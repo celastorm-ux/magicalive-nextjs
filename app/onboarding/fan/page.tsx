@@ -103,7 +103,7 @@ export default function FanOnboardingPage() {
       onboarding_step: null,
       ...(avatar_url ? { avatar_url } : {}),
       ...(heardAbout !== HEAR_ABOUT[0]
-        ? { bio: `How I found Magicalive: ${heardAbout}` }
+        ? { bio: `How I found PinnacleMagic: ${heardAbout}` }
         : {}),
     };
     console.log("Saving onboarding data:", onboardingPayload);

@@ -688,7 +688,7 @@ export default function EditProfilePage() {
             <span>
               <span className="block text-sm font-medium text-zinc-200">New article emails</span>
               <span className="block text-xs text-zinc-500">
-                Get an email when a new article is published on Magicalive.
+                Get an email when a new article is published on PinnacleMagic.
               </span>
             </span>
           </label>

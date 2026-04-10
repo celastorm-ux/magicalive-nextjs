@@ -86,7 +86,7 @@ function toCard(row: ArticleRow): ArticleCard {
   return {
     id: String(row.id),
     title: row.title?.trim() || "Untitled article",
-    excerpt: row.excerpt?.trim() || "Read the full piece on Magicalive.",
+    excerpt: row.excerpt?.trim() || "Read the full piece on PinnacleMagic.",
     category: row.category?.trim() || "General",
     coverImageUrl: row.cover_image_url,
     readTime: formatReadTime(row.read_time),
@@ -95,7 +95,7 @@ function toCard(row: ArticleRow): ArticleCard {
     viewCount: Number(row.view_count ?? 0),
     author: {
       id: profile?.id?.trim() || "",
-      name: profile?.display_name?.trim() || "Magicalive writer",
+      name: profile?.display_name?.trim() || "PinnacleMagic writer",
       avatarUrl: profile?.avatar_url ?? null,
     },
   };
@@ -149,7 +149,7 @@ export default function ArticlesPage() {
         } else {
           writerMap.set(id, {
             id,
-            name: p?.display_name?.trim() || "Magicalive writer",
+            name: p?.display_name?.trim() || "PinnacleMagic writer",
             avatarUrl: p?.avatar_url ?? null,
             count: 1,
           });
@@ -279,7 +279,7 @@ export default function ArticlesPage() {
                         </p>
                       ) : (
                         <p className="mt-4 text-sm leading-relaxed text-zinc-500">
-                          Read the full piece on Magicalive.
+                          Read the full piece on PinnacleMagic.
                         </p>
                       )}
                       <div className="mt-6 flex items-center gap-3">
@@ -445,7 +445,7 @@ export default function ArticlesPage() {
 
             <div className="rounded-2xl border border-[var(--ml-gold)]/30 bg-[var(--ml-gold)]/10 p-6">
               <p className="ml-font-heading text-lg font-semibold text-zinc-100">
-                Write for Magicalive
+                Write for PinnacleMagic
               </p>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                 Pitch interviews, tutorials, reviews, or community stories. We

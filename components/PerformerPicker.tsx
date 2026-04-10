@@ -32,7 +32,7 @@ export function PerformerPicker({
       <p className="mb-2 block text-[10px] font-medium uppercase tracking-widest text-zinc-500">
         Co-performers{" "}
         <span className="font-normal normal-case tracking-normal text-zinc-600">
-          (optional — search other magicians on Magicalive)
+          (optional — search other magicians on PinnacleMagic)
         </span>
       </p>
 
