@@ -86,9 +86,11 @@ function slugify(s: string): string {
     .slice(0, 64);
 }
 
+const YT_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
+
 function parseBody(body: string) {
   const lines = body.split(/\r?\n/);
-  const blocks: Array<{ type: "h2" | "h3" | "p" | "quote"; text: string; id?: string }> = [];
+  const blocks: Array<{ type: "h2" | "h3" | "p" | "quote" | "youtube"; text: string; id?: string }> = [];
   const headings: Heading[] = [];
 
   let paragraph: string[] = [];
@@ -121,6 +123,15 @@ function parseBody(body: string) {
     if (line.startsWith("> ")) {
       flushParagraph();
       blocks.push({ type: "quote", text: line.replace(/^>\s+/, "").trim() });
+      continue;
+    }
+    const ytMatch = /^\[youtube:([^\]]+)\]$/.exec(line);
+    if (ytMatch) {
+      flushParagraph();
+      const videoId = ytMatch[1]!.trim();
+      if (YT_ID_RE.test(videoId)) {
+        blocks.push({ type: "youtube", text: videoId });
+      }
       continue;
     }
     paragraph.push(line);
@@ -517,6 +528,21 @@ export function ArticleDetailClient({
                       >
                         {block.text}
                       </blockquote>
+                    );
+                  }
+                  if (block.type === "youtube") {
+                    return (
+                      <div key={idx} className="my-8 overflow-hidden rounded-2xl border border-white/10">
+                        <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                          <iframe
+                            className="absolute inset-0 h-full w-full"
+                            src={`https://www.youtube-nocookie.com/embed/${block.text}`}
+                            title="YouTube video"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        </div>
+                      </div>
                     );
                   }
                   return (

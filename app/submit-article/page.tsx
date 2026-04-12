@@ -258,7 +258,7 @@ export default function SubmitArticlePage() {
                 required
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                placeholder="Write your article. Use ## headings for sections and blank lines between paragraphs."
+                placeholder={"Write your article. Use ## headings for sections, blank lines between paragraphs, and [youtube:VIDEO_ID] on its own line to embed a video."}
               />
               <p className="mt-2 text-right text-xs text-zinc-500">
                 {wordCount} {wordCount === 1 ? "word" : "words"}
