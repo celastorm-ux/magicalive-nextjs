@@ -63,7 +63,7 @@ export default function SignInPage() {
   }
 
   const startOAuth = async (strategy: "oauth_google" | "oauth_facebook") => {
-    if (!signIn) return;
+    if (!isLoaded || !signIn) return;
     setError("");
     const { error: oauthErr } = await clerkOAuthSignIn(signIn, {
       strategy,
@@ -75,7 +75,7 @@ export default function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!signIn || !setActive) return;
+    if (!isLoaded || !signIn || !setActive) return;
     setError("");
     const id = identifier.trim();
     if (!id || !password) {
@@ -112,7 +112,7 @@ export default function SignInPage() {
           <span className="ml-font-heading text-3xl font-semibold tracking-wide italic text-[var(--ml-gold)]">Magic</span>
         </Link>
 
-        <div className="rounded-2xl border border-white/20 bg-zinc-800/60 p-6 shadow-[0_0_60px_-8px_rgba(201,168,76,0.25)] backdrop-blur-sm sm:p-8">
+        <div className="rounded-2xl border border-white/20 bg-zinc-800/60 p-6 shadow-[0_0_40px_-12px_rgba(201,168,76,0.12)] backdrop-blur-sm sm:p-8">
           <h1 className="ml-font-heading text-2xl font-semibold text-zinc-50 sm:text-3xl">
             Welcome <span className="italic text-[var(--ml-gold)]">back</span>
           </h1>
@@ -122,9 +122,9 @@ export default function SignInPage() {
           <div className="mt-6 space-y-3">
             <button
               type="button"
-              disabled={!isLoaded || !signIn || busy}
+              disabled={busy}
               onClick={() => void startOAuth("oauth_google")}
-              className="flex w-full items-center justify-center gap-3 rounded-xl border border-zinc-500/30 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100 disabled:pointer-events-none disabled:opacity-50"
+              className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-zinc-300/40 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
             >
               <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -136,9 +136,9 @@ export default function SignInPage() {
             </button>
             <button
               type="button"
-              disabled={!isLoaded || !signIn || busy}
+              disabled={busy}
               onClick={() => void startOAuth("oauth_facebook")}
-              className="flex w-full items-center justify-center gap-3 rounded-xl border border-[#1877F2]/60 bg-[#1877F2] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#166fe5] disabled:pointer-events-none disabled:opacity-50"
+              className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-[#1877F2] bg-[#1877F2] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#166fe5] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
             >
               <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="white" aria-hidden>
                 <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
@@ -197,8 +197,8 @@ export default function SignInPage() {
 
             <button
               type="submit"
-              disabled={busy || !isLoaded}
-              className="flex w-full items-center justify-center rounded-xl bg-[var(--ml-gold)] px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-[#f2c24f] disabled:pointer-events-none disabled:opacity-60"
+              disabled={busy}
+              className="flex w-full cursor-pointer items-center justify-center rounded-xl bg-[var(--ml-gold)] px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-[#f2c24f] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
             >
               {busy ? "Signing in…" : "Sign in"}
             </button>
