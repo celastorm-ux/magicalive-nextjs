@@ -33,7 +33,7 @@ export async function clerkOAuthSignUp(
       strategy: args.strategy,
       redirectUrl: args.redirectCallbackUrl,
       redirectUrlComplete: args.redirectUrl,
-    });
+    } as any);
     return { error: null };
   }
   return { error: "OAuth is not available in this Clerk build. Update @clerk/nextjs or enable SSO in the dashboard." };
@@ -60,7 +60,7 @@ export async function clerkOAuthSignIn(
       strategy: args.strategy,
       redirectUrl: args.redirectCallbackUrl,
       redirectUrlComplete: args.redirectUrl,
-    });
+    } as any);
     return { error: null };
   }
   return { error: "OAuth is not available in this Clerk build." };

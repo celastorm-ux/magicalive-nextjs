@@ -66,11 +66,11 @@ export default function SignInPage() {
     if (!signIn) return;
     setError("");
     try {
-      await signIn.authenticateWithRedirect({
+      await (signIn as any).authenticateWithRedirect({
         strategy,
         redirectUrl: "/sso-callback",
         redirectUrlComplete: "/",
-      });
+      } as any);
     } catch (err) {
       setError(extractClerkError(err));
     }
@@ -87,7 +87,7 @@ export default function SignInPage() {
     }
     setBusy(true);
     try {
-      const result = await signIn.create({ identifier: id, password });
+      const result = (await signIn.create({ identifier: id, password } as any)) as any;
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
         router.replace("/profile");
