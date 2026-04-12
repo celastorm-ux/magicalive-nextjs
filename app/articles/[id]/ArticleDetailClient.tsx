@@ -443,7 +443,7 @@ export function ArticleDetailClient({
         <div className="absolute inset-0 bg-gradient-to-br from-violet-950 via-purple-900 to-indigo-950" />
         {article.cover_image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={article.cover_image_url} alt="" className="absolute inset-0 h-full w-full object-cover object-top opacity-55" />
+          <img src={article.cover_image_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-55" style={{ objectPosition: "center 33%" }} />
         ) : null}
         <span className="absolute left-4 top-4 sm:left-8 sm:top-6">
           <span className="rounded-full border border-[var(--ml-gold)]/35 bg-black/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] backdrop-blur-sm">
