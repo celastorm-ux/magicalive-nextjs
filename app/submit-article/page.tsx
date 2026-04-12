@@ -30,6 +30,19 @@ const inputClass =
 const labelClass =
   "mb-2 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500";
 
+function extractYouTubeId(url: string): string | null {
+  const s = url.trim();
+  // youtu.be/ID
+  const short = /youtu\.be\/([a-zA-Z0-9_-]{11})/.exec(s);
+  if (short) return short[1]!;
+  // youtube.com/watch?v=ID or /embed/ID or /v/ID
+  const long = /(?:v=|\/embed\/|\/v\/)([a-zA-Z0-9_-]{11})/.exec(s);
+  if (long) return long[1]!;
+  // bare 11-char ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
+  return null;
+}
+
 export default function SubmitArticlePage() {
   const { user, isLoaded } = useUser();
   const [title, setTitle] = useState("");
@@ -39,6 +52,7 @@ export default function SubmitArticlePage() {
   const [excerpt, setExcerpt] = useState("");
   const [body, setBody] = useState("");
   const [caption, setCaption] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -49,6 +63,7 @@ export default function SubmitArticlePage() {
     [body],
   );
   const readTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
+  const youtubeVideoId = useMemo(() => extractYouTubeId(youtubeUrl), [youtubeUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +113,10 @@ export default function SubmitArticlePage() {
       .filter(Boolean)
       .slice(0, 8);
 
+    const finalBody = youtubeVideoId
+      ? `${body.trim()}\n\n[youtube:${youtubeVideoId}]`
+      : body.trim();
+
     const { data: inserted, error: insertErr } = await supabase
       .from("articles")
       .insert({
@@ -105,7 +124,7 @@ export default function SubmitArticlePage() {
         author_name: authorName,
         title: title.trim(),
         excerpt: excerpt.trim(),
-        body: body.trim(),
+        body: finalBody,
         category,
         read_time: readTimeMinutes,
         cover_image_url: coverImageUrl,
@@ -143,6 +162,7 @@ export default function SubmitArticlePage() {
     setExcerpt("");
     setBody("");
     setCaption("");
+    setYoutubeUrl("");
     setCoverFile(null);
     setSubmitting(false);
   };
@@ -313,6 +333,39 @@ export default function SubmitArticlePage() {
                   placeholder="Photo by…"
                 />
               </div>
+            </section>
+
+            {/* YouTube video */}
+            <section>
+              <h2 className="ml-font-heading text-xl font-semibold text-zinc-100">
+                YouTube video <span className="ml-1 text-sm font-normal text-zinc-500">(optional)</span>
+              </h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                Paste a YouTube link to embed a video below your article.
+              </p>
+              <input
+                className={`${inputClass} mt-4`}
+                type="url"
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+              />
+              {youtubeUrl && !youtubeVideoId ? (
+                <p className="mt-2 text-xs text-red-400">Couldn't recognise a YouTube video ID in that link.</p>
+              ) : null}
+              {youtubeVideoId ? (
+                <div className="mt-4 overflow-hidden rounded-xl border border-white/10">
+                  <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                    <iframe
+                      className="absolute inset-0 h-full w-full"
+                      src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}`}
+                      title="YouTube preview"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
+              ) : null}
             </section>
 
             {/* Guidelines */}
