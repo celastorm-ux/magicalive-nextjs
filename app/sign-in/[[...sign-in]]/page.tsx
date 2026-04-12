@@ -8,7 +8,7 @@ import { clerkOAuthSignIn } from "@/lib/clerk-oauth";
 import { supabase } from "@/lib/supabase";
 
 const inputClass =
-  "w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-[var(--ml-gold)]/50 focus:bg-white/10";
+  "w-full rounded-xl border border-white/15 bg-white/[0.08] px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-400 outline-none transition focus:border-[var(--ml-gold)]/60 focus:bg-white/[0.12]";
 
 const labelClass =
   "mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500";
@@ -99,7 +99,7 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-black px-4 py-12">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 px-4 py-12">
       <div id="clerk-captcha" data-cl-theme="dark" data-cl-size="invisible" />
       <div className="w-full max-w-md">
 
@@ -112,11 +112,11 @@ export default function SignInPage() {
           <span className="ml-font-heading text-3xl font-semibold tracking-wide italic text-[var(--ml-gold)]">Magic</span>
         </Link>
 
-        <div className="rounded-2xl border border-white/10 bg-zinc-950/80 p-6 shadow-[0_0_40px_-12px_rgba(201,168,76,0.12)] sm:p-8">
+        <div className="rounded-2xl border border-white/20 bg-zinc-800/60 p-6 shadow-[0_0_60px_-8px_rgba(201,168,76,0.25)] backdrop-blur-sm sm:p-8">
           <h1 className="ml-font-heading text-2xl font-semibold text-zinc-50 sm:text-3xl">
             Welcome <span className="italic text-[var(--ml-gold)]">back</span>
           </h1>
-          <p className="mt-1 text-sm text-zinc-400">Sign in to your account to continue.</p>
+          <p className="mt-1 text-sm text-zinc-300">Sign in to your account to continue.</p>
 
           {/* OAuth buttons */}
           <div className="mt-6 space-y-3">
@@ -149,9 +149,9 @@ export default function SignInPage() {
 
           {/* Divider */}
           <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-white/10" />
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">or</span>
-            <div className="h-px flex-1 bg-white/10" />
+            <div className="h-px flex-1 bg-white/20" />
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">or</span>
+            <div className="h-px flex-1 bg-white/20" />
           </div>
 
           {/* Email / username + password form */}
@@ -204,7 +204,7 @@ export default function SignInPage() {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-zinc-500">
+          <p className="mt-6 text-center text-sm text-zinc-400">
             Don&apos;t have an account?{" "}
             <Link href="/sign-up" className="text-[var(--ml-gold)] hover:underline">
               Create one
