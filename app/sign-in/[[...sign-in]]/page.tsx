@@ -4,7 +4,6 @@ import { useSignIn, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { clerkOAuthSignIn } from "@/lib/clerk-oauth";
 import { supabase } from "@/lib/supabase";
 
 const inputClass =
@@ -65,12 +64,15 @@ export default function SignInPage() {
   const startOAuth = async (strategy: "oauth_google" | "oauth_facebook") => {
     if (!isLoaded || !signIn) return;
     setError("");
-    const { error: oauthErr } = await clerkOAuthSignIn(signIn, {
-      strategy,
-      redirectCallbackUrl: "/sso-callback",
-      redirectUrl: "/",
-    });
-    if (oauthErr) setError(oauthErr);
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy,
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/",
+      });
+    } catch (err) {
+      setError(extractClerkError(err));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
