@@ -1,6 +1,6 @@
 "use client";
 
-import { useSignIn, useUser } from "@clerk/nextjs";
+import { useClerk, useSignIn, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -24,7 +24,8 @@ function extractClerkError(err: unknown): string {
 export default function SignInPage() {
   const router = useRouter();
   const { user, isLoaded: userLoaded } = useUser();
-  const { signIn, setActive, isLoaded } = useSignIn();
+  const { signIn } = useSignIn();
+  const { setActive } = useClerk();
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -62,7 +63,7 @@ export default function SignInPage() {
   }
 
   const startOAuth = async (strategy: "oauth_google" | "oauth_facebook") => {
-    if (!isLoaded || !signIn) return;
+    if (!signIn) return;
     setError("");
     try {
       await signIn.authenticateWithRedirect({
@@ -77,7 +78,7 @@ export default function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded || !signIn || !setActive) return;
+    if (!signIn) return;
     setError("");
     const id = identifier.trim();
     if (!id || !password) {
