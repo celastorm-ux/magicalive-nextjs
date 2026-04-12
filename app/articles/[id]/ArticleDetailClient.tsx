@@ -90,8 +90,9 @@ const YT_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
 
 function parseBody(body: string) {
   const lines = body.split(/\r?\n/);
-  const blocks: Array<{ type: "h2" | "h3" | "p" | "quote" | "youtube"; text: string; id?: string }> = [];
+  const blocks: Array<{ type: "h2" | "h3" | "p" | "quote"; text: string; id?: string }> = [];
   const headings: Heading[] = [];
+  const videos: string[] = [];
 
   let paragraph: string[] = [];
   const flushParagraph = () => {
@@ -130,14 +131,14 @@ function parseBody(body: string) {
       flushParagraph();
       const videoId = ytMatch[1]!.trim();
       if (YT_ID_RE.test(videoId)) {
-        blocks.push({ type: "youtube", text: videoId });
+        videos.push(videoId);
       }
       continue;
     }
     paragraph.push(line);
   }
   flushParagraph();
-  return { blocks, headings };
+  return { blocks, headings, videos };
 }
 
 export function ArticleDetailClient({
@@ -530,21 +531,6 @@ export function ArticleDetailClient({
                       </blockquote>
                     );
                   }
-                  if (block.type === "youtube") {
-                    return (
-                      <div key={idx} className="my-8 overflow-hidden rounded-2xl border border-white/10">
-                        <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                          <iframe
-                            className="absolute inset-0 h-full w-full"
-                            src={`https://www.youtube-nocookie.com/embed/${block.text}`}
-                            title="YouTube video"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        </div>
-                      </div>
-                    );
-                  }
                   return (
                     <p key={idx} className="mt-4 text-base leading-relaxed text-zinc-400">
                       {block.text}
@@ -555,6 +541,29 @@ export function ArticleDetailClient({
                 <p className="text-base leading-relaxed text-zinc-400">{article.body || "No content."}</p>
               )}
             </div>
+
+            {parsed.videos.length ? (
+              <div className="mt-12 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <p className="mb-4 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                  {parsed.videos.length === 1 ? "Video" : "Videos"}
+                </p>
+                <div className="space-y-5">
+                  {parsed.videos.map((videoId, idx) => (
+                    <div key={idx} className="overflow-hidden rounded-xl border border-white/10">
+                      <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                        <iframe
+                          className="absolute inset-0 h-full w-full"
+                          src={`https://www.youtube-nocookie.com/embed/${videoId}`}
+                          title={`Video ${idx + 1}`}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <footer className="mt-14 border-t border-white/10 pt-8">
               <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Topics</p>
