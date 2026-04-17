@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -278,17 +279,15 @@ export function Nav() {
     <header className={`relative ${CLASSES.headerSticky}`}>
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-[18px] sm:px-6 lg:px-12">
         {/* Left */}
-        <div className="shrink-0">
-          <Link
-            href="/"
-            className="inline-flex shrink-0 items-center gap-0 leading-none"
-          >
-            <span className="ml-font-heading text-[32px] font-semibold tracking-wide text-[#ffffff]">
-              Pinnacle
-            </span>
-            <span className="ml-font-heading text-[32px] font-semibold tracking-wide italic text-[var(--ml-gold)]">
-              Magic
-            </span>
+        <div className="shrink-0 ml-4">
+          <Link href="/" className="inline-flex shrink-0 items-center leading-none mt-2">
+            <Image
+              src="/pinnacle-magic-wordmark.png"
+              alt="PinnacleMagic"
+              height={35}
+              width={190}
+              priority
+            />
           </Link>
         </div>
 

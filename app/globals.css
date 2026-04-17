@@ -4,17 +4,17 @@
 :root {
   /* Core palette */
   --ml-bg: #000000;
-  --ml-gold: #f5cc71;
-  --ml-gold-hover: #f2c24f;
-  --ml-gold-soft: rgba(245, 204, 113, 0.1);
-  --ml-gold-border: rgba(245, 204, 113, 0.25);
-  --ml-gold-border-subtle: rgba(245, 204, 113, 0.2);
-  --ml-gold-dot: rgba(245, 204, 113, 0.8);
-  --ml-gold-glow-strong: rgba(245, 204, 113, 0.18);
-  --ml-gold-glow-mid: rgba(245, 204, 113, 0.14);
-  --ml-gold-glow-soft: rgba(245, 204, 113, 0.1);
-  --ml-gold-glow-card: rgba(245, 204, 113, 0.16);
-  --ml-gold-cta-glow: rgba(245, 204, 113, 0.26);
+  --ml-gold: #ffcc66;
+  --ml-gold-hover: #f5c24d;
+  --ml-gold-soft: rgba(255, 204, 102, 0.1);
+  --ml-gold-border: rgba(255, 204, 102, 0.25);
+  --ml-gold-border-subtle: rgba(255, 204, 102, 0.2);
+  --ml-gold-dot: rgba(255, 204, 102, 0.8);
+  --ml-gold-glow-strong: rgba(255, 204, 102, 0.18);
+  --ml-gold-glow-mid: rgba(255, 204, 102, 0.14);
+  --ml-gold-glow-soft: rgba(255, 204, 102, 0.1);
+  --ml-gold-glow-card: rgba(255, 204, 102, 0.16);
+  --ml-gold-cta-glow: rgba(255, 204, 102, 0.26);
 
   /* Zinc text (Tailwind-aligned) */
   --ml-text: #f4f4f5;
