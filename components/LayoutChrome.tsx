@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Footer } from "@/components/Footer";
 import { Nav } from "@/components/Nav";
+import { StarField } from "@/components/StarField";
 
 type LayoutChromeProps = {
   children: ReactNode;
@@ -59,6 +60,7 @@ export function LayoutChrome({ children }: LayoutChromeProps) {
         />
       )}
       <div className="relative z-10 flex min-h-dvh flex-col">
+        <StarField />
         {!hideChrome ? <Nav /> : null}
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         {!hideChrome ? <Footer /> : null}
