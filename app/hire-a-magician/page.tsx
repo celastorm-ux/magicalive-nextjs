@@ -156,26 +156,6 @@ export default async function HireAMagicianPage() {
           </div>
         </section>
 
-        <section className="mt-20">
-          <h2 className={CLASSES.headingSection}>How it works</h2>
-          <ol className="mt-8 grid gap-6 md:grid-cols-3">
-            {[
-              "Browse magician profiles and check availability",
-              "Send a booking request with your event details",
-              "The magician responds within 24 hours",
-            ].map((text, i) => (
-              <li
-                key={text}
-                className="relative rounded-2xl border border-white/10 bg-white/[0.03] p-6 pt-10"
-              >
-                <span className="absolute left-5 top-4 text-3xl font-semibold text-[var(--ml-gold)]/80">
-                  {i + 1}
-                </span>
-                <p className="text-sm leading-relaxed text-zinc-300">{text}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
 
         <section className="mt-20">
           <div className="flex flex-wrap items-end justify-between gap-4">

@@ -254,7 +254,7 @@ export default function ArticlesPage() {
                     className="group mb-10 flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:border-[var(--ml-gold)]/35 lg:flex-row lg:min-h-[320px]"
                   >
                     <div
-                      className="relative h-48 shrink-0 bg-gradient-to-br from-violet-950 via-purple-900 to-indigo-950 lg:h-auto lg:w-[42%]"
+                      className="relative h-48 shrink-0 bg-zinc-900 lg:h-auto lg:w-[42%]"
                     >
                       <span className="absolute left-4 top-4 hidden lg:block">
                         <span className={badgeClass(hero.category)}>
@@ -263,7 +263,7 @@ export default function ArticlesPage() {
                       </span>
                       {hero.coverImageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={hero.coverImageUrl} alt="" className="h-full w-full object-cover opacity-70" />
+                        <img src={hero.coverImageUrl} alt="" className="h-full w-full object-cover" />
                       ) : null}
                     </div>
                     <div className="flex flex-1 flex-col justify-center p-6 sm:p-8">
@@ -311,15 +311,15 @@ export default function ArticlesPage() {
                         href={`/articles/${encodeURIComponent(a.id)}`}
                         className="group overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/40 transition hover:border-[var(--ml-gold)]/30"
                       >
-                        <div className="relative h-36 bg-gradient-to-br from-violet-950 via-purple-900 to-indigo-950">
-                          <span className="absolute left-3 top-3">
+                        <div className="relative h-36 bg-zinc-900">
+                          <span className="absolute left-3 top-3 z-10">
                             <span className={badgeClass(a.category)}>
                               {a.category}
                             </span>
                           </span>
                           {a.coverImageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={a.coverImageUrl} alt="" className="h-full w-full object-cover opacity-70" />
+                            <img src={a.coverImageUrl} alt="" className="h-full w-full object-cover" />
                           ) : null}
                         </div>
                         <div className="p-4">
@@ -344,10 +344,10 @@ export default function ArticlesPage() {
                         href={`/articles/${encodeURIComponent(a.id)}`}
                         className="group flex items-center gap-4 border-b border-white/10 p-4 transition last:border-0 hover:bg-white/[0.04] sm:gap-5 sm:p-5"
                       >
-                        <div className="h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-violet-950 via-purple-900 to-indigo-950 sm:h-20 sm:w-24">
+                        <div className="h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-900 sm:h-20 sm:w-24">
                           {a.coverImageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={a.coverImageUrl} alt="" className="h-full w-full object-cover opacity-70" />
+                            <img src={a.coverImageUrl} alt="" className="h-full w-full object-cover" />
                           ) : null}
                         </div>
                         <div className="min-w-0 flex-1">

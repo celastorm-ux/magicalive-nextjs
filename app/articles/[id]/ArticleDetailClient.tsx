@@ -439,24 +439,14 @@ export function ArticleDetailClient({
         </div>
       ) : null}
 
-      <div className="relative h-64 sm:h-80 md:h-96">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-950 via-purple-900 to-indigo-950" />
-        {article.cover_image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={article.cover_image_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-55" style={{ objectPosition: "center 33%" }} />
-        ) : null}
-        <span className="absolute left-4 top-4 sm:left-8 sm:top-6">
-          <span className="rounded-full border border-[var(--ml-gold)]/35 bg-black/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)] backdrop-blur-sm">
-            {article.category || "General"}
-          </span>
-        </span>
-        <span className="absolute right-4 top-4 text-sm text-zinc-400 sm:right-8 sm:top-6">
-          {formatReadTime(article.read_time)}
-        </span>
-      </div>
-
       <div className={`${CLASSES.section} max-w-6xl`}>
         <header className="mx-auto max-w-3xl pt-10">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="rounded-full border border-[var(--ml-gold)]/35 bg-[var(--ml-gold)]/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]">
+              {article.category || "General"}
+            </span>
+            <span className="text-xs text-zinc-500">{formatReadTime(article.read_time)}</span>
+          </div>
           <h1 className="ml-font-heading text-3xl font-semibold leading-tight tracking-tight text-zinc-50 sm:text-4xl md:text-5xl">
             {article.title || "Untitled article"}
           </h1>
@@ -501,6 +491,13 @@ export function ArticleDetailClient({
             </div>
           </div>
         </header>
+
+        {article.cover_image_url ? (
+          <div className="mx-auto mt-8 max-w-3xl overflow-hidden rounded-2xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={article.cover_image_url} alt="" className="h-auto max-h-[420px] w-full object-cover" style={{ objectPosition: "center 33%" }} />
+          </div>
+        ) : null}
 
         <div className="mt-12 flex flex-col gap-12 lg:flex-row lg:items-start">
           <article ref={articleRef} className="min-w-0 flex-1 lg:max-w-3xl">
