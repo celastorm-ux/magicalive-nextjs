@@ -542,7 +542,7 @@ export function Nav() {
 
           <button
             type="button"
-            className={`flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/5 transition hover:bg-white/10 lg:hidden ${open ? "text-white" : "text-zinc-200"}`}
+            className={`flex h-10 w-10 items-center justify-center transition lg:hidden ${open ? "text-white" : "text-zinc-300"}`}
             aria-expanded={open}
             aria-controls="mobile-nav"
             aria-label={open ? "Close menu" : "Open menu"}

@@ -192,3 +192,12 @@ body {
     --foreground: var(--ml-text);
   }
 }
+
+/* Hide scrollbar for horizontal carousels */
+@utility scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
