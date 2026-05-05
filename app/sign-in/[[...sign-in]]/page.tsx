@@ -89,11 +89,24 @@ export default function SignInPage() {
     }
     setBusy(true);
     try {
-      const pwResult = await (signIn as any).password({ identifier: id, password });
-      if (pwResult?.error) {
-        setError(extractClerkError(pwResult.error));
+      // Step 1: identify the account
+      const createResult = await (signIn as any).create({ identifier: id });
+      if (createResult?.error) {
+        setError(extractClerkError(createResult.error));
         return;
       }
+      // Step 2: submit password
+      const pwResult = await (signIn as any).password({ password });
+      if (pwResult?.error) {
+        const msg = extractClerkError(pwResult.error);
+        setError(
+          msg.toLowerCase().includes("strategy")
+            ? "This account uses Google or another sign-in method. Try the button above."
+            : msg,
+        );
+        return;
+      }
+      // Step 3: activate session
       const finalResult = await (signIn as any).finalize();
       if (finalResult?.error) {
         setError(extractClerkError(finalResult.error));
