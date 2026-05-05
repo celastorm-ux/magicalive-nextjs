@@ -55,6 +55,7 @@ type ProfileRow = {
   banner_url: string | null;
   contact_email?: string | null;
   email_new_articles?: boolean | null;
+  media_urls?: string[] | null;
 };
 
 function initials(name: string) {
@@ -102,6 +103,9 @@ export default function EditProfilePage() {
   const [contactEmail, setContactEmail] = useState("");
 
   const [emailNewArticles, setEmailNewArticles] = useState(true);
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
+  const [mediaUploading, setMediaUploading] = useState(false);
+  const mediaInputRef = useRef<HTMLInputElement | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -152,6 +156,7 @@ export default function EditProfilePage() {
       setWebsite(p.website || "");
       setContactEmail(p.contact_email?.trim() || "");
       setEmailNewArticles(p.email_new_articles !== false);
+      setMediaUrls((p.media_urls ?? []).filter(Boolean));
     })();
   }, [isLoaded, user?.id, router]);
 
@@ -268,6 +273,35 @@ export default function EditProfilePage() {
     setBannerUpdated(true);
   };
 
+  const onPickMedia = async (file: File | null) => {
+    if (!file || !user?.id) return;
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) return;
+    if (mediaUrls.length >= 12) {
+      setErrMsg("Maximum 12 photos allowed.");
+      return;
+    }
+    setMediaUploading(true);
+    setErrMsg("");
+    const ext = file.type === "image/png" ? "png" : file.type === "image/gif" ? "gif" : file.type === "image/webp" ? "webp" : "jpg";
+    const path = `${String(user.id)}/${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("profile-media")
+      .upload(path, file, { upsert: false, contentType: file.type });
+    setMediaUploading(false);
+    if (upErr) {
+      setErrMsg("Upload failed. Try again.");
+      return;
+    }
+    const { data } = supabase.storage.from("profile-media").getPublicUrl(path);
+    setMediaUrls((prev) => [...prev, data.publicUrl]);
+    setOkMsg("Photo added — click Save changes to save.");
+    if (mediaInputRef.current) mediaInputRef.current.value = "";
+  };
+
+  const removeMedia = (url: string) => {
+    setMediaUrls((prev) => prev.filter((u) => u !== url));
+  };
+
   const save = async () => {
     if (!user?.id) return;
     setSaving(true);
@@ -299,6 +333,7 @@ export default function EditProfilePage() {
       website: website.trim() || null,
       contact_email: isMagician ? contactEmail.trim() || null : null,
       email_new_articles: emailNewArticles,
+      media_urls: mediaUrls,
       updated_at: new Date().toISOString(),
     };
     const { error } = await supabase
@@ -672,6 +707,49 @@ export default function EditProfilePage() {
               <input className={inputClass} value={website} onChange={(e) => setWebsite(e.target.value)} />
             </div>
           </div>
+        </section>
+
+        <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="ml-font-heading text-xl font-semibold text-zinc-100">Photos</h2>
+            <span className="text-[11px] text-zinc-500">{mediaUrls.length}/12</span>
+          </div>
+          <input
+            ref={mediaInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={(e) => void onPickMedia(e.target.files?.[0] ?? null)}
+          />
+          {mediaUrls.length > 0 ? (
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {mediaUrls.map((url) => (
+                <div key={url} className="group relative aspect-video overflow-hidden rounded-xl border border-white/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => void removeMedia(url)}
+                    className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/80 text-xs text-zinc-100 opacity-0 transition group-hover:opacity-100 hover:bg-red-600"
+                    aria-label="Remove photo"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mb-4 text-sm text-zinc-500">No photos yet. Add some to show on your profile.</p>
+          )}
+          <button
+            type="button"
+            disabled={mediaUploading || mediaUrls.length >= 12}
+            onClick={() => mediaInputRef.current?.click()}
+            className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-300 transition hover:bg-white/10 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {mediaUploading ? "Uploading…" : "+ Add photo"}
+          </button>
+          <p className="mt-2 text-[11px] text-zinc-500">JPG, PNG, WebP or GIF. Max 12 photos.</p>
         </section>
 
         <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">

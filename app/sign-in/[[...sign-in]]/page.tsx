@@ -1,10 +1,11 @@
 "use client";
 
-import { useClerk, useSignIn, useUser } from "@clerk/nextjs";
+import { useSignIn, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { clerkOAuthSignIn } from "@/lib/clerk-oauth";
 
 const inputClass =
   "w-full rounded-xl border border-white/15 bg-white/[0.08] px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-400 outline-none transition focus:border-[var(--ml-gold)]/60 focus:bg-white/[0.12]";
@@ -13,6 +14,11 @@ const labelClass =
   "mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500";
 
 function extractClerkError(err: unknown): string {
+  // Clerk v7 new API: { message, code, ... }
+  if (err && typeof err === "object" && "message" in err && typeof (err as any).message === "string") {
+    return (err as any).longMessage ?? (err as any).message;
+  }
+  // Clerk legacy API: { errors: [{ message, longMessage }] }
   if (err && typeof err === "object" && "errors" in err) {
     const errors = (err as { errors: { message?: string; longMessage?: string }[] }).errors;
     return errors[0]?.longMessage ?? errors[0]?.message ?? "Something went wrong.";
@@ -25,7 +31,6 @@ export default function SignInPage() {
   const router = useRouter();
   const { user, isLoaded: userLoaded } = useUser();
   const { signIn } = useSignIn();
-  const { setActive } = useClerk();
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -65,15 +70,12 @@ export default function SignInPage() {
   const startOAuth = async (strategy: "oauth_google" | "oauth_facebook") => {
     if (!signIn) return;
     setError("");
-    try {
-      await (signIn as any).authenticateWithRedirect({
-        strategy,
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
-      } as any);
-    } catch (err) {
-      setError(extractClerkError(err));
-    }
+    const { error } = await clerkOAuthSignIn(signIn, {
+      strategy,
+      redirectCallbackUrl: "/sso-callback",
+      redirectUrl: "/",
+    });
+    if (error) setError(error);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,13 +89,17 @@ export default function SignInPage() {
     }
     setBusy(true);
     try {
-      const result = (await signIn.create({ identifier: id, password } as any)) as any;
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
-        router.replace("/profile");
-      } else {
-        setError("Sign-in could not be completed. Please try again.");
+      const pwResult = await (signIn as any).password({ identifier: id, password });
+      if (pwResult?.error) {
+        setError(extractClerkError(pwResult.error));
+        return;
       }
+      const finalResult = await (signIn as any).finalize();
+      if (finalResult?.error) {
+        setError(extractClerkError(finalResult.error));
+        return;
+      }
+      router.replace("/profile");
     } catch (err) {
       setError(extractClerkError(err));
     } finally {

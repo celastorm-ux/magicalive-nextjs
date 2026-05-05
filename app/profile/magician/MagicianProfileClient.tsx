@@ -7,7 +7,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AvailabilityCalendar } from "@/components/AvailabilityCalendar";
 import { BookingModal } from "@/components/BookingModal";
 import { ContactModal } from "@/components/ContactModal";
-import { ReviewForm, type CreatedReview } from "@/components/ReviewForm";
 import { CLASSES } from "@/lib/constants";
 import { formatShowDateLongEnUS, formatShowDateMediumEnUS, todayYmdLocal } from "@/lib/show-dates";
 import { formatLastSeen, formatTime } from "@/lib/utils";
@@ -43,7 +42,6 @@ function AlsoPerformingLine({ tagged }: { tagged: unknown }) {
 const TABS = [
   "About",
   "Shows",
-  "Reviews",
   "Articles",
   "Media",
   "History",
@@ -111,12 +109,14 @@ type ShowRow = {
 
 type ReviewRow = {
   id: string;
-  reviewer_name: string | null;
-  reviewer_display_name: string | null;
-  rating: number | null;
-  body: string | null;
-  show_attended: string | null;
-  created_at: string | null;
+  created_at: string;
+  magician_id: string;
+  reviewer_id: string;
+  reviewer_name: string;
+  reviewer_display_name: string;
+  rating: number;
+  body: string;
+  show_attended: string;
 };
 
 type ArticleRow = {
@@ -623,15 +623,6 @@ export default function MagicianProfileClient({
     setFollowBusy(false);
   };
 
-  const onReviewSubmitted = (newReview: CreatedReview) => {
-    setReviews((prev) => [newReview as ReviewRow, ...prev]);
-    setProfile((prev) =>
-      prev
-        ? { ...prev, review_count: Number(prev.review_count ?? 0) + 1 }
-        : prev,
-    );
-  };
-
   return (
     <div className="min-h-screen bg-black pb-20 text-zinc-100">
       {showUnclaimedClaimBanner ? (
@@ -955,6 +946,27 @@ export default function MagicianProfileClient({
                       }}
                     />
                   </div>
+                  {!isOwn && (
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setContactOpen(true)}
+                        className="rounded-2xl border border-[var(--ml-gold)]/45 bg-transparent px-6 py-2.5 text-sm font-semibold text-[var(--ml-gold)] transition hover:border-[var(--ml-gold)]/70 hover:bg-[var(--ml-gold)]/10"
+                      >
+                        Contact {name.split(" ")[0]}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBookingDate(new Date().toISOString().split("T")[0]!);
+                          setBookingOpen(true);
+                        }}
+                        className={CLASSES.btnSecondary}
+                      >
+                        Book for event
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               {tab === "Media" && (
@@ -1273,61 +1285,6 @@ export default function MagicianProfileClient({
                   ) : null}
                 </div>
               )}
-              {tab === "Reviews" && (
-                <div className="w-full space-y-6">
-                  <ReviewForm
-                    magicianId={profile.id}
-                    isOwnProfile={isOwn}
-                    onSubmitted={onReviewSubmitted}
-                  />
-                  {reviews.length ? (
-                    reviews.map((r) => (
-                      <article
-                        key={r.id}
-                        className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-6 sm:p-7"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-lg font-semibold text-zinc-100">
-                            {r.reviewer_display_name || r.reviewer_name || "Anonymous"}
-                          </span>
-                          <div className="flex items-center gap-1 text-[var(--ml-gold)]">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <span
-                                key={i}
-                                className={
-                                  i < (r.rating ?? 0) ? "" : "opacity-25"
-                                }
-                              >
-                                ★
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <p className="mt-1 text-[11px] text-zinc-600">
-                          {r.created_at
-                            ? new Date(r.created_at).toLocaleDateString()
-                            : ""}
-                        </p>
-                        <p className="mt-4 text-sm leading-relaxed text-zinc-300">
-                          {r.body || "—"}
-                        </p>
-                        {r.show_attended ? (
-                          <p className="mt-4 text-xs text-zinc-500">
-                            Show:{" "}
-                            <span className="text-zinc-400">
-                              {r.show_attended}
-                            </span>
-                          </p>
-                        ) : null}
-                      </article>
-                    ))
-                  ) : (
-                    <p className="text-center text-sm text-zinc-500">
-                      No reviews yet.
-                    </p>
-                  )}
-                </div>
-              )}
               {tab === "Articles" && (
                 <div className="space-y-3">
                   {articles.length ? (
@@ -1543,6 +1500,36 @@ export default function MagicianProfileClient({
                 ) : null}
               </div>
             </div>
+            {(media.length > 0 || isOwn) && (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--ml-gold)]">
+                  Photos
+                </h3>
+                {media.length ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {media.map((url, i) => (
+                      <a
+                        key={url + i}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="aspect-square overflow-hidden rounded-xl border border-white/10"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-600">No photos yet.</p>
+                )}
+                {isOwn && (
+                  <a href="/profile/edit" className="mt-3 block text-xs font-semibold text-[var(--ml-gold)] transition hover:underline">
+                    Add photos →
+                  </a>
+                )}
+              </div>
+            )}
           </aside>
         </div>
       </div>
