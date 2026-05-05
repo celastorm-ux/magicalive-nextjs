@@ -16,7 +16,6 @@ import {
   rowLocationMatchesFilter,
 } from "@/lib/locations";
 import { formatLastSeen } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
 
 type MagicianResult = {
   id: string;
@@ -136,8 +135,6 @@ export default function SearchPageClient() {
   }, [filterCountry, filterState]);
 
   useEffect(() => {
-    console.log("URL query param:", query);
-    console.log("Search query:", searchQuery);
     if (!searchQuery) {
       setMagicians([]);
       setShows([]);
@@ -148,61 +145,25 @@ export default function SearchPageClient() {
 
     const runSearch = async () => {
       setLoading(true);
-      const today = new Date().toISOString().split("T")[0];
-      const q = searchQuery.replace(/[,%_]/g, " ").trim();
-      console.log("Query being run with term:", q);
-
-      const magiciansPromise = supabase
-        .from("profiles")
-        .select(
-          "id, display_name, location, specialty_tags, avatar_url, rating, review_count, is_online, last_seen, is_founding_member",
-        )
-        .eq("account_type", "magician")
-        .or(`display_name.ilike.%${q}%,handle.ilike.%${q}%,location.ilike.%${q}%,specialty_tags::text.ilike.%${q}%`)
-        .order("display_name", { ascending: true })
-        .limit(20);
-
-      const showsPromise = supabase
-        .from("shows")
-        .select("id, name, venue_name, city, date, ticket_url, profiles(display_name, avatar_url, id)")
-        .eq("is_public", true)
-        .eq("is_cancelled", false)
-        .gte("date", today)
-        .or(`name.ilike.%${q}%,venue_name.ilike.%${q}%,city.ilike.%${q}%`)
-        .limit(8);
-
-      const venuesPromise = supabase
-        .from("venues")
-        .select("*")
-        .or("is_verified.is.null,is_verified.eq.true")
-        .or(`name.ilike.%${q}%,city.ilike.%${q}%,description.ilike.%${q}%,tags::text.ilike.%${q}%`)
-        .limit(8);
-
-      const [magRes, showRes, venRes] = await Promise.all([
-        magiciansPromise,
-        showsPromise,
-        venuesPromise,
-      ]);
-      const magiciansData = magRes.data ?? [];
-      const magiciansError = magRes.error;
-      const showsData = showRes.data ?? [];
-      const showsError = showRes.error;
-      const venuesData = venRes.data ?? [];
-      const venuesError = venRes.error;
-
-      console.log("Magicians result:", magiciansData, magiciansError);
-      console.log("Shows result:", showsData, showsError);
-      console.log("Venues result:", venuesData, venuesError);
-
-      setMagicians((magiciansData as MagicianResult[]) || []);
-      setShows(
-        ((showsData as ShowResultRow[]) || []).map((s) => ({
-          ...s,
-          profiles: normalizeShowProfiles(s.profiles),
-        })),
-      );
-      setVenues((venuesData as VenueResult[]) || []);
-      setLoading(false);
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+        if (!res.ok) throw new Error("Search failed");
+        const data = await res.json() as {
+          magicians: MagicianResult[];
+          shows: ShowResultRow[];
+          venues: VenueResult[];
+        };
+        setMagicians(data.magicians ?? []);
+        setShows(
+          (data.shows ?? []).map((s) => ({
+            ...s,
+            profiles: normalizeShowProfiles(s.profiles),
+          })),
+        );
+        setVenues(data.venues ?? []);
+      } finally {
+        setLoading(false);
+      }
     };
 
     void runSearch();
@@ -379,21 +340,21 @@ export default function SearchPageClient() {
                       <p className="mt-1 text-sm text-zinc-500">
                         <Highlight text={m.location || "Location not set"} q={searchQuery} />
                       </p>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {m.is_online ? (
-                          <span className="inline-flex items-center gap-1.5 text-emerald-300/90">
-                            <span className="relative flex h-1.5 w-1.5">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
-                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      {m.is_online || m.last_seen ? (
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {m.is_online ? (
+                            <span className="inline-flex items-center gap-1.5 text-emerald-300/90">
+                              <span className="relative flex h-1.5 w-1.5">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
+                                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                              </span>
+                              Online now
                             </span>
-                            Online now
-                          </span>
-                        ) : (
-                          <span className="text-zinc-500">
-                            {m.last_seen ? formatLastSeen(m.last_seen) : "Never active"}
-                          </span>
-                        )}
-                      </p>
+                          ) : (
+                            <span className="text-zinc-500">{formatLastSeen(m.last_seen!)}</span>
+                          )}
+                        </p>
+                      ) : null}
                       <div className="mt-3 flex flex-wrap gap-2">
                         {(m.specialty_tags ?? []).slice(0, 4).map((tag) => (
                           <Link

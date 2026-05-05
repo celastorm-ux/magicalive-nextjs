@@ -542,7 +542,7 @@ export function Nav() {
 
           <button
             type="button"
-            className={`flex h-10 w-10 items-center justify-center transition lg:hidden ${open ? "text-white" : "text-zinc-300"}`}
+            className={`flex h-10 w-10 items-center justify-center rounded-lg transition lg:hidden ${open ? "bg-[var(--ml-gold)]/15 text-[var(--ml-gold)]" : "text-zinc-300"}`}
             aria-expanded={open}
             aria-controls="mobile-nav"
             aria-label={open ? "Close menu" : "Open menu"}
@@ -551,11 +551,11 @@ export function Nav() {
             <span className="sr-only">Menu</span>
             {open ? (
               <svg
-                className="h-5 w-5"
+                className="h-6 w-6"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
-                strokeWidth={2}
+                strokeWidth={2.5}
               >
                 <path
                   strokeLinecap="round"
@@ -667,10 +667,11 @@ export function Nav() {
           />
           <nav
             id="mobile-nav"
-            className="absolute left-0 right-0 top-full z-50 border-b border-white/10 bg-black/95 px-4 py-2 shadow-xl backdrop-blur-md lg:hidden"
+            className="absolute left-0 right-0 top-full z-50 overflow-y-auto border-b border-white/10 bg-black/95 px-4 py-2 shadow-xl backdrop-blur-md lg:hidden"
+            style={{ maxHeight: "calc(100dvh - 5rem)" }}
             aria-label="Mobile main"
           >
-            <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-6xl" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
               <div className="border-b border-white/10 py-3">
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ml-gold)]">

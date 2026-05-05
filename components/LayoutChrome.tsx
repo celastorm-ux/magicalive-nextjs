@@ -27,6 +27,7 @@ const PAGE_GLOWS: { prefix: string; color: string }[] = [
   { prefix: "/magic-shows",    color: "rgba(168, 85, 247, 0.13)"  }, // purple
   { prefix: "/submit",         color: "rgba(52, 211, 153, 0.12)"  }, // green
   { prefix: "/profile",        color: "rgba(148, 163, 184, 0.10)" }, // slate
+  { prefix: "/search",         color: "rgba(245, 204, 113, 0.11)" }, // gold
   { prefix: "/dashboard",      color: "rgba(245, 204, 113, 0.13)" }, // gold
   { prefix: "/",               color: "rgba(245, 204, 113, 0.12)" }, // gold (home)
 ];
@@ -42,7 +43,6 @@ function getPageGlow(pathname: string): string | null {
 export function LayoutChrome({ children }: LayoutChromeProps) {
   const pathname = usePathname();
   const hideChrome =
-    pathname.startsWith("/search") ||
     pathname.startsWith("/notifications") ||
     pathname.startsWith("/claim-profile");
 
