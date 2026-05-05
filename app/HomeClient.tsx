@@ -151,7 +151,8 @@ export default function HomeClient() {
       clearTimeout(fallback);
       fallback = setTimeout(() => setMagicianIdx(getClosestIdx()), 150);
     };
-    if (!("onscrollend" in el)) {
+    const supportsScrollEnd = "onscrollend" in window;
+    if (!supportsScrollEnd) {
       el.addEventListener("scroll", onScroll, { passive: true });
     }
 

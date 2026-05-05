@@ -6,7 +6,11 @@
       "Bash(xargs grep:*)",
       "Bash(grep -r \"NEXT_PUBLIC_CLERK\\\\|signInUrl\\\\|signUpUrl\" .env* middleware.ts)",
       "Bash(grep -r \"CLERK_SIGN_IN\\\\|CLERK_SIGN_UP\\\\|signInForceRedirectUrl\\\\|afterSignIn\" .env*)",
-      "Bash(find app:*)"
+      "Bash(find app:*)",
+      "Bash(identify \"/c/Users/lboeh/OneDrive/Documents/pinnacle magic wordmark.png\")",
+      "Bash(convert \"C:/Users/lboeh/OneDrive/Desktop/magicalive-app/public/pinnacle-magic-wordmark.png\" -format \"%c\" histogram:info:-)",
+      "WebFetch(domain:www.doritos.com)",
+      "WebSearch"
     ]
   }
 }
