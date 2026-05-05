@@ -69,6 +69,15 @@ export function Nav() {
   }, [pathname, close, closeSearch, closeUserMenu, closeMore]);
 
   useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
@@ -667,7 +676,7 @@ export function Nav() {
           />
           <nav
             id="mobile-nav"
-            className="absolute left-0 right-0 top-full z-50 overflow-y-auto border-b border-white/10 bg-black/95 px-4 py-2 shadow-xl backdrop-blur-md lg:hidden"
+            className="absolute left-0 right-0 top-full z-50 overflow-y-auto border-b border-white/10 bg-zinc-950 px-4 py-2 shadow-xl lg:hidden"
             style={{ maxHeight: "calc(100dvh - 5rem)" }}
             aria-label="Mobile main"
           >
